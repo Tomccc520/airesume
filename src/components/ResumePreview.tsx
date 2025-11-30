@@ -316,7 +316,7 @@ const ResumePreview = ({
       )}
       <PersonalHeader
         personalInfo={resumeData.personalInfo}
-        currentTemplate={currentTemplate}
+        styleConfig={mergedStyleConfig}
         onElementClick={() => onSectionClick?.('personal')}
       />
     </motion.section>

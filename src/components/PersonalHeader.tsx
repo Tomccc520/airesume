@@ -9,13 +9,14 @@
 'use client'
 
 import { ResumeData } from '@/types/resume'
-import { useStyle } from '@/contexts/StyleContext'
+import { useStyle, StyleConfig } from '@/contexts/StyleContext'
 import { TemplateStyle } from '@/types/template'
 import ContactInfo from './ContactInfo'
 import OptimizedAvatar from './OptimizedAvatar'
 
 interface PersonalHeaderProps {
   personalInfo: ResumeData['personalInfo']
+  styleConfig?: StyleConfig
   currentTemplate?: TemplateStyle
   onElementClick: (elementType: string) => void
   style?: React.CSSProperties
@@ -25,14 +26,20 @@ interface PersonalHeaderProps {
  * 个人头部组件
  * 支持三种不同的布局方式：内联、分组、侧边栏
  */
-export default function PersonalHeader({ personalInfo, currentTemplate, onElementClick, style }: PersonalHeaderProps) {
-  const { styleConfig } = useStyle()
+export default function PersonalHeader({ personalInfo, styleConfig: propStyleConfig, currentTemplate, onElementClick, style }: PersonalHeaderProps) {
+  const { styleConfig: contextStyleConfig } = useStyle()
+  
+  // 优先使用传入的 styleConfig，否则使用上下文中的
+  const baseStyleConfig = propStyleConfig || contextStyleConfig
 
   /**
    * 获取合并后的样式配置
    */
   const getMergedStyleConfig = () => {
-    if (!currentTemplate) return styleConfig
+    // 如果已经有传入的 propStyleConfig（通常是已经合并过的），且没有 currentTemplate，直接返回
+    if (propStyleConfig && !currentTemplate) return propStyleConfig
+    
+    if (!currentTemplate) return baseStyleConfig
     
     // 辅助函数：将CSS尺寸字符串转换为像素值
     const parseSize = (sizeStr: string, defaultValue: number): number => {
@@ -61,21 +68,21 @@ export default function PersonalHeader({ personalInfo, currentTemplate, onElemen
     }
     
     return {
-      ...styleConfig,
+      ...baseStyleConfig,
       colors: {
-        ...styleConfig.colors,
-        primary: currentTemplate.colors?.primary || styleConfig.colors.primary,
-        secondary: currentTemplate.colors?.secondary || styleConfig.colors.secondary,
-        accent: currentTemplate.colors?.accent || styleConfig.colors.accent,
-        text: currentTemplate.colors?.text || styleConfig.colors.text,
-        background: currentTemplate.colors?.background || styleConfig.colors.background
+        ...baseStyleConfig.colors,
+        primary: currentTemplate.colors?.primary || baseStyleConfig.colors.primary,
+        secondary: currentTemplate.colors?.secondary || baseStyleConfig.colors.secondary,
+        accent: currentTemplate.colors?.accent || baseStyleConfig.colors.accent,
+        text: currentTemplate.colors?.text || baseStyleConfig.colors.text,
+        background: currentTemplate.colors?.background || baseStyleConfig.colors.background
       },
       fontSize: {
-        ...styleConfig.fontSize,
-        name: parseSize(currentTemplate.fonts?.size?.heading || '', styleConfig.fontSize.name),
-        title: parseSize(currentTemplate.fonts?.size?.heading || '', styleConfig.fontSize.title),
-        content: parseSize(currentTemplate.fonts?.size?.body || '', styleConfig.fontSize.content),
-        small: parseSize(currentTemplate.fonts?.size?.small || '', styleConfig.fontSize.small)
+        ...baseStyleConfig.fontSize,
+        name: parseSize(currentTemplate.fonts?.size?.heading || '', baseStyleConfig.fontSize.name),
+        title: parseSize(currentTemplate.fonts?.size?.heading || '', baseStyleConfig.fontSize.title),
+        content: parseSize(currentTemplate.fonts?.size?.body || '', baseStyleConfig.fontSize.content),
+        small: parseSize(currentTemplate.fonts?.size?.small || '', baseStyleConfig.fontSize.small)
       }
     }
   }
