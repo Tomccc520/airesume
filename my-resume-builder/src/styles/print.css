@@ -1,0 +1,154 @@
+/**
+ * 打印样式 - 确保A4纸张尺寸正确显示
+ */
+
+@media print {
+  /* 页面设置 - A4纸张，10mm页边距 */
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  /* 隐藏不需要打印的元素 */
+  body * {
+    visibility: hidden;
+  }
+
+  /* 只显示简历预览内容 */
+  #resume-preview,
+  #resume-preview * {
+    visibility: visible;
+  }
+
+  /* 简历预览容器样式 */
+  #resume-preview {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 190mm !important; /* A4宽度减去页边距 */
+    max-height: 277mm !important; /* A4高度减去页边距 */
+    transform: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    page-break-inside: avoid;
+  }
+
+  /* 确保内容适应A4页面 */
+  .resume-preview {
+    width: 100% !important;
+    height: auto !important;
+    transform: none !important;
+    font-size: 12pt !important;
+    line-height: 1.4 !important;
+  }
+
+  /* 分页控制 */
+  .resume-section {
+    page-break-inside: avoid;
+    margin-bottom: 8mm;
+  }
+
+  /* 移除背景色 */
+  .bg-gray-100,
+  .bg-gray-50,
+  .bg-blue-50,
+  .bg-green-50 {
+    background-color: white !important;
+  }
+
+  /* 确保文字颜色在打印时清晰 */
+  .text-gray-600,
+  .text-gray-500,
+  .text-gray-400 {
+    color: #374151 !important;
+  }
+
+  /* 优化标题样式 */
+  h1, h2, h3 {
+    color: #1f2937 !important;
+    font-weight: bold !important;
+  }
+
+  /* 链接样式 */
+  a {
+    color: #1f2937 !important;
+    text-decoration: none !important;
+  }
+}
+
+/**
+ * 导出PDF时的样式优化
+ */
+.export-mode {
+  background: white !important;
+}
+
+.export-mode #resume-preview {
+  width: 200mm !important; /* 增加宽度，减少左右留白 */
+  min-height: 287mm !important; /* 增加高度，减少上下留白 */
+  max-width: 200mm !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  margin: 5mm !important; /* 减少外边距 */
+  padding: 0 !important;
+  font-size: 12pt !important;
+  line-height: 1.4 !important;
+}
+/* 导出模式样式重置 */
+.export-mode .bg-gray-100,
+.export-mode .bg-gray-50,
+.export-mode .bg-blue-50,
+.export-mode .bg-green-50,
+.export-mode .bg-red-50,
+.export-mode .bg-purple-50,
+.export-mode .bg-yellow-50,
+.export-mode .bg-orange-50 {
+  background-color: white !important;
+}
+
+.export-mode .text-gray-600,
+.export-mode .text-gray-500,
+.export-mode .text-gray-400 {
+  color: #374151 !important;
+}
+
+/* 重置所有选中状态的边框和背景 */
+.export-mode [class*="border-blue-"],
+.export-mode [class*="border-red-"],
+.export-mode [class*="border-green-"],
+.export-mode [class*="border-purple-"],
+.export-mode [class*="border-yellow-"],
+.export-mode [class*="border-orange-"] {
+  border-color: #e5e7eb !important;
+}
+
+/* 重置悬停和选中状态 */
+.export-mode .hover\:bg-blue-50,
+.export-mode .hover\:bg-red-50,
+.export-mode .hover\:bg-green-50,
+.export-mode .hover\:bg-purple-50,
+.export-mode .hover\:border-blue-300,
+.export-mode .hover\:border-red-300,
+.export-mode .hover\:border-green-300,
+.export-mode .hover\:border-purple-300 {
+  background-color: white !important;
+  border-color: #e5e7eb !important;
+}
+
+/* 隐藏所有交互元素 */
+.export-mode button,
+.export-mode .cursor-pointer,
+.export-mode [role="button"] {
+  pointer-events: none !important;
+}
+
+/* 重置所有阴影效果 */
+.export-mode .shadow-lg,
+.export-mode .shadow-xl,
+.export-mode .shadow-md,
+.export-mode .shadow-sm,
+.export-mode .shadow {
+  box-shadow: none !important;
+}

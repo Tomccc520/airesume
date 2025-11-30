@@ -1,0 +1,64 @@
+<svg width="300" height="400" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景 -->
+  <rect width="300" height="400" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+  
+  <!-- 姓名 -->
+  <rect x="30" y="30" width="140" height="16" fill="#1f2937" rx="2"/>
+  
+  <!-- 职位 -->
+  <rect x="30" y="55" width="90" height="8" fill="#6b7280" rx="2"/>
+  
+  <!-- 分割线 -->
+  <rect x="30" y="80" width="240" height="1" fill="#e5e7eb"/>
+  
+  <!-- 联系信息 -->
+  <rect x="30" y="100" width="80" height="5" fill="#6b7280" rx="1"/>
+  <rect x="30" y="110" width="75" height="5" fill="#6b7280" rx="1"/>
+  <rect x="30" y="120" width="85" height="5" fill="#6b7280" rx="1"/>
+  
+  <!-- 个人简介标题 -->
+  <rect x="30" y="145" width="60" height="6" fill="#1f2937" rx="1"/>
+  <rect x="30" y="155" width="240" height="1" fill="#e5e7eb"/>
+  
+  <!-- 个人简介内容 -->
+  <rect x="30" y="170" width="240" height="4" fill="#6b7280" rx="1"/>
+  <rect x="30" y="180" width="220" height="4" fill="#6b7280" rx="1"/>
+  <rect x="30" y="190" width="200" height="4" fill="#6b7280" rx="1"/>
+  
+  <!-- 工作经历标题 -->
+  <rect x="30" y="215" width="70" height="6" fill="#1f2937" rx="1"/>
+  <rect x="30" y="225" width="240" height="1" fill="#e5e7eb"/>
+  
+  <!-- 工作经历1 -->
+  <rect x="30" y="240" width="120" height="6" fill="#1f2937" rx="1"/>
+  <rect x="160" y="240" width="60" height="5" fill="#9ca3af" rx="1"/>
+  <rect x="30" y="252" width="90" height="4" fill="#6b7280" rx="1"/>
+  <rect x="30" y="262" width="200" height="4" fill="#6b7280" rx="1"/>
+  <rect x="30" y="272" width="180" height="4" fill="#6b7280" rx="1"/>
+  
+  <!-- 工作经历2 -->
+  <rect x="30" y="290" width="110" height="6" fill="#1f2937" rx="1"/>
+  <rect x="150" y="290" width="55" height="5" fill="#9ca3af" rx="1"/>
+  <rect x="30" y="302" width="85" height="4" fill="#6b7280" rx="1"/>
+  <rect x="30" y="312" width="190" height="4" fill="#6b7280" rx="1"/>
+  
+  <!-- 教育背景标题 -->
+  <rect x="30" y="335" width="60" height="6" fill="#1f2937" rx="1"/>
+  <rect x="30" y="345" width="240" height="1" fill="#e5e7eb"/>
+  
+  <!-- 教育背景内容 -->
+  <rect x="30" y="360" width="130" height="6" fill="#1f2937" rx="1"/>
+  <rect x="170" y="360" width="50" height="5" fill="#9ca3af" rx="1"/>
+  <rect x="30" y="372" width="100" height="4" fill="#6b7280" rx="1"/>
+  
+  <!-- 技能标题 -->
+  <rect x="200" y="100" width="40" height="6" fill="#1f2937" rx="1"/>
+  <rect x="200" y="110" width="70" height="1" fill="#e5e7eb"/>
+  
+  <!-- 技能列表 -->
+  <rect x="200" y="125" width="50" height="4" fill="#6b7280" rx="1"/>
+  <rect x="200" y="135" width="45" height="4" fill="#6b7280" rx="1"/>
+  <rect x="200" y="145" width="55" height="4" fill="#6b7280" rx="1"/>
+  <rect x="200" y="155" width="40" height="4" fill="#6b7280" rx="1"/>
+  <rect x="200" y="165" width="60" height="4" fill="#6b7280" rx="1"/>
+</svg>

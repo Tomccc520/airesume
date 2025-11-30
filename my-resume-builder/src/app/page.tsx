@@ -1,0 +1,901 @@
+'use client'
+
+import Link from 'next/link'
+import dynamic from 'next/dynamic'
+import { FileText, Sparkles, ArrowRight, Zap, Shield, Download, Star, Clock, ChevronDown, ArrowUp, Code2, Cpu, Bot, LineChart, Layout } from 'lucide-react'
+import { motion, AnimatePresence, useScroll, useTransform, useSpring } from 'framer-motion'
+import React, { useState, useEffect, useRef } from 'react'
+import RotatingText from '@/components/RotatingText'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
+import ScrollFadeIn, { StaggerFadeIn } from '@/components/ScrollFadeIn'
+import { AnimatedBackgroundSkeleton } from '@/components/LoadingStates'
+import { useLanguage } from '@/contexts/LanguageContext'
+
+// 动态导入 AnimatedBackground 组件以优化首页加载性能
+// 使用 ssr: false 避免服务端渲染，因为动画效果依赖浏览器环境
+const AnimatedBackground = dynamic(() => import('@/components/AnimatedBackground'), {
+  ssr: false,
+  loading: () => <AnimatedBackgroundSkeleton />
+})
+
+// 动态网格背景组件
+const GridBackground = () => (
+  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+    <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-blue-400 opacity-20 blur-[100px]"></div>
+    <div className="absolute right-0 top-0 -z-10 h-[310px] w-[310px] rounded-full bg-purple-400 opacity-20 blur-[100px]"></div>
+  </div>
+)
+
+// AI 扫描动画组件
+const AIScanner = () => {
+  return (
+    <motion.div
+      className="absolute inset-0 z-20 pointer-events-none"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 1 }}
+    >
+      <motion.div
+        className="w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent shadow-[0_0_20px_rgba(59,130,246,0.5)]"
+        animate={{ top: ['0%', '100%', '0%'] }}
+        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+      />
+    </motion.div>
+  )
+}
+
+// 数字滚动组件
+const AnimatedNumber = ({ value, duration = 2000, decimals = 0 }: { value: number, duration?: number, decimals?: number }) => {
+  const spring = useSpring(0, { duration: duration, bounce: 0 })
+  const display = useTransform(spring, (current) => current.toFixed(decimals))
+
+  useEffect(() => {
+    spring.set(value)
+  }, [spring, value])
+
+  return <motion.span>{display}</motion.span>
+}
+
+// 聚光灯卡片组件
+const SpotlightCard = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => {
+  const divRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [opacity, setOpacity] = useState(0)
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!divRef.current) return
+    const rect = divRef.current.getBoundingClientRect()
+    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+  }
+
+  return (
+    <div
+      ref={divRef}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setOpacity(1)}
+      onMouseLeave={() => setOpacity(0)}
+      className={`relative overflow-hidden rounded-2xl border border-gray-100 bg-white/50 backdrop-blur-sm transition-all duration-300 hover:border-blue-300/50 ${className}`}
+    >
+      <div
+        className="pointer-events-none absolute -inset-px transition duration-300 z-0"
+        style={{
+          opacity,
+          background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, rgba(59,130,246,0.06), transparent 40%)`,
+        }}
+      />
+      <div className="relative z-10 h-full">{children}</div>
+    </div>
+  )
+}
+
+/**
+ * @copyright Tomda (https://www.tomda.top)
+ * @copyright UIED技术团队 (https://fsuied.com)
+ * @author UIED技术团队
+ * @createDate 2025-12-22
+ * 
+ * 首页组件 - 简洁现代设计
+ * 展示产品特色和引导用户使用
+ */
+export default function HomePage() {
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
+  const [showScrollTop, setShowScrollTop] = useState(false)
+  const { scrollY } = useScroll()
+  const heroY = useTransform(scrollY, [0, 500], [0, 50])
+  const heroOpacity = useTransform(scrollY, [0, 300], [1, 0])
+  const { t, locale } = useLanguage()
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 500)
+    }
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  return (
+    <div className="min-h-screen bg-white">
+      <Header />
+      <div>
+        {/* Hero Section - 左右分栏布局 */}
+        <section className="relative pt-24 pb-16 sm:pt-32 sm:pb-20 lg:pt-40 lg:pb-24 px-4 sm:px-6 overflow-hidden bg-slate-50/50">
+          <GridBackground />
+          {/* 动态渐变背景 - 增强版 */}
+          <AnimatedBackground
+            colors={['#3b82f6', '#8b5cf6', '#06b6d4', '#ec4899', '#3b82f6']}
+            duration={12}
+            direction="diagonal"
+            opacity={0.05}
+            blur={80}
+          />
+
+          <div className="relative z-10 max-w-7xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+              {/* 左侧内容 */}
+              <motion.div
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8 }}
+                style={{ opacity: heroOpacity, y: heroY }}
+                className="text-center lg:text-left"
+              >
+                {/* 标签 */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6 }}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-blue-200 text-blue-600 rounded-full text-sm font-medium mb-6 hover:bg-blue-50 transition-all cursor-default"
+                >
+                  <Bot className="h-4 w-4" />
+                  <span>{t.home.hero.tag}</span>
+                </motion.div>
+
+                {/* 主标题 */}
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 mb-6 leading-tight tracking-tight">
+                  <span className="flex items-center justify-center lg:justify-start gap-3 flex-wrap">
+                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 animate-gradient-x">AI</span>
+                    <span>{t.home.hero.titlePrefix}</span>
+                    <RotatingText
+                      texts={locale === 'zh' ? ["专业", "出色", "完美"] : ["Professional", "Outstanding", "Perfect"]}
+                      rotationInterval={2500}
+                      className="text-blue-600"
+                    />
+                  </span>
+                  <span className="block mt-2">{t.home.hero.titleSuffix}</span>
+                  <span className="block text-3xl sm:text-4xl lg:text-5xl text-gray-600 mt-4 font-medium">
+                    {t.home.hero.subtitle}
+                  </span>
+                </h1>
+
+                {/* 副标题 */}
+                <p className="text-lg sm:text-xl text-gray-600 mb-8 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                  {t.home.hero.desc}
+                </p>
+
+                {/* CTA 按钮 */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-10">
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Link
+                      href="/editor"
+                      className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-lg font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all"
+                    >
+                      <Sparkles className="h-5 w-5 mr-2" />
+                      {t.home.hero.start}
+                      <ArrowRight className="h-5 w-5 ml-2" />
+                    </Link>
+                  </motion.div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="inline-flex items-center justify-center px-8 py-4 bg-white border border-gray-200 text-gray-700 text-lg font-semibold rounded-xl hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                  >
+                    {t.home.hero.features}
+                  </motion.button>
+                </div>
+
+                {/* 统计数据 */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.4 }}
+                  className="grid grid-cols-3 gap-6 pt-8 border-t border-gray-200/60"
+                >
+                  <div className="text-center lg:text-left">
+                    <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400">
+                      <AnimatedNumber value={10} />K+
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">{t.home.hero.users}</div>
+                  </div>
+                  <div className="text-center lg:text-left">
+                    <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-purple-400">
+                      <AnimatedNumber value={4.9} decimals={1} />
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">{t.home.hero.rating}</div>
+                  </div>
+                  <div className="text-center lg:text-left">
+                    <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-green-400">
+                      <AnimatedNumber value={100} />%
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">{t.home.hero.security}</div>
+                  </div>
+                </motion.div>
+              </motion.div>
+
+              {/* 右侧视觉展示 - A4 简历预览 */}
+              <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+                style={{ opacity: heroOpacity, y: heroY }}
+                className="relative hidden lg:block perspective-1000"
+              >
+                {/* A4 简历预览卡片 */}
+                <div className="relative transform-style-3d group">
+                  {/* 主卡片 - A4 比例 (1:1.414) */}
+                  <motion.div
+                    animate={{
+                      y: [0, -10, 0],
+                      rotateX: [0, 2, 0],
+                      rotateY: [0, 2, 0],
+                    }}
+                    whileHover={{ scale: 1.02, rotateX: 0, rotateY: 0 }}
+                    transition={{
+                      duration: 6,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                    }}
+                    className="relative bg-white rounded-lg p-10 border border-gray-100 overflow-hidden"
+                    style={{ aspectRatio: '1 / 1.414', maxWidth: '400px' }}
+                  >
+                    <AIScanner />
+                    <div className="space-y-6 opacity-90">
+                      {/* 模拟简历头部 */}
+                      <div className="text-center border-b border-gray-100 pb-6">
+                        <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full mx-auto mb-4 ring-4 ring-blue-50" />
+                        <div className="h-5 bg-gray-800 rounded w-40 mx-auto mb-2" />
+                        <div className="h-3 bg-gray-400 rounded w-32 mx-auto" />
+                      </div>
+
+                      {/* 模拟联系方式 */}
+                      <div className="flex justify-center gap-4 text-xs">
+                        <div className="h-2 bg-gray-200 rounded w-20" />
+                        <div className="h-2 bg-gray-200 rounded w-24" />
+                        <div className="h-2 bg-gray-200 rounded w-20" />
+                      </div>
+
+                      {/* 模拟工作经历 */}
+                      <div className="space-y-4">
+                        <div className="h-4 bg-blue-600/20 rounded w-24 mb-3" />
+                        <div className="space-y-2">
+                          <div className="h-3 bg-gray-700/80 rounded w-full" />
+                          <div className="h-2 bg-gray-200 rounded w-5/6" />
+                          <div className="h-2 bg-gray-200 rounded w-4/6" />
+                        </div>
+                      </div>
+
+                      {/* 模拟教育背景 */}
+                      <div className="space-y-4">
+                        <div className="h-4 bg-blue-600/20 rounded w-24 mb-3" />
+                        <div className="space-y-2">
+                          <div className="h-3 bg-gray-700/80 rounded w-4/5" />
+                          <div className="h-2 bg-gray-200 rounded w-3/5" />
+                        </div>
+                      </div>
+
+                      {/* 模拟技能 */}
+                      <div className="space-y-4">
+                        <div className="h-4 bg-blue-600/20 rounded w-16 mb-3" />
+                        <div className="flex flex-wrap gap-2">
+                          <div className="h-6 bg-blue-50 rounded-full w-16" />
+                          <div className="h-6 bg-blue-50 rounded-full w-20" />
+                          <div className="h-6 bg-blue-50 rounded-full w-18" />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* 浮动标签 - 优化版 */}
+                  <motion.div
+                    animate={{
+                      y: [0, -8, 0],
+                      rotate: [-3, 3, -3],
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                    }}
+                    className="absolute -top-6 -right-6 bg-white/90 backdrop-blur-md border border-white/50 px-5 py-3 rounded-2xl text-sm font-semibold flex items-center gap-2 text-gray-800"
+                  >
+                    <div className="p-1.5 bg-green-100 rounded-lg text-green-600">
+                      <Bot className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">AI Score</div>
+                      <div className="text-green-600 font-bold">98/100</div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    animate={{
+                      y: [0, 8, 0],
+                      rotate: [3, -3, 3],
+                    }}
+                    transition={{
+                      duration: 3.5,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                      delay: 0.5,
+                    }}
+                    className="absolute -bottom-6 -left-6 bg-white/90 backdrop-blur-md border border-white/50 px-5 py-3 rounded-2xl text-sm font-semibold flex items-center gap-2 text-gray-800"
+                  >
+                    <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600">
+                      <Zap className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">Speed</div>
+                      <div className="text-blue-600 font-bold">Fast</div>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    animate={{
+                      y: [0, -6, 0],
+                      x: [0, 3, 0],
+                    }}
+                    transition={{
+                      duration: 4,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                      delay: 1,
+                    }}
+                    className="absolute top-1/3 -right-12 bg-white/90 backdrop-blur-md border border-white/50 px-4 py-3 rounded-2xl"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                        <Sparkles className="h-4 w-4" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-2 w-20 bg-gray-200 rounded-full" />
+                        <div className="h-2 w-16 bg-gray-100 rounded-full" />
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+
+                {/* 装饰元素 */}
+                <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-400/20 rounded-full blur-[80px]" />
+                <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-blue-400/20 rounded-full blur-[80px]" />
+              </motion.div>
+            </div>
+          </div>
+        </section>
+
+        {/* 功能介绍 - AI 风格 */}
+        <section id="features" className="py-16 sm:py-20 lg:py-24 px-4 sm:px-6 bg-white relative overflow-hidden">
+          {/* 背景装饰 */}
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+             <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-purple-100/30 rounded-full blur-[100px]" />
+             <div className="absolute bottom-[10%] right-[-10%] w-[500px] h-[500px] bg-blue-100/30 rounded-full blur-[100px]" />
+          </div>
+
+          <div className="max-w-7xl mx-auto relative z-10">
+            <ScrollFadeIn direction="up">
+              <div className="text-center mb-16">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-semibold uppercase tracking-wide mb-4">
+                   <Sparkles className="h-3 w-3" />
+                   {t.home.features.tag}
+                </div>
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+                  {t.home.features.title}
+                </h2>
+                <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                  {t.home.features.desc}
+                </p>
+              </div>
+            </ScrollFadeIn>
+
+            <div className="space-y-24">
+              {/* 功能1：AI 深度分析 */}
+              <ScrollFadeIn direction="up">
+                <div className="grid lg:grid-cols-2 gap-12 items-center">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-600 rounded-full text-sm font-medium mb-4">
+                      <Bot className="h-4 w-4" />
+                      {t.home.features.ai.tag}
+                    </div>
+                    <h3 className="text-3xl font-bold text-gray-900 mb-4">
+                      {t.home.features.ai.title}
+                    </h3>
+                    <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+                      {t.home.features.ai.desc}
+                    </p>
+                    <ul className="space-y-3">
+                      <li className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <LineChart className="h-3.5 w-3.5 text-purple-600" />
+                        </div>
+                        <span className="text-gray-700">{t.home.features.ai.list1}</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Code2 className="h-3.5 w-3.5 text-purple-600" />
+                        </div>
+                        <span className="text-gray-700">{t.home.features.ai.list2}</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Bot className="h-3.5 w-3.5 text-purple-600" />
+                        </div>
+                        <span className="text-gray-700">{t.home.features.ai.list3}</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="relative">
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-8 border border-purple-100"
+                    >
+                      <div className="bg-white rounded-xl p-6 border border-gray-100">
+                         {/* Visualization of AI Analysis */}
+                         <div className="flex justify-between items-end mb-6">
+                            <div>
+                               <div className="text-sm text-gray-500 mb-1">简历综合评分</div>
+                               <div className="text-4xl font-bold text-gray-900">92<span className="text-lg text-gray-400 font-normal">/100</span></div>
+                            </div>
+                            <div className="h-10 w-20">
+                               <LineChart className="w-full h-full text-green-500" />
+                            </div>
+                         </div>
+                         <div className="space-y-3">
+                            <div className="flex items-center justify-between text-sm">
+                               <span className="text-gray-600 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500"/> 内容完整度</span>
+                               <span className="font-medium text-gray-900">完美</span>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-1.5">
+                               <motion.div className="bg-green-500 h-1.5 rounded-full" initial={{width: 0}} animate={{width: '95%'}} transition={{duration: 1.5}} />
+                            </div>
+                            <div className="flex items-center justify-between text-sm pt-2">
+                               <span className="text-gray-600 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"/> 关键词匹配</span>
+                               <span className="font-medium text-gray-900">优秀</span>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-1.5">
+                               <motion.div className="bg-blue-500 h-1.5 rounded-full" initial={{width: 0}} animate={{width: '88%'}} transition={{duration: 1.5, delay: 0.2}} />
+                            </div>
+                         </div>
+                      </div>
+                    </motion.div>
+                  </div>
+                </div>
+              </ScrollFadeIn>
+
+              {/* 功能2：实时计算与渲染 */}
+              <ScrollFadeIn direction="up">
+                <div className="grid lg:grid-cols-2 gap-12 items-center">
+                  <div className="order-2 lg:order-1 relative">
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-8 border border-blue-100"
+                    >
+                       <div className="grid grid-cols-2 gap-4 h-full">
+                          {/* Code Side */}
+                          <div className="bg-gray-900 rounded-lg p-4 font-mono text-xs text-gray-300 shadow-inner">
+                             <div className="flex gap-1.5 mb-3">
+                                <div className="w-2.5 h-2.5 rounded-full bg-red-500"/>
+                                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"/>
+                                <div className="w-2.5 h-2.5 rounded-full bg-green-500"/>
+                             </div>
+                             <div className="space-y-1 opacity-70">
+                                <p><span className="text-blue-400">const</span> <span className="text-yellow-300">resume</span> = {'{'}</p>
+                                <p className="pl-4">name: <span className="text-green-400">'Alex'</span>,</p>
+                                <p className="pl-4">role: <span className="text-green-400">'Dev'</span>,</p>
+                                <p>{'}'}</p>
+                             </div>
+                          </div>
+                          {/* Preview Side */}
+                          <div className="bg-white rounded-lg p-4 border border-gray-100 flex flex-col">
+                             <div className="h-2 bg-gray-200 w-1/3 mb-4 rounded"/>
+                             <div className="space-y-2 flex-1">
+                                <div className="h-1.5 bg-gray-100 w-full rounded"/>
+                                <div className="h-1.5 bg-gray-100 w-full rounded"/>
+                                <div className="h-1.5 bg-gray-100 w-2/3 rounded"/>
+                             </div>
+                          </div>
+                          {/* Connection */}
+                          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-2 border border-blue-100 z-10">
+                             <Zap className="w-5 h-5 text-blue-600 fill-current animate-pulse" />
+                          </div>
+                       </div>
+                    </motion.div>
+                  </div>
+                  <div className="order-1 lg:order-2">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-600 rounded-full text-sm font-medium mb-4">
+                      <Cpu className="h-4 w-4" />
+                      {t.home.features.realtime.tag}
+                    </div>
+                    <h3 className="text-3xl font-bold text-gray-900 mb-4">
+                      {t.home.features.realtime.title}
+                    </h3>
+                    <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+                      {t.home.features.realtime.desc}
+                    </p>
+                    <ul className="space-y-3">
+                      <li className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Zap className="h-3.5 w-3.5 text-blue-600" />
+                        </div>
+                        <span className="text-gray-700">{t.home.features.realtime.list1}</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Layout className="h-3.5 w-3.5 text-blue-600" />
+                        </div>
+                        <span className="text-gray-700">{t.home.features.realtime.list2}</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </ScrollFadeIn>
+
+              {/* 功能3：结构化导出 */}
+              <ScrollFadeIn direction="up">
+                <div className="grid lg:grid-cols-2 gap-12 items-center">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-600 rounded-full text-sm font-medium mb-4">
+                      <Code2 className="h-4 w-4" />
+                      {t.home.features.export.tag}
+                    </div>
+                    <h3 className="text-3xl font-bold text-gray-900 mb-4">
+                      {t.home.features.export.title}
+                    </h3>
+                    <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+                      {t.home.features.export.desc}
+                    </p>
+                    <ul className="space-y-3">
+                      <li className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <FileText className="h-3.5 w-3.5 text-green-600" />
+                        </div>
+                        <span className="text-gray-700">{t.home.features.export.list1}</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Shield className="h-3.5 w-3.5 text-green-600" />
+                        </div>
+                        <span className="text-gray-700">{t.home.features.export.list2}</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="relative">
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-8 border border-green-100"
+                    >
+                      <div className="bg-white rounded-xl p-6 border border-gray-100 relative overflow-hidden">
+                        <div className="flex items-center justify-between mb-6">
+                           <div className="flex items-center gap-3">
+                              <div className="p-2 bg-red-100 rounded-lg">
+                                 <FileText className="w-6 h-6 text-red-500"/>
+                              </div>
+                              <div>
+                                 <div className="font-medium text-gray-900">Resume_Final.pdf</div>
+                                 <div className="text-xs text-gray-500">Vector Format</div>
+                              </div>
+                           </div>
+                           <Download className="w-5 h-5 text-gray-400" />
+                        </div>
+                        {/* Abstract Representation of Parsing */}
+                        <div className="space-y-2 relative">
+                           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/80 z-10" />
+                           {[1,2,3,4].map(i => (
+                              <div key={i} className="flex gap-2 items-center opacity-50">
+                                 <div className="w-1 h-1 rounded-full bg-gray-300"/>
+                                 <div className="h-2 bg-gray-100 rounded w-full"/>
+                              </div>
+                           ))}
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                           <div className="text-xs text-green-600 font-medium flex items-center gap-1">
+                              <Shield className="w-3 h-3" /> ATS Verified
+                           </div>
+                           <div className="text-xs text-gray-400">245 KB</div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
+                </div>
+              </ScrollFadeIn>
+              
+               {/* 功能4：数据安全 */}
+              <ScrollFadeIn direction="up">
+                <div className="grid lg:grid-cols-2 gap-12 items-center">
+                   <div className="order-2 lg:order-1 relative">
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      className="bg-gradient-to-br from-cyan-50 to-sky-50 rounded-2xl p-8 border border-cyan-100"
+                    >
+                       <div className="bg-white rounded-xl p-6 border border-gray-100 flex flex-col items-center text-center">
+                          <div className="w-16 h-16 bg-cyan-100 rounded-full flex items-center justify-center mb-4">
+                             <Shield className="w-8 h-8 text-cyan-600" />
+                          </div>
+                          <div className="text-gray-900 font-medium mb-1">本地加密存储</div>
+                          <div className="text-sm text-gray-500 mb-6">您的数据从未离开浏览器</div>
+                          
+                          <div className="w-full bg-gray-50 rounded-lg p-3 flex items-center gap-3">
+                             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"/>
+                             <div className="text-xs text-gray-600 font-mono flex-1 text-left">localStorage.encrypted_data</div>
+                             <Shield className="w-3 h-3 text-gray-400"/>
+                          </div>
+                       </div>
+                    </motion.div>
+                  </div>
+                  <div className="order-1 lg:order-2">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-100 text-cyan-600 rounded-full text-sm font-medium mb-4">
+                      <Shield className="h-4 w-4" />
+                      {t.home.features.privacy.tag}
+                    </div>
+                    <h3 className="text-3xl font-bold text-gray-900 mb-4">
+                      {t.home.features.privacy.title}
+                    </h3>
+                    <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+                      {t.home.features.privacy.desc}
+                    </p>
+                    <ul className="space-y-3">
+                      <li className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-cyan-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Shield className="h-3.5 w-3.5 text-cyan-600" />
+                        </div>
+                        <span className="text-gray-700">{t.home.features.privacy.list1}</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-cyan-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Clock className="h-3.5 w-3.5 text-cyan-600" />
+                        </div>
+                        <span className="text-gray-700">{t.home.features.privacy.list2}</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </ScrollFadeIn>
+            </div>
+          </div>
+        </section>
+
+        {/* 用户评价 */}
+        <section className="py-16 sm:py-20 lg:py-24 px-4 sm:px-6 bg-gradient-to-br from-blue-50 via-white to-purple-50">
+          <div className="max-w-6xl mx-auto">
+            <ScrollFadeIn direction="up">
+              <div className="text-center mb-12 sm:mb-16">
+                <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+                  {t.home.testimonials.title}
+                </h2>
+                <p className="text-lg text-gray-600">
+                  {t.home.testimonials.desc}
+                </p>
+              </div>
+            </ScrollFadeIn>
+
+            <StaggerFadeIn
+              staggerDelay={0.15}
+              direction="up"
+              className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
+            >
+              <motion.div
+                whileHover={{ y: -6 }}
+                transition={{ duration: 0.3 }}
+                className="h-full"
+              >
+                <SpotlightCard className="p-8 h-full border-gray-200">
+                  <div className="flex items-center mb-5">
+                    <div className="flex text-yellow-400">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="h-5 w-5 fill-current" />
+                      ))}
+                    </div>
+                    <span className="ml-2 text-sm font-semibold text-gray-700">5.0</span>
+                  </div>
+                  <p className="text-gray-700 mb-6 leading-relaxed">
+                    "{t.home.testimonials.user1.text}"
+                  </p>
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                      {t.home.testimonials.user1.name.charAt(0)}
+                    </div>
+                    <div className="ml-3">
+                      <p className="font-semibold text-gray-900">{t.home.testimonials.user1.name}</p>
+                      <p className="text-sm text-gray-500">{t.home.testimonials.user1.role}</p>
+                    </div>
+                  </div>
+                </SpotlightCard>
+              </motion.div>
+
+              <motion.div
+                whileHover={{ y: -6 }}
+                transition={{ duration: 0.3 }}
+                className="h-full"
+              >
+                <SpotlightCard className="p-8 h-full border-gray-200">
+                  <div className="flex items-center mb-5">
+                    <div className="flex text-yellow-400">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="h-5 w-5 fill-current" />
+                      ))}
+                    </div>
+                    <span className="ml-2 text-sm font-semibold text-gray-700">5.0</span>
+                  </div>
+                  <p className="text-gray-700 mb-6 leading-relaxed">
+                    "{t.home.testimonials.user2.text}"
+                  </p>
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-semibold">
+                      {t.home.testimonials.user2.name.charAt(0)}
+                    </div>
+                    <div className="ml-3">
+                      <p className="font-semibold text-gray-900">{t.home.testimonials.user2.name}</p>
+                      <p className="text-sm text-gray-500">{t.home.testimonials.user2.role}</p>
+                    </div>
+                  </div>
+                </SpotlightCard>
+              </motion.div>
+
+              <motion.div
+                whileHover={{ y: -6 }}
+                transition={{ duration: 0.3 }}
+                className="h-full sm:col-span-2 lg:col-span-1"
+              >
+                <SpotlightCard className="p-8 h-full border-gray-200">
+                  <div className="flex items-center mb-5">
+                    <div className="flex text-yellow-400">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="h-5 w-5 fill-current" />
+                      ))}
+                    </div>
+                    <span className="ml-2 text-sm font-semibold text-gray-700">5.0</span>
+                  </div>
+                  <p className="text-gray-700 mb-6 leading-relaxed">
+                    "{t.home.testimonials.user3.text}"
+                  </p>
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                      {t.home.testimonials.user3.name.charAt(0)}
+                    </div>
+                    <div className="ml-3">
+                      <p className="font-semibold text-gray-900">{t.home.testimonials.user3.name}</p>
+                      <p className="text-sm text-gray-500">{t.home.testimonials.user3.role}</p>
+                    </div>
+                  </div>
+                </SpotlightCard>
+              </motion.div>
+            </StaggerFadeIn>
+          </div>
+        </section>
+
+        {/* 常见问题 FAQ */}
+        <section className="py-16 sm:py-20 lg:py-24 px-4 sm:px-6">
+          <div className="max-w-4xl mx-auto">
+            <ScrollFadeIn direction="up">
+              <div className="text-center mb-12 sm:mb-16">
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+                  {t.home.faq.title}
+                </h2>
+                <p className="text-lg text-gray-600">
+                  {t.home.faq.desc}
+                </p>
+              </div>
+            </ScrollFadeIn>
+
+            <StaggerFadeIn staggerDelay={0.1} direction="up" className="space-y-4">
+              {[
+                {
+                  q: t.home.faq.q1,
+                  a: t.home.faq.a1
+                },
+                {
+                  q: t.home.faq.q2,
+                  a: t.home.faq.a2
+                },
+                {
+                  q: t.home.faq.q3,
+                  a: t.home.faq.a3
+                },
+                {
+                  q: t.home.faq.q4,
+                  a: t.home.faq.a4
+                },
+                {
+                  q: t.home.faq.q5,
+                  a: t.home.faq.a5
+                }
+              ].map((item, index) => (
+                <div
+                  key={index}
+                  className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-blue-400/50 transition-all duration-300"
+                >
+                  <button
+                    onClick={() => setOpenFaqIndex(openFaqIndex === index ? null : index)}
+                    className="w-full px-6 py-4 flex items-center justify-between text-left focus:outline-none hover:bg-gray-50/50 transition-colors"
+                  >
+                    <span className="font-semibold text-gray-900 text-lg">{item.q}</span>
+                    <motion.div
+                      animate={{ rotate: openFaqIndex === index ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChevronDown className="h-5 w-5 text-gray-500" />
+                    </motion.div>
+                  </button>
+                  <AnimatePresence>
+                    {openFaqIndex === index && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      >
+                        <div className="px-6 pb-6 pt-2 text-gray-600 leading-relaxed border-t border-gray-100 bg-gray-50/30">
+                          {item.a}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ))}
+            </StaggerFadeIn>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="py-16 sm:py-20 lg:py-24 px-4 sm:px-6 bg-gradient-to-br from-blue-50 to-purple-50">
+          <div className="max-w-4xl mx-auto text-center">
+            <ScrollFadeIn direction="up">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+                {t.home.cta.title}
+              </h2>
+              <p className="text-lg sm:text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
+                {t.home.cta.desc}
+              </p>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Link
+                  href="/editor"
+                  className="inline-flex items-center justify-center px-10 py-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-lg font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all"
+                >
+                  <Sparkles className="h-6 w-6 mr-2" />
+                  {t.home.cta.button}
+                  <ArrowRight className="h-6 w-6 ml-2" />
+                </Link>
+              </motion.div>
+            </ScrollFadeIn>
+          </div>
+        </section>
+      </div>
+
+      <Footer />
+
+      {/* 返回顶部按钮 */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={scrollToTop}
+            className="fixed bottom-8 right-8 z-50 p-3 bg-white text-blue-600 rounded-full border border-blue-100 hover:bg-blue-50 focus:outline-none"
+            whileHover={{ y: -4 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <ArrowUp className="h-6 w-6" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}

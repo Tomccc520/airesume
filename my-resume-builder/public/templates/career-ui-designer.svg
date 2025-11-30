@@ -1,0 +1,63 @@
+<svg width="200" height="280" viewBox="0 0 200 280" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景 -->
+  <rect width="200" height="280" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+  
+  <!-- 左侧栏 -->
+  <rect x="0" y="0" width="70" height="280" fill="#6366f1"/>
+  
+  <!-- 头像区域 -->
+  <circle cx="35" cy="40" r="20" fill="#ffffff" opacity="0.9"/>
+  <circle cx="35" cy="40" r="15" fill="#8b5cf6"/>
+  
+  <!-- 个人信息 -->
+  <rect x="10" y="70" width="50" height="4" fill="#ffffff" opacity="0.9"/>
+  <rect x="10" y="78" width="35" height="3" fill="#ffffff" opacity="0.7"/>
+  <rect x="10" y="85" width="40" height="3" fill="#ffffff" opacity="0.7"/>
+  
+  <!-- 技能区域 -->
+  <rect x="10" y="110" width="30" height="4" fill="#ffffff" opacity="0.9"/>
+  <rect x="10" y="120" width="45" height="2" fill="#a855f7" opacity="0.8"/>
+  <rect x="10" y="125" width="40" height="2" fill="#a855f7" opacity="0.8"/>
+  <rect x="10" y="130" width="35" height="2" fill="#a855f7" opacity="0.8"/>
+  
+  <!-- 联系方式 -->
+  <rect x="10" y="155" width="25" height="4" fill="#ffffff" opacity="0.9"/>
+  <rect x="10" y="165" width="40" height="2" fill="#ffffff" opacity="0.7"/>
+  <rect x="10" y="170" width="35" height="2" fill="#ffffff" opacity="0.7"/>
+  
+  <!-- 右侧主要内容 -->
+  <!-- 姓名标题 -->
+  <rect x="80" y="25" width="80" height="8" fill="#1f2937"/>
+  <rect x="80" y="38" width="60" height="4" fill="#6b7280"/>
+  
+  <!-- 工作经验 -->
+  <rect x="80" y="65" width="50" height="5" fill="#1f2937"/>
+  <rect x="80" y="75" width="100" height="3" fill="#4b5563"/>
+  <rect x="80" y="82" width="90" height="2" fill="#6b7280"/>
+  <rect x="80" y="87" width="95" height="2" fill="#6b7280"/>
+  <rect x="80" y="92" width="85" height="2" fill="#6b7280"/>
+  
+  <rect x="80" y="105" width="100" height="3" fill="#4b5563"/>
+  <rect x="80" y="112" width="85" height="2" fill="#6b7280"/>
+  <rect x="80" y="117" width="90" height="2" fill="#6b7280"/>
+  
+  <!-- 项目经验 -->
+  <rect x="80" y="135" width="40" height="5" fill="#1f2937"/>
+  <rect x="80" y="145" width="95" height="3" fill="#4b5563"/>
+  <rect x="80" y="152" width="80" height="2" fill="#6b7280"/>
+  <rect x="80" y="157" width="85" height="2" fill="#6b7280"/>
+  
+  <rect x="80" y="170" width="90" height="3" fill="#4b5563"/>
+  <rect x="80" y="177" width="75" height="2" fill="#6b7280"/>
+  <rect x="80" y="182" width="80" height="2" fill="#6b7280"/>
+  
+  <!-- 教育背景 -->
+  <rect x="80" y="200" width="40" height="5" fill="#1f2937"/>
+  <rect x="80" y="210" width="85" height="3" fill="#4b5563"/>
+  <rect x="80" y="217" width="70" height="2" fill="#6b7280"/>
+  
+  <!-- 设计元素 -->
+  <circle cx="185" cy="40" r="8" fill="#6366f1" opacity="0.3"/>
+  <circle cx="175" cy="55" r="5" fill="#8b5cf6" opacity="0.4"/>
+  <rect x="170" y="250" width="25" height="25" fill="#a855f7" opacity="0.2"/>
+</svg>
