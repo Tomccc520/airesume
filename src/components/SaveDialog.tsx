@@ -14,6 +14,7 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Save, X, Download, AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { ResumeData } from '@/types/resume'
 
 interface SaveDialogProps {
@@ -134,12 +135,14 @@ export default function SaveDialog({ isOpen, onClose, resumeData, onSaveSuccess 
                 <p className="text-sm text-gray-600 font-medium">将简历数据保存到本地文件</p>
               </div>
             </div>
-            <button
+            <Button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100/80 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
+              variant="ghost"
+              size="icon"
+              className="text-gray-500 hover:text-gray-700"
             >
               <X className="h-5 w-5" />
-            </button>
+            </Button>
           </div>
 
           {/* 对话框内容 */}
@@ -184,17 +187,17 @@ export default function SaveDialog({ isOpen, onClose, resumeData, onSaveSuccess 
 
           {/* 对话框底部 */}
           <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200/50 bg-gray-50/50 backdrop-blur-sm">
-            <button
+            <Button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800 bg-white border border-gray-200/60 rounded-xl hover:bg-gray-50 transition-all shadow-sm"
+              variant="outline"
               disabled={isSaving}
             >
               取消
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleSave}
               disabled={isSaving || !filename.trim()}
-              className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center space-x-2"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/20"
             >
               {isSaving ? (
                 <>
@@ -207,7 +210,7 @@ export default function SaveDialog({ isOpen, onClose, resumeData, onSaveSuccess 
                   <span>保存到本地</span>
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </motion.div>
       </div>

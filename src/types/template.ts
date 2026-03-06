@@ -14,14 +14,24 @@ export interface TemplateStyle {
   id: string
   /** 模板名称 */
   name: string
+  /** 模板名称（英文） */
+  nameEn?: string
   /** 模板描述 */
   description: string
+  /** 模板描述（英文） */
+  descriptionEn?: string
   /** 模板预览图 */
   preview: string
-  /** 模板类别 */
-  category: 'modern' | 'classic' | 'creative' | 'minimal' | 'career' | 'english'
+  /** 模板类别 - 按职业岗位分类 */
+  category: 'designer' | 'developer' | 'hr' | 'marketing' | 'finance' | 'general'
+  /** 子分类 - 具体岗位 */
+  subCategory?: string
   /** 是否为高级模板 */
   isPremium: boolean
+  /** 布局类型 - 上下栏或左右栏 */
+  layoutType?: 'top-bottom' | 'left-right'
+  /** 模板标签 - 用于快速识别模板特点 */
+  tags?: string[]
   /** 模板颜色主题 */
   colors: {
     primary: string
@@ -29,6 +39,7 @@ export interface TemplateStyle {
     accent: string
     text: string
     background: string
+    [key: string]: string  // 允许额外的颜色配置
   }
   /** 模板字体配置 */
   fonts: {
@@ -62,31 +73,41 @@ export interface TemplateStyle {
       item: string
       line: string
     }
+    /** 内边距 */
+    padding?: number
   }
   /** 模板组件样式 */
   components: {
     /** 个人信息样式 */
     personalInfo: {
-      layout: 'horizontal' | 'vertical'
+      layout: 'horizontal' | 'vertical' | 'center' | 'table' | 'banner'
       showAvatar: boolean
       avatarPosition: 'left' | 'center' | 'right'
+      avatarShape?: 'circle' | 'square'  // 头像形状：圆形或正方形
+      avatarBorderRadius?: number  // 头像圆角大小（像素），0-50，0为直角，50为圆形
       defaultAvatar?: string
     }
     /** 标题样式 */
     sectionTitle: {
-      style: 'underline' | 'background' | 'border' | 'plain'
+      style: 'underline' | 'background' | 'border' | 'plain' | 'icon'
       alignment: 'left' | 'center' | 'right'
     }
     /** 列表项样式 */
     listItem: {
-      bulletStyle: 'dot' | 'dash' | 'arrow' | 'none' | 'circle'
+      bulletStyle: 'dot' | 'dash' | 'arrow' | 'none' | 'circle' | 'square' | 'timeline'
       indentation: string
     }
     /** 日期样式 */
     dateFormat: {
-      format: 'YYYY-MM' | 'MM/YYYY' | 'YYYY年MM月' | 'YYYY'
-      position: 'right' | 'left' | 'below'
+      format: 'YYYY-MM' | 'MM/YYYY' | 'YYYY年MM月' | 'YYYY' | 'YYYY.MM' | 'MMM YYYY'
+      position: 'right' | 'left' | 'below' | 'inline'
     }
+    /** 表格样式 */
+    tableStyle?: boolean
+    /** 卡片样式 */
+    cardStyle?: boolean
+    /** 技能展示样式 */
+    skillDisplay?: 'progress' | 'tags' | 'list' | 'cards' | 'grid' | 'radar' | 'circle'
   }
   /** 控制是否在选择器中显示 */
   hidden?: boolean
@@ -98,7 +119,9 @@ export interface TemplateStyle {
 export interface TemplateCategory {
   id: string
   name: string
+  nameEn?: string
   description: string
+  descriptionEn?: string
   icon: string
   templates: TemplateStyle[]
 }

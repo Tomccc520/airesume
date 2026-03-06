@@ -3,1258 +3,536 @@
  * @copyright UIED技术团队 (https://fsuied.com)
  * @author UIED技术团队
  * @createDate 2025-09-22
+ * @updateDate 2026-01-31 - 优化模板设计，精选6个高质量模板
+ * @description 简历模板配置 - 精选实用模板
  */
-
 
 import { TemplateStyle, TemplateCategory } from '@/types/template'
 
 /**
- * 预定义简历模板
+ * 预定义简历模板 - 实用黑白简历
+ * 2026.2.2 更新：专注于不同的布局类型，黑白灰配色，突出内容
  */
 export const resumeTemplates: TemplateStyle[] = [
-  // 现代风格模板
+  // 1. 经典居中 - ATS友好 ⭐ 最推荐
   {
-    id: 'modern-blue',
-    name: '现代蓝调',
-    description: '简洁现代的设计，适合技术和商务岗位',
-    preview: '/templates/modern-blue.svg',
-    category: 'modern',
+    id: 'minimal-text',
+    name: '经典居中',
+    nameEn: 'Classic Centered',
+    description: '居中对齐，纯文字排版，ATS系统友好，适合投递',
+    descriptionEn: 'Centered alignment, pure text, ATS-friendly',
+    preview: '/templates/minimal-text.svg',
+    category: 'general',
+    subCategory: 'minimal',
     isPremium: false,
-    colors: {
-      primary: '#2563eb',
-      secondary: '#64748b',
-      accent: '#0ea5e9',
-      text: '#1e293b',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Inter, sans-serif',
-      body: 'Inter, sans-serif',
-      size: {
-        heading: '1.5rem',
-        body: '0.875rem',
-        small: '0.75rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2rem',
-        right: '2rem',
-        bottom: '2rem',
-        left: '2rem'
-      },
-      columns: {
-        count: 1,
-        gap: '2rem'
-      },
-      spacing: {
-        section: '2rem',
-        item: '1rem',
-        line: '0.5rem'
-      }
-    },
-    components: {
-        personalInfo: {
-          layout: 'horizontal',
-          showAvatar: true,
-          avatarPosition: 'center',
-          defaultAvatar: '/avatars/img2.png'
-        },
-      sectionTitle: {
-        style: 'underline',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'dot',
-        indentation: '1rem'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'right'
-      }
-    }
-  },
-  {
-    id: 'modern-green',
-    name: '现代绿意',
-    description: '清新的绿色主题，适合创意和环保行业',
-    preview: '/templates/modern-green.svg',
-    category: 'modern',
-    isPremium: false,
-    hidden: true,
-    colors: {
-      primary: '#059669',
-      secondary: '#6b7280',
-      accent: '#10b981',
-      text: '#111827',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Inter, sans-serif',
-      body: 'Inter, sans-serif',
-      size: {
-        heading: '1.5rem',
-        body: '0.875rem',
-        small: '0.75rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2rem',
-        right: '2rem',
-        bottom: '2rem',
-        left: '2rem'
-      },
-      columns: {
-        count: 1,
-        gap: '2rem'
-      },
-      spacing: {
-        section: '2rem',
-        item: '1rem',
-        line: '0.5rem'
-      }
-    },
-    components: {
-        personalInfo: {
-          layout: 'horizontal',
-          showAvatar: true,
-          avatarPosition: 'center',
-          defaultAvatar: '/avatars/img1.png'
-        },
-      sectionTitle: {
-        style: 'background',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'arrow',
-        indentation: '1rem'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'right'
-      }
-    }
-  },
-  // 经典风格模板
-  {
-    id: 'classic-elegant',
-    name: '经典优雅',
-    description: '传统优雅的设计，适合正式场合和传统行业',
-    preview: '/templates/classic-elegant.svg',
-    category: 'classic',
-    isPremium: false,
-    colors: {
-      primary: '#1f2937',
-      secondary: '#6b7280',
-      accent: '#374151',
-      text: '#111827',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Times New Roman, serif',
-      body: 'Times New Roman, serif',
-      size: {
-        heading: '1.6rem',
-        body: '0.9rem',
-        small: '0.8rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2.5rem',
-        right: '2.5rem',
-        bottom: '2.5rem',
-        left: '2.5rem'
-      },
-      columns: {
-        count: 1,
-        gap: '2rem'
-      },
-      spacing: {
-        section: '2.5rem',
-        item: '1.2rem',
-        line: '0.6rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'horizontal',
-        showAvatar: true,
-        avatarPosition: 'center',
-        defaultAvatar: '/avatars/img1.png'
-      },
-      sectionTitle: {
-        style: 'underline',
-        alignment: 'center'
-      },
-      listItem: {
-        bulletStyle: 'dot',
-        indentation: '1.5rem'
-      },
-      dateFormat: {
-        format: 'YYYY年MM月',
-        position: 'right'
-      }
-    }
-  },
-  // 创意风格模板
-  {
-    id: 'creative-purple',
-    name: '创意紫韵',
-    description: '富有创意的紫色主题，适合设计和创意行业',
-    preview: '/templates/creative-purple.svg',
-    category: 'creative',
-    isPremium: false,
-    hidden: true,
-    colors: {
-      primary: '#7c3aed',
-      secondary: '#a78bfa',
-      accent: '#8b5cf6',
-      text: '#1f2937',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Poppins, sans-serif',
-      body: 'Inter, sans-serif',
-      size: {
-        heading: '1.6rem',
-        body: '0.875rem',
-        small: '0.75rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2rem',
-        right: '2rem',
-        bottom: '2rem',
-        left: '2rem'
-      },
-      columns: {
-        count: 2,
-        gap: '2rem',
-        leftWidth: '35%',
-        rightWidth: '65%'
-      },
-      spacing: {
-        section: '2rem',
-        item: '1rem',
-        line: '0.5rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'vertical',
-        showAvatar: true,
-        avatarPosition: 'center',
-        defaultAvatar: '/avatars/img3.png'
-      },
-      sectionTitle: {
-        style: 'background',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'arrow',
-        indentation: '1rem'
-      },
-      dateFormat: {
-        format: 'MM/YYYY',
-        position: 'right'
-      }
-    }
-  },
-  // 极简风格模板
-  {
-    id: 'minimal-clean',
-    name: '极简清洁',
-    description: '极简主义设计，突出内容本身',
-    preview: '/templates/minimal-clean.svg',
-    category: 'minimal',
-    isPremium: false,
-    colors: {
-      primary: '#374151',
-      secondary: '#9ca3af',
-      accent: '#6b7280',
-      text: '#111827',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Helvetica, Arial, sans-serif',
-      body: 'Helvetica, Arial, sans-serif',
-      size: {
-        heading: '1.4rem',
-        body: '0.85rem',
-        small: '0.7rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '3rem',
-        right: '3rem',
-        bottom: '3rem',
-        left: '3rem'
-      },
-      columns: {
-        count: 1,
-        gap: '2rem'
-      },
-      spacing: {
-        section: '3rem',
-        item: '1.5rem',
-        line: '0.8rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'horizontal',
-        showAvatar: true,
-        avatarPosition: 'center',
-        defaultAvatar: '/avatars/img4.png'
-      },
-      sectionTitle: {
-        style: 'plain',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'none',
-        indentation: '0'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'right'
-      }
-    }
-  },
-  // GitHub 风格
-  {
-    id: 'github-markdown',
-    name: 'GitHub 风格',
-    description: '程序员最爱的 Markdown 风格，展现技术极客范儿',
-    preview: '/templates/github-markdown.svg',
-    category: 'modern',
-    isPremium: false,
-    colors: {
-      primary: '#24292e',
-      secondary: '#586069',
-      accent: '#0366d6',
-      text: '#24292e',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: '-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif',
-      body: '-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif',
-      size: {
-        heading: '1.5rem',
-        body: '0.9rem',
-        small: '0.75rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2rem',
-        right: '2rem',
-        bottom: '2rem',
-        left: '2rem'
-      },
-      columns: {
-        count: 1,
-        gap: '2rem'
-      },
-      spacing: {
-        section: '1.5rem',
-        item: '0.8rem',
-        line: '0.4rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'horizontal',
-        showAvatar: true,
-        avatarPosition: 'left',
-        defaultAvatar: '/avatars/img2.png'
-      },
-      sectionTitle: {
-        style: 'underline',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'dot',
-        indentation: '1.2rem'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'right'
-      }
-    }
-  },
-  // 瑞士设计风格
-  {
-    id: 'swiss-design',
-    name: '瑞士设计',
-    description: '受瑞士国际主义设计风格启发，强调网格和排版',
-    preview: '/templates/swiss-design.svg',
-    category: 'creative',
-    isPremium: false,
-    colors: {
-      primary: '#000000',
-      secondary: '#333333',
-      accent: '#ff0000',
-      text: '#000000',
-      background: '#f5f5f5'
-    },
-    fonts: {
-      heading: 'Helvetica Neue, Helvetica, Arial, sans-serif',
-      body: 'Helvetica Neue, Helvetica, Arial, sans-serif',
-      size: {
-        heading: '2.5rem',
-        body: '0.9rem',
-        small: '0.8rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2.5rem',
-        right: '2.5rem',
-        bottom: '2.5rem',
-        left: '2.5rem'
-      },
-      columns: {
-        count: 2,
-        gap: '3rem',
-        leftWidth: '30%',
-        rightWidth: '70%'
-      },
-      spacing: {
-        section: '3rem',
-        item: '1.2rem',
-        line: '0.5rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'vertical',
-        showAvatar: false,
-        avatarPosition: 'left',
-        defaultAvatar: ''
-      },
-      sectionTitle: {
-        style: 'plain',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'none',
-        indentation: '0'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'left'
-      }
-    }
-  },
-  // 职业模板
-  {
-    id: 'career-ui-designer',
-    name: 'UI设计师',
-    description: '专为UI设计师定制的简历模板，突出设计技能和作品',
-    preview: '/templates/career-ui-designer.svg',
-    category: 'career',
-    isPremium: false,
-    hidden: true,
-    colors: {
-      primary: '#ec4899',
-      secondary: '#f472b6',
-      accent: '#be185d',
-      text: '#1f2937',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Inter, sans-serif',
-      body: 'Inter, sans-serif',
-      size: {
-        heading: '1.5rem',
-        body: '0.875rem',
-        small: '0.75rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2rem',
-        right: '2rem',
-        bottom: '2rem',
-        left: '2rem'
-      },
-      columns: {
-        count: 2,
-        gap: '1.5rem',
-        leftWidth: '30%',
-        rightWidth: '70%'
-      },
-      spacing: {
-        section: '1.8rem',
-        item: '0.9rem',
-        line: '0.45rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'vertical',
-        showAvatar: true,
-        avatarPosition: 'center',
-        defaultAvatar: '/avatars/img3.png'
-      },
-      sectionTitle: {
-        style: 'underline',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'arrow',
-        indentation: '1rem'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'right'
-      }
-    }
-  },
-  {
-    id: 'career-frontend-developer',
-    name: '前端开发工程师',
-    description: '专为前端开发工程师定制的简历模板，突出技术技能和项目经验',
-    preview: '/templates/career-frontend-developer.svg',
-    category: 'career',
-    isPremium: false,
-    hidden: true,
-    colors: {
-      primary: '#2563eb',
-      secondary: '#64748b',
-      accent: '#0ea5e9',
-      text: '#1e293b',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Inter, sans-serif',
-      body: 'Inter, sans-serif',
-      size: {
-        heading: '1.5rem',
-        body: '0.875rem',
-        small: '0.75rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2rem',
-        right: '2rem',
-        bottom: '2rem',
-        left: '2rem'
-      },
-      columns: {
-        count: 1,
-        gap: '2rem'
-      },
-      spacing: {
-        section: '2rem',
-        item: '1rem',
-        line: '0.5rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'horizontal',
-        showAvatar: true,
-        avatarPosition: 'center',
-        defaultAvatar: '/avatars/img2.png'
-      },
-      sectionTitle: {
-        style: 'underline',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'arrow',
-        indentation: '1rem'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'right'
-      }
-    }
-  },
-  {
-    id: 'nordic-minimal',
-    name: '北欧极简',
-    description: '清新自然的北欧风格，简约而不失格调',
-    preview: '/templates/nordic-minimal.svg',
-    category: 'minimal',
-    isPremium: false,
-    colors: {
-      primary: '#334155',
-      secondary: '#64748b',
-      accent: '#94a3b8',
-      text: '#0f172a',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Inter, sans-serif',
-      body: 'Inter, sans-serif',
-      size: {
-        heading: '1.5rem',
-        body: '0.9rem',
-        small: '0.75rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2.5rem',
-        right: '2.5rem',
-        bottom: '2.5rem',
-        left: '2.5rem'
-      },
-      columns: {
-        count: 1,
-        gap: '2rem'
-      },
-      spacing: {
-        section: '2.5rem',
-        item: '1.2rem',
-        line: '0.6rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'horizontal',
-        showAvatar: true,
-        avatarPosition: 'right',
-        defaultAvatar: '/avatars/img4.png'
-      },
-      sectionTitle: {
-        style: 'plain',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'dot',
-        indentation: '1rem'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'right'
-      }
-    }
-  },
-  {
-    id: 'career-product-manager',
-    name: '产品经理',
-    description: '专为产品经理定制的简历模板，突出产品思维和项目管理能力',
-    preview: '/templates/career-product-manager.svg',
-    category: 'career',
-    isPremium: false,
-    colors: {
-      primary: '#0d9488',
-      secondary: '#64748b',
-      accent: '#14b8a6',
-      text: '#0f172a',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Inter, sans-serif',
-      body: 'Inter, sans-serif',
-      size: {
-        heading: '1.5rem',
-        body: '0.875rem',
-        small: '0.75rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2rem',
-        right: '2rem',
-        bottom: '2rem',
-        left: '2rem'
-      },
-      columns: {
-        count: 2,
-        gap: '1.5rem',
-        leftWidth: '30%',
-        rightWidth: '70%'
-      },
-      spacing: {
-        section: '1.8rem',
-        item: '0.9rem',
-        line: '0.45rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'vertical',
-        showAvatar: true,
-        avatarPosition: 'center',
-        defaultAvatar: '/avatars/img3.png'
-      },
-      sectionTitle: {
-        style: 'underline',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'arrow',
-        indentation: '1rem'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'right'
-      }
-    }
-  },
-  // 科技极简模板
-  {
-    id: 'tech-minimal',
-    name: '科技极简',
-    description: '面向技术人才的极简设计，强调技能和项目经验',
-    preview: '/templates/tech-minimal.svg',
-    category: 'modern',
-    isPremium: false,
-    colors: {
-      primary: '#0f172a',
-      secondary: '#475569',
-      accent: '#3b82f6',
-      text: '#334155',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Space Mono, monospace',
-      body: 'Inter, sans-serif',
-      size: {
-        heading: '1.4rem',
-        body: '0.875rem',
-        small: '0.75rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2rem',
-        right: '2rem',
-        bottom: '2rem',
-        left: '2rem'
-      },
-      columns: {
-        count: 1,
-        gap: '2rem'
-      },
-      spacing: {
-        section: '2.5rem',
-        item: '1.2rem',
-        line: '0.6rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'horizontal',
-        showAvatar: false,
-        avatarPosition: 'left',
-        defaultAvatar: ''
-      },
-      sectionTitle: {
-        style: 'border',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'arrow',
-        indentation: '1rem'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'right'
-      }
-    }
-  },
-  // 金融专业模板
-  {
-    id: 'finance-pro',
-    name: '金融精英',
-    description: '严谨专业的排版，适合金融、咨询及法律行业',
-    preview: '/templates/finance-pro.svg',
-    category: 'classic',
-    isPremium: false,
-    colors: {
-      primary: '#1a202c',
-      secondary: '#4a5568',
-      accent: '#2d3748',
-      text: '#1a202c',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Georgia, serif',
-      body: 'Georgia, serif',
-      size: {
-        heading: '1.5rem',
-        body: '0.9rem',
-        small: '0.8rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2.5rem',
-        right: '2.5rem',
-        bottom: '2.5rem',
-        left: '2.5rem'
-      },
-      columns: {
-        count: 1,
-        gap: '1.5rem'
-      },
-      spacing: {
-        section: '2rem',
-        item: '1rem',
-        line: '0.5rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'vertical',
-        showAvatar: false,
-        avatarPosition: 'center',
-        defaultAvatar: ''
-      },
-      sectionTitle: {
-        style: 'underline',
-        alignment: 'center'
-      },
-      listItem: {
-        bulletStyle: 'dot',
-        indentation: '1.5rem'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'right'
-      }
-    }
-  },
-  // 高级模板
-  {
-    id: 'elegant-rose',
-    name: '优雅玫瑰',
-    description: '优雅的玫瑰金配色，适合时尚和奢侈品行业',
-    preview: '/templates/elegant-rose.svg',
-    category: 'modern',
-    isPremium: true,
-    hidden: true,
-    colors: {
-      primary: '#e11d48',
-      secondary: '#9f1239',
-      accent: '#f43f5e',
-      text: '#1f2937',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Playfair Display, serif',
-      body: 'Inter, sans-serif',
-      size: {
-        heading: '1.6rem',
-        body: '0.875rem',
-        small: '0.75rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2rem',
-        right: '2rem',
-        bottom: '2rem',
-        left: '2rem'
-      },
-      columns: {
-        count: 2,
-        gap: '1.8rem',
-        leftWidth: '35%',
-        rightWidth: '65%'
-      },
-      spacing: {
-        section: '1.8rem',
-        item: '0.9rem',
-        line: '0.45rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'vertical',
-        showAvatar: true,
-        avatarPosition: 'center',
-        defaultAvatar: '/avatars/img3.png'
-      },
-      sectionTitle: {
-        style: 'background',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'dot',
-        indentation: '1rem'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'right'
-      }
-    }
-  },
-  {
-    id: 'tech-orange',
-    name: '科技橙光',
-    description: '现代科技感橙色主题，适合科技和创新行业',
-    preview: '/templates/tech-orange.svg',
-    category: 'modern',
-    isPremium: false,
-    hidden: true,
-    colors: {
-      primary: '#f97316',
-      secondary: '#ea580c',
-      accent: '#fb923c',
-      text: '#1f2937',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Roboto, sans-serif',
-      body: 'Roboto, sans-serif',
-      size: {
-        heading: '1.5rem',
-        body: '0.875rem',
-        small: '0.75rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2rem',
-        right: '2rem',
-        bottom: '2rem',
-        left: '2rem'
-      },
-      columns: {
-        count: 1,
-        gap: '2rem'
-      },
-      spacing: {
-        section: '2rem',
-        item: '1rem',
-        line: '0.5rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'horizontal',
-        showAvatar: true,
-        avatarPosition: 'center',
-        defaultAvatar: '/avatars/img2.png'
-      },
-      sectionTitle: {
-        style: 'underline',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'arrow',
-        indentation: '1rem'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'right'
-      }
-    }
-  },
-  {
-    id: 'creative-designer',
-    name: '设计大师',
-    description: '大胆的版式设计，专为展现创意能力而生',
-    preview: '/templates/creative-designer.svg',
-    category: 'creative',
-    isPremium: false,
-    colors: {
-      primary: '#f43f5e',
-      secondary: '#fb7185',
-      accent: '#e11d48',
-      text: '#1f2937',
-      background: '#fff1f2'
-    },
-    fonts: {
-      heading: 'Montserrat, sans-serif',
-      body: 'Open Sans, sans-serif',
-      size: {
-        heading: '1.8rem',
-        body: '0.9rem',
-        small: '0.8rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2rem',
-        right: '2rem',
-        bottom: '2rem',
-        left: '2rem'
-      },
-      columns: {
-        count: 2,
-        gap: '2rem',
-        leftWidth: '40%',
-        rightWidth: '60%'
-      },
-      spacing: {
-        section: '2rem',
-        item: '1rem',
-        line: '0.5rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'vertical',
-        showAvatar: true,
-        avatarPosition: 'center',
-        defaultAvatar: '/avatars/img1.png'
-      },
-      sectionTitle: {
-        style: 'background',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'circle',
-        indentation: '1rem'
-      },
-      dateFormat: {
-        format: 'YYYY',
-        position: 'left'
-      }
-    }
-  },
-  {
-    id: 'business-elite',
-    name: '商务精英',
-    description: '沉稳大气的商务风格，适合管理层和高端职位',
-    preview: '/templates/business-elite.svg',
-    category: 'classic',
-    isPremium: false,
-    colors: {
-      primary: '#1e3a8a',
-      secondary: '#93c5fd',
-      accent: '#2563eb',
-      text: '#0f172a',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Merriweather, serif',
-      body: 'Lato, sans-serif',
-      size: {
-        heading: '1.6rem',
-        body: '0.9rem',
-        small: '0.8rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2.5rem',
-        right: '2.5rem',
-        bottom: '2.5rem',
-        left: '2.5rem'
-      },
-      columns: {
-        count: 1,
-        gap: '2rem'
-      },
-      spacing: {
-        section: '2.2rem',
-        item: '1.1rem',
-        line: '0.55rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'horizontal',
-        showAvatar: true,
-        avatarPosition: 'right',
-        defaultAvatar: '/avatars/img4.png'
-      },
-      sectionTitle: {
-        style: 'border',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'dot',
-        indentation: '1.2rem'
-      },
-      dateFormat: {
-        format: 'YYYY-MM',
-        position: 'right'
-      }
-    }
-  },
-  {
-    id: 'minimal-pro',
-    name: '专业极简',
-    description: '极致简约，无多余装饰，让内容成为主角',
-    preview: '/templates/minimal-pro.svg',
-    category: 'minimal',
-    isPremium: false,
+    layoutType: 'top-bottom',
+    tags: ['ATS友好', '居中对齐', '投递首选'],
     colors: {
       primary: '#000000',
       secondary: '#666666',
       accent: '#333333',
-      text: '#111111',
-      background: '#ffffff'
-    },
-    fonts: {
-      heading: 'Roboto, sans-serif',
-      body: 'Roboto, sans-serif',
-      size: {
-        heading: '1.4rem',
-        body: '0.85rem',
-        small: '0.75rem'
-      }
-    },
-    layout: {
-      margins: {
-        top: '2rem',
-        right: '2rem',
-        bottom: '2rem',
-        left: '2rem'
-      },
-      columns: {
-        count: 2,
-        gap: '3rem',
-        leftWidth: '25%',
-        rightWidth: '75%'
-      },
-      spacing: {
-        section: '2rem',
-        item: '1rem',
-        line: '0.5rem'
-      }
-    },
-    components: {
-      personalInfo: {
-        layout: 'vertical',
-        showAvatar: false,
-        avatarPosition: 'left',
-        defaultAvatar: ''
-      },
-      sectionTitle: {
-        style: 'plain',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'none',
-        indentation: '0'
-      },
-      dateFormat: {
-        format: 'YYYY',
-        position: 'left'
-      }
-    }
-  },
-  {
-    id: 'english-standard',
-    name: 'Standard English',
-    description: 'Professional layout for international applications',
-    preview: '/templates/classic-elegant.svg',
-    category: 'english',
-    isPremium: false,
-    colors: {
-      primary: '#000000',
-      secondary: '#666666',
-      accent: '#000000',
       text: '#000000',
       background: '#ffffff'
     },
     fonts: {
-      heading: 'Georgia, serif',
-      body: 'Arial, sans-serif',
-      size: {
-        heading: '1.4rem',
-        body: '1rem',
-        small: '0.875rem'
-      }
+      heading: '"Times New Roman", Georgia, serif',
+      body: '"Times New Roman", Georgia, serif',
+      size: { heading: '1.5rem', body: '0.875rem', small: '0.75rem' }
     },
     layout: {
-      margins: {
-        top: '2rem',
-        right: '2rem',
-        bottom: '2rem',
-        left: '2rem'
-      },
-      columns: {
-        count: 1,
-        gap: '2rem'
-      },
-      spacing: {
-        section: '1.5rem',
-        item: '1rem',
-        line: '1.4'
-      }
+      margins: { top: '2.5rem', right: '2.5rem', bottom: '2.5rem', left: '2.5rem' },
+      columns: { count: 1, gap: '1.5rem' },
+      spacing: { section: '1.5rem', item: '0.75rem', line: '1.5rem' }
     },
     components: {
-      personalInfo: {
-        layout: 'horizontal',
-        showAvatar: false,
-        avatarPosition: 'center'
-      },
-      sectionTitle: {
-        style: 'underline',
-        alignment: 'left'
-      },
-      listItem: {
-        bulletStyle: 'dot',
-        indentation: '1.5rem'
-      },
-      dateFormat: {
-        format: 'MM/YYYY',
-        position: 'right'
-      }
+      personalInfo: { layout: 'center', showAvatar: true, avatarPosition: 'center', avatarShape: 'circle', avatarBorderRadius: 50, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'plain', alignment: 'left' },
+      listItem: { bulletStyle: 'none', indentation: '0' },
+      dateFormat: { format: 'YYYY.MM', position: 'inline' }
     }
+  },
+  
+  // 2. 商务表格 - 信息密集 ⭐ 推荐
+  {
+    id: 'table-layout',
+    name: '商务表格',
+    nameEn: 'Business Table',
+    description: '表格式布局，信息密集，适合传统行业',
+    descriptionEn: 'Table layout, information-dense, for traditional industries',
+    preview: '/templates/table-layout.svg',
+    category: 'general',
+    subCategory: 'classic',
+    isPremium: false,
+    layoutType: 'top-bottom',
+    tags: ['表格', '信息密集', '传统行业'],
+    colors: {
+      primary: '#000000',
+      secondary: '#666666',
+      accent: '#333333',
+      text: '#000000',
+      background: '#ffffff',
+      tableBg: '#f5f5f5',
+      borderColor: '#cccccc'
+    },
+    fonts: {
+      heading: '"Microsoft YaHei", "PingFang SC", sans-serif',
+      body: '"Microsoft YaHei", "PingFang SC", sans-serif',
+      size: { heading: '1.375rem', body: '0.875rem', small: '0.75rem' }
+    },
+    layout: {
+      margins: { top: '2rem', right: '2rem', bottom: '2rem', left: '2rem' },
+      columns: { count: 1, gap: '1.5rem' },
+      spacing: { section: '1.5rem', item: '0.5rem', line: '1.5rem' }
+    },
+    components: {
+      personalInfo: { layout: 'table', showAvatar: true, avatarPosition: 'right', avatarShape: 'square', avatarBorderRadius: 8, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'background', alignment: 'left' },
+      listItem: { bulletStyle: 'none', indentation: '0' },
+      dateFormat: { format: 'YYYY.MM', position: 'inline' },
+      tableStyle: true
+    }
+  },
+  
+  // 3. 现代时间轴 - 职业发展清晰
+  {
+    id: 'timeline-layout',
+    name: '现代时间轴',
+    nameEn: 'Modern Timeline',
+    description: '垂直时间线，清晰展示职业发展轨迹',
+    descriptionEn: 'Vertical timeline, shows career progression clearly',
+    preview: '/templates/timeline-layout.svg',
+    category: 'general',
+    subCategory: 'modern',
+    isPremium: false,
+    layoutType: 'top-bottom',
+    tags: ['时间线', '职业发展', '现代'],
+    colors: {
+      primary: '#000000',
+      secondary: '#666666',
+      accent: '#999999',
+      text: '#000000',
+      background: '#ffffff',
+      timelineBg: '#e5e5e5'
+    },
+    fonts: {
+      heading: 'Inter, -apple-system, sans-serif',
+      body: 'Inter, -apple-system, sans-serif',
+      size: { heading: '1.5rem', body: '0.875rem', small: '0.75rem' }
+    },
+    layout: {
+      margins: { top: '2.5rem', right: '2.5rem', bottom: '2.5rem', left: '2.5rem' },
+      columns: { count: 1, gap: '2rem' },
+      spacing: { section: '2rem', item: '1.5rem', line: '1.5rem' }
+    },
+    components: {
+      personalInfo: { layout: 'horizontal', showAvatar: true, avatarPosition: 'left', avatarShape: 'circle', avatarBorderRadius: 50, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'plain', alignment: 'left' },
+      listItem: { bulletStyle: 'timeline', indentation: '2rem' },
+      dateFormat: { format: 'YYYY.MM', position: 'left' }
+    }
+  },
+
+  // 4. 标准双栏 - 左侧信息栏 ⭐ 推荐
+  {
+    id: 'two-column-standard',
+    name: '标准双栏',
+    nameEn: 'Two Column',
+    description: '左侧灰色信息栏，右侧白色内容区，专业大气',
+    descriptionEn: 'Left gray sidebar, right white content',
+    preview: '/templates/two-column-standard.svg',
+    category: 'general',
+    subCategory: 'modern',
+    isPremium: false,
+    layoutType: 'left-right',
+    tags: ['双栏', '专业', '大气'],
+    colors: {
+      primary: '#000000',
+      secondary: '#666666',
+      accent: '#333333',
+      text: '#000000',
+      background: '#ffffff',
+      sidebarBg: '#f5f5f5'
+    },
+    fonts: {
+      heading: 'Inter, -apple-system, sans-serif',
+      body: 'Inter, -apple-system, sans-serif',
+      size: { heading: '1.5rem', body: '0.875rem', small: '0.75rem' }
+    },
+    layout: {
+      margins: { top: '0', right: '0', bottom: '0', left: '0' },
+      columns: { count: 2, gap: '0', leftWidth: '32%', rightWidth: '68%' },
+      spacing: { section: '1.75rem', item: '1rem', line: '1.3rem' },
+      padding: 40
+    },
+    components: {
+      personalInfo: { layout: 'vertical', showAvatar: true, avatarPosition: 'center', avatarShape: 'circle', avatarBorderRadius: 50, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'plain', alignment: 'left' },
+      listItem: { bulletStyle: 'dot', indentation: '1rem' },
+      dateFormat: { format: 'YYYY.MM', position: 'right' }
+    }
+  },
+
+  // 5. 简约分隔 - 清晰分隔
+  {
+    id: 'divider-layout',
+    name: '简约分隔',
+    nameEn: 'Simple Divider',
+    description: '粗分隔线分隔章节，层次清晰，简洁大方',
+    descriptionEn: 'Bold dividers separate sections, clear and elegant',
+    preview: '/templates/divider-layout.svg',
+    category: 'general',
+    subCategory: 'classic',
+    isPremium: false,
+    layoutType: 'top-bottom',
+    tags: ['分隔线', '层次清晰', '简约'],
+    colors: {
+      primary: '#000000',
+      secondary: '#666666',
+      accent: '#333333',
+      text: '#000000',
+      background: '#ffffff',
+      dividerColor: '#000000'
+    },
+    fonts: {
+      heading: 'Inter, -apple-system, sans-serif',
+      body: 'Inter, -apple-system, sans-serif',
+      size: { heading: '1.5rem', body: '0.875rem', small: '0.75rem' }
+    },
+    layout: {
+      margins: { top: '2.5rem', right: '2.5rem', bottom: '2.5rem', left: '2.5rem' },
+      columns: { count: 1, gap: '1.5rem' },
+      spacing: { section: '1.75rem', item: '1rem', line: '1.5rem' }
+    },
+    components: {
+      personalInfo: { layout: 'horizontal', showAvatar: true, avatarPosition: 'left', avatarShape: 'square', avatarBorderRadius: 10, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'underline', alignment: 'left' },
+      listItem: { bulletStyle: 'square', indentation: '1rem' },
+      dateFormat: { format: 'YYYY.MM', position: 'right' }
+    }
+  },
+
+  // 6. 高效紧凑 - 信息密度高
+  {
+    id: 'compact-layout',
+    name: '高效紧凑',
+    nameEn: 'Efficient Compact',
+    description: '紧凑排版，信息密度高，适合经验丰富者',
+    descriptionEn: 'Compact layout, high density, for experienced professionals',
+    preview: '/templates/compact-layout.svg',
+    category: 'general',
+    subCategory: 'minimal',
+    isPremium: false,
+    layoutType: 'top-bottom',
+    tags: ['紧凑', '高密度', '经验丰富'],
+    colors: {
+      primary: '#000000',
+      secondary: '#666666',
+      accent: '#333333',
+      text: '#000000',
+      background: '#ffffff'
+    },
+    fonts: {
+      heading: 'Inter, -apple-system, sans-serif',
+      body: 'Inter, -apple-system, sans-serif',
+      size: { heading: '1.375rem', body: '0.8125rem', small: '0.6875rem' }
+    },
+    layout: {
+      margins: { top: '1.5rem', right: '2rem', bottom: '1.5rem', left: '2rem' },
+      columns: { count: 1, gap: '1rem' },
+      spacing: { section: '1.25rem', item: '0.625rem', line: '1.3rem' }
+    },
+    components: {
+      personalInfo: { layout: 'horizontal', showAvatar: true, avatarPosition: 'left', avatarShape: 'circle', avatarBorderRadius: 50, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'plain', alignment: 'left' },
+      listItem: { bulletStyle: 'dot', indentation: '0.75rem' },
+      dateFormat: { format: 'YYYY.MM', position: 'inline' }
+    }
+  },
+
+  // 7. 创意卡片 - 视觉突出
+  {
+    id: 'card-layout',
+    name: '创意卡片',
+    nameEn: 'Creative Card',
+    description: '卡片式设计，模块化布局，视觉层次分明',
+    descriptionEn: 'Card-based design, modular layout, clear visual hierarchy',
+    preview: '/templates/card-layout.svg',
+    category: 'general',
+    subCategory: 'creative',
+    isPremium: false,
+    layoutType: 'top-bottom',
+    tags: ['卡片', '创意', '视觉突出'],
+    colors: {
+      primary: '#000000',
+      secondary: '#666666',
+      accent: '#333333',
+      text: '#000000',
+      background: '#ffffff',
+      cardBg: '#f8f9fa',
+      cardBorder: '#e9ecef'
+    },
+    fonts: {
+      heading: 'Inter, -apple-system, sans-serif',
+      body: 'Inter, -apple-system, sans-serif',
+      size: { heading: '1.5rem', body: '0.875rem', small: '0.75rem' }
+    },
+    layout: {
+      margins: { top: '2rem', right: '2rem', bottom: '2rem', left: '2rem' },
+      columns: { count: 1, gap: '1.5rem' },
+      spacing: { section: '1.5rem', item: '1rem', line: '1.5rem' }
+    },
+    components: {
+      personalInfo: { layout: 'horizontal', showAvatar: true, avatarPosition: 'left', avatarShape: 'square', avatarBorderRadius: 12, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'background', alignment: 'left' },
+      listItem: { bulletStyle: 'none', indentation: '0' },
+      dateFormat: { format: 'YYYY.MM', position: 'right' },
+      cardStyle: true
+    }
+  },
+
+  // 8. 网格布局 - 技能展示
+  {
+    id: 'grid-layout',
+    name: '网格布局',
+    nameEn: 'Grid Layout',
+    description: '网格式排版，适合展示多项技能和项目',
+    descriptionEn: 'Grid-based layout, ideal for showcasing skills and projects',
+    preview: '/templates/grid-layout.svg',
+    category: 'general',
+    subCategory: 'modern',
+    isPremium: false,
+    layoutType: 'top-bottom',
+    tags: ['网格', '技能展示', '现代'],
+    colors: {
+      primary: '#000000',
+      secondary: '#666666',
+      accent: '#333333',
+      text: '#000000',
+      background: '#ffffff',
+      gridBg: '#f8f9fa'
+    },
+    fonts: {
+      heading: 'Inter, -apple-system, sans-serif',
+      body: 'Inter, -apple-system, sans-serif',
+      size: { heading: '1.5rem', body: '0.875rem', small: '0.75rem' }
+    },
+    layout: {
+      margins: { top: '2rem', right: '2rem', bottom: '2rem', left: '2rem' },
+      columns: { count: 1, gap: '1.5rem' },
+      spacing: { section: '1.75rem', item: '1rem', line: '1.5rem' }
+    },
+    components: {
+      personalInfo: { layout: 'center', showAvatar: true, avatarPosition: 'center', avatarShape: 'circle', avatarBorderRadius: 50, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'plain', alignment: 'left' },
+      listItem: { bulletStyle: 'none', indentation: '0' },
+      dateFormat: { format: 'YYYY.MM', position: 'inline' },
+      skillDisplay: 'grid'
+    }
+  },
+
+  // 9. 左右对称 - 平衡美观
+  {
+    id: 'symmetric-layout',
+    name: '左右对称',
+    nameEn: 'Symmetric Layout',
+    description: '左右对称设计，平衡美观，适合设计类岗位',
+    descriptionEn: 'Symmetric design, balanced and elegant, for design positions',
+    preview: '/templates/symmetric-layout.svg',
+    category: 'designer',
+    subCategory: 'creative',
+    isPremium: false,
+    layoutType: 'left-right',
+    tags: ['对称', '美观', '设计'],
+    colors: {
+      primary: '#000000',
+      secondary: '#666666',
+      accent: '#333333',
+      text: '#000000',
+      background: '#ffffff'
+    },
+    fonts: {
+      heading: 'Inter, -apple-system, sans-serif',
+      body: 'Inter, -apple-system, sans-serif',
+      size: { heading: '1.5rem', body: '0.875rem', small: '0.75rem' }
+    },
+    layout: {
+      margins: { top: '2rem', right: '2rem', bottom: '2rem', left: '2rem' },
+      columns: { count: 2, gap: '2rem', leftWidth: '50%', rightWidth: '50%' },
+      spacing: { section: '1.75rem', item: '1rem', line: '1.5rem' }
+    },
+    components: {
+      personalInfo: { layout: 'center', showAvatar: true, avatarPosition: 'center', avatarShape: 'circle', avatarBorderRadius: 50, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'plain', alignment: 'left' },
+      listItem: { bulletStyle: 'dot', indentation: '1rem' },
+      dateFormat: { format: 'YYYY.MM', position: 'right' }
+    }
+  },
+
+  // 10. 侧边时间轴 - 创新布局
+  {
+    id: 'sidebar-timeline',
+    name: '侧边时间轴',
+    nameEn: 'Sidebar Timeline',
+    description: '左侧时间轴设计，创新布局，突出时间线',
+    descriptionEn: 'Left sidebar timeline, innovative layout, highlights timeline',
+    preview: '/templates/sidebar-timeline.svg',
+    category: 'general',
+    subCategory: 'modern',
+    isPremium: false,
+    layoutType: 'left-right',
+    tags: ['时间轴', '创新', '侧边栏'],
+    colors: {
+      primary: '#000000',
+      secondary: '#666666',
+      accent: '#333333',
+      text: '#000000',
+      background: '#ffffff',
+      sidebarBg: '#f8f9fa'
+    },
+    fonts: {
+      heading: 'Inter, -apple-system, sans-serif',
+      body: 'Inter, -apple-system, sans-serif',
+      size: { heading: '1.5rem', body: '0.875rem', small: '0.75rem' }
+    },
+    layout: {
+      margins: { top: '0', right: '0', bottom: '0', left: '0' },
+      columns: { count: 2, gap: '0', leftWidth: '25%', rightWidth: '75%' },
+      spacing: { section: '1.75rem', item: '1rem', line: '1.5rem' },
+      padding: 40
+    },
+    components: {
+      personalInfo: { layout: 'vertical', showAvatar: true, avatarPosition: 'center', avatarShape: 'circle', avatarBorderRadius: 50, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'plain', alignment: 'left' },
+      listItem: { bulletStyle: 'timeline', indentation: '1.5rem' },
+      dateFormat: { format: 'YYYY.MM', position: 'left' }
+    }
+  },
+
+  // 11. 简历横幅 - 顶部突出
+  {
+    id: 'banner-layout',
+    name: '简历横幅',
+    nameEn: 'Banner Layout',
+    description: '顶部横幅设计，个人信息突出，专业大气',
+    descriptionEn: 'Top banner design, highlights personal info, professional',
+    preview: '/templates/banner-layout.svg',
+    category: 'general',
+    subCategory: 'modern',
+    isPremium: false,
+    layoutType: 'top-bottom',
+    tags: ['横幅', '突出', '专业'],
+    colors: {
+      primary: '#000000',
+      secondary: '#666666',
+      accent: '#333333',
+      text: '#000000',
+      background: '#ffffff',
+      bannerBg: '#f8f9fa'
+    },
+    fonts: {
+      heading: 'Inter, -apple-system, sans-serif',
+      body: 'Inter, -apple-system, sans-serif',
+      size: { heading: '1.75rem', body: '0.875rem', small: '0.75rem' }
+    },
+    layout: {
+      margins: { top: '0', right: '2rem', bottom: '2rem', left: '2rem' },
+      columns: { count: 1, gap: '1.5rem' },
+      spacing: { section: '1.75rem', item: '1rem', line: '1.5rem' }
+    },
+    components: {
+      personalInfo: { layout: 'banner', showAvatar: true, avatarPosition: 'left', avatarShape: 'circle', avatarBorderRadius: 50, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'plain', alignment: 'left' },
+      listItem: { bulletStyle: 'dot', indentation: '1rem' },
+      dateFormat: { format: 'YYYY.MM', position: 'right' }
+    }
+  },
+
+  // 12. 极简线条 - 线条美学
+  {
+    id: 'line-minimal',
+    name: '极简线条',
+    nameEn: 'Line Minimal',
+    description: '细线条装饰，极简美学，适合追求简约的求职者',
+    descriptionEn: 'Thin line decoration, minimal aesthetics, for minimalists',
+    preview: '/templates/line-minimal.svg',
+    category: 'general',
+    subCategory: 'minimal',
+    isPremium: false,
+    layoutType: 'top-bottom',
+    tags: ['线条', '极简', '美学'],
+    colors: {
+      primary: '#000000',
+      secondary: '#666666',
+      accent: '#333333',
+      text: '#000000',
+      background: '#ffffff',
+      lineColor: '#e5e5e5'
+    },
+    fonts: {
+      heading: 'Inter, -apple-system, sans-serif',
+      body: 'Inter, -apple-system, sans-serif',
+      size: { heading: '1.5rem', body: '0.875rem', small: '0.75rem' }
+    },
+    layout: {
+      margins: { top: '2.5rem', right: '2.5rem', bottom: '2.5rem', left: '2.5rem' },
+      columns: { count: 1, gap: '1.5rem' },
+      spacing: { section: '1.75rem', item: '1rem', line: '1.5rem' }
+    },
+    components: {
+      personalInfo: { layout: 'horizontal', showAvatar: true, avatarPosition: 'left', avatarShape: 'circle', avatarBorderRadius: 50, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'border', alignment: 'left' },
+      listItem: { bulletStyle: 'dash', indentation: '1rem' },
+      dateFormat: { format: 'YYYY.MM', position: 'right' }
+    }
+  }
+
+]
+
+/**
+ * 职业分类配置 - 简化版
+ */
+export const careerCategories = [
+  {
+    id: 'general',
+    name: '通用模板',
+    nameEn: 'General',
+    icon: 'FileText',
+    subCategories: [
+      { id: 'modern', name: '现代风格', nameEn: 'Modern' },
+      { id: 'classic', name: '经典风格', nameEn: 'Classic' },
+      { id: 'minimal', name: '极简风格', nameEn: 'Minimal' }
+    ]
+  },
+  {
+    id: 'designer',
+    name: '设计创意',
+    nameEn: 'Design & Creative',
+    icon: 'Palette',
+    subCategories: [
+      { id: 'minimal', name: '极简设计', nameEn: 'Minimal Design' },
+      { id: 'creative', name: '创意设计', nameEn: 'Creative Design' }
+    ]
   }
 ]
 
 /**
- * 模板分类
+ * 模板分类（按职业岗位）
  */
-export const templateCategories: TemplateCategory[] = [
-  {
-    id: 'modern',
-    name: '现代风格',
-    description: '简洁现代的设计，适合大多数行业',
-    icon: 'Zap',
-    templates: resumeTemplates.filter(t => t.category === 'modern' && !t.hidden)
-  },
-  {
-    id: 'classic',
-    name: '经典风格',
-    description: '传统优雅的设计，适合正式场合',
-    icon: 'BookOpen',
-    templates: resumeTemplates.filter(t => t.category === 'classic' && !t.hidden)
-  },
-  {
-    id: 'creative',
-    name: '创意风格',
-    description: '富有创意的设计，展现个人特色',
-    icon: 'Palette',
-    templates: resumeTemplates.filter(t => t.category === 'creative' && !t.hidden)
-  },
-  {
-    id: 'minimal',
-    name: '极简风格',
-    description: '极简主义设计，突出内容本身',
-    icon: 'Minus',
-    templates: resumeTemplates.filter(t => t.category === 'minimal' && !t.hidden)
-  },
-  {
-    id: 'career',
-    name: '职业模板',
-    description: '针对不同职业定制的简历模板，包含行业特色内容',
-    icon: 'Briefcase',
-    templates: resumeTemplates.filter(t => t.category === 'career' && !t.hidden)
-  },
-  {
-    id: 'english',
-    name: 'English Resume',
-    description: 'Professional templates for international job market',
-    icon: 'Globe',
-    templates: resumeTemplates.filter(t => t.category === 'english' && !t.hidden)
-  }
-]
+export const templateCategories: TemplateCategory[] = careerCategories.map(career => ({
+  id: career.id,
+  name: career.name,
+  nameEn: career.nameEn,
+  description: `适合${career.name}岗位的简历模板`,
+  descriptionEn: `Resume templates for ${career.nameEn} positions`,
+  icon: career.icon,
+  templates: resumeTemplates.filter(t => t.category === career.id && !t.hidden)
+}))
 
 /**
  * 获取默认模板
  */
 export const getDefaultTemplate = (): TemplateStyle => {
-  return resumeTemplates.find(t => t.id === 'minimal-clean') || resumeTemplates[0]
+  return resumeTemplates.find(t => t.id === 'minimal-text') || resumeTemplates[0]
 }
 
 /**
@@ -1282,9 +560,71 @@ export const getPremiumTemplates = (): TemplateStyle[] => {
  * 流行模板ID列表
  */
 export const popularTemplateIds = [
-  'modern-blue',
-  'creative-purple',
-  'career-ui-designer',
-  'minimal-clean',
-  'classic-elegant'
+  'minimal-text',
+  'table-layout',
+  'timeline-layout',
+  'two-column-standard',
+  'divider-layout',
+  'compact-layout',
+  'card-layout',
+  'grid-layout',
+  'banner-layout',
+  'line-minimal'
 ]
+
+/**
+ * 有效的模板分类（职业类型）
+ */
+export const VALID_CATEGORIES = ['designer', 'general'] as const
+export type ValidCategory = typeof VALID_CATEGORIES[number]
+
+/**
+ * 获取可用模板（排除隐藏模板）
+ */
+export const getAvailableTemplates = (): TemplateStyle[] => {
+  return resumeTemplates.filter(t => !t.hidden)
+}
+
+/**
+ * 按分类获取可用模板
+ */
+export const getTemplatesByCategory = (category: string): TemplateStyle[] => {
+  return resumeTemplates.filter(t => t.category === category && !t.hidden)
+}
+
+/**
+ * 按子分类获取模板
+ */
+export const getTemplatesBySubCategory = (subCategory: string): TemplateStyle[] => {
+  return resumeTemplates.filter(t => t.subCategory === subCategory && !t.hidden)
+}
+
+/**
+ * 获取按分类组织的模板
+ */
+export const getTemplatesGroupedByCategory = (): Record<string, TemplateStyle[]> => {
+  const templates = getAvailableTemplates()
+  return templates.reduce((acc, template) => {
+    const category = template.category
+    if (!acc[category]) {
+      acc[category] = []
+    }
+    acc[category].push(template)
+    return acc
+  }, {} as Record<string, TemplateStyle[]>)
+}
+
+/**
+ * 获取职业分类信息
+ */
+export const getCareerCategory = (categoryId: string) => {
+  return careerCategories.find(c => c.id === categoryId)
+}
+
+/**
+ * 获取子分类信息
+ */
+export const getSubCategory = (categoryId: string, subCategoryId: string) => {
+  const career = careerCategories.find(c => c.id === categoryId)
+  return career?.subCategories.find(s => s.id === subCategoryId)
+}

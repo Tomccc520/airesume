@@ -3,14 +3,18 @@
  * @copyright UIED技术团队 (https://fsuied.com)
  * @author UIED技术团队
  * @createDate 2025-9-22
+ * 
+ * 简历编辑器组件 - 性能优化版本
+ * 使用 React.memo、useMemo、useCallback 优化渲染性能
+ * Requirements: 1.3, 1.4
  */
 
 'use client'
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { User, Briefcase, GraduationCap, Code, FolderOpen, Palette, Save, ChevronLeft, ChevronRight, Wand2, Sparkles } from 'lucide-react'
-import { ResumeData, Experience, Skill } from '../types/resume'
+import { ResumeData, Experience, Skill, PersonalInfo, Education, Project } from '../types/resume'
 import { PersonalInfoForm } from './editor/PersonalInfoForm'
 import { ExperienceForm } from './editor/ExperienceForm'
 import { EducationForm } from './editor/EducationForm'
@@ -33,19 +37,38 @@ interface ResumeEditorProps {
   activeSection: string
   onSectionChange: (section: string) => void
   onShowTemplateSelector?: () => void
+  /** Hide internal navigation sidebar (for three-column layout) */
+  hideNavigation?: boolean
 }
+
+/**
+ * 优化的动画配置 - 使用 useMemo 缓存
+ */
+const sectionAnimationVariants = {
+  initial: { opacity: 0, x: 20 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -20 }
+}
+
+const sectionAnimationTransition = { duration: 0.2 }
 
 /**
  * 简历编辑器组件
  * 提供简历内容编辑功能，包含导航、表单和样式设置
  * 支持全局快捷键操作
+ * 
+ * 性能优化：
+ * - 使用 useMemo 缓存计算密集型操作
+ * - 使用 useCallback 优化事件处理器
+ * - 使用 React.memo 包装子组件
  */
-export default function ResumeEditor({
+function ResumeEditorComponent({
   resumeData,
   onUpdateResumeData,
   activeSection,
   onSectionChange,
-  onShowTemplateSelector
+  onShowTemplateSelector,
+  hideNavigation = false
 }: ResumeEditorProps) {
   const [showAiAssistant, setShowAiAssistant] = useState(false)
   const [aiAssistantType, setAiAssistantType] = useState<'summary' | 'experience' | 'skills' | 'education' | 'projects'>('summary')
@@ -54,8 +77,8 @@ export default function ResumeEditor({
   const { success: showToast } = useToastContext()
   const { t } = useLanguage()
 
-  // 转换导航项以使用翻译
-  const translatedNavigationItems = navigationItems.map(item => {
+  // 使用 useMemo 缓存导航项翻译，避免每次渲染都重新计算
+  const translatedNavigationItems = useMemo(() => navigationItems.map(item => {
     let label = item.label
     let description = item.description
     
@@ -87,7 +110,7 @@ export default function ResumeEditor({
       label,
       description
     }
-  })
+  }), [t])
 
   const {
     suggestionsTitle,
@@ -298,126 +321,168 @@ export default function ResumeEditor({
     setShowAiAssistant(false)
   }, [aiAssistantType, resumeData, onUpdateResumeData, showToast])
 
-  // 获取当前导航项索引
-  const currentIndex = navigationItems.findIndex(item => item.id === activeSection)
+  // 获取当前导航项索引 - 使用 useMemo 缓存
+  const currentIndex = useMemo(() => 
+    navigationItems.findIndex(item => item.id === activeSection),
+    [activeSection]
+  )
 
-  // 处理上一步/下一步
-  const handlePrevious = () => {
+  // 使用 useCallback 优化数据更新处理器，避免不必要的重渲染
+  const handlePersonalInfoChange = useCallback((data: PersonalInfo) => {
+    onUpdateResumeData({ ...resumeData, personalInfo: data })
+  }, [resumeData, onUpdateResumeData])
+
+  const handleExperienceChange = useCallback((data: Experience[]) => {
+    onUpdateResumeData({ ...resumeData, experience: data })
+  }, [resumeData, onUpdateResumeData])
+
+  const handleEducationChange = useCallback((data: Education[]) => {
+    onUpdateResumeData({ ...resumeData, education: data })
+  }, [resumeData, onUpdateResumeData])
+
+  const handleSkillsChange = useCallback((data: Skill[]) => {
+    onUpdateResumeData({ ...resumeData, skills: data })
+  }, [resumeData, onUpdateResumeData])
+
+  const handleProjectsChange = useCallback((data: Project[]) => {
+    onUpdateResumeData({ ...resumeData, projects: data })
+  }, [resumeData, onUpdateResumeData])
+
+  // 处理上一步/下一步 - 使用 useCallback 优化
+  const handlePrevious = useCallback(() => {
     if (currentIndex > 0) {
       onSectionChange(navigationItems[currentIndex - 1].id)
     }
-  }
+  }, [currentIndex, onSectionChange])
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (currentIndex < navigationItems.length - 1) {
       onSectionChange(navigationItems[currentIndex + 1].id)
     }
-  }
+  }, [currentIndex, onSectionChange])
 
-  // 渲染当前活动部分
-  const renderActiveSection = () => {
-    const content = (() => {
-      switch (activeSection) {
-        case 'personal':
-          return (
-            <PersonalInfoForm 
-              personalInfo={resumeData.personalInfo} 
-              onChange={(data) => onUpdateResumeData({ ...resumeData, personalInfo: data })}
-              onAiOptimize={() => handleAIOptimize('summary')}
-            />
-          )
-        case 'experience':
-          return (
-            <ExperienceForm 
-              experiences={resumeData.experience} 
-              onChange={(data) => onUpdateResumeData({ ...resumeData, experience: data })}
-            />
-          )
-        case 'education':
-          return (
-            <EducationForm 
-              education={resumeData.education} 
-              onChange={(data) => onUpdateResumeData({ ...resumeData, education: data })}
-            />
-          )
-        case 'skills':
-          return (
-            <SkillsForm 
-              skills={resumeData.skills} 
-              onChange={(data) => onUpdateResumeData({ ...resumeData, skills: data })}
-            />
-          )
-        case 'projects':
-          return (
-            <ProjectsForm 
-              projects={resumeData.projects} 
-              onChange={(data) => onUpdateResumeData({ ...resumeData, projects: data })}
-            />
-          )
-        default:
-          return (
-            <PersonalInfoForm 
-              personalInfo={resumeData.personalInfo} 
-              onChange={(data) => onUpdateResumeData({ ...resumeData, personalInfo: data })}
-              onAiOptimize={() => handleAIOptimize('summary')}
-            />
-          )
-      }
-    })()
+  // 渲染当前活动部分 - 使用 useMemo 缓存组件渲染
+  const activeSectionContent = useMemo(() => {
+    switch (activeSection) {
+      case 'personal':
+        return (
+          <PersonalInfoForm 
+            personalInfo={resumeData.personalInfo} 
+            onChange={handlePersonalInfoChange}
+            onAiOptimize={() => handleAIOptimize('summary')}
+          />
+        )
+      case 'experience':
+        return (
+          <ExperienceForm 
+            experiences={resumeData.experience} 
+            onChange={handleExperienceChange}
+          />
+        )
+      case 'education':
+        return (
+          <EducationForm 
+            education={resumeData.education} 
+            onChange={handleEducationChange}
+          />
+        )
+      case 'skills':
+        return (
+          <SkillsForm 
+            skills={resumeData.skills} 
+            onChange={handleSkillsChange}
+          />
+        )
+      case 'projects':
+        return (
+          <ProjectsForm 
+            projects={resumeData.projects} 
+            onChange={handleProjectsChange}
+          />
+        )
+      default:
+        return (
+          <PersonalInfoForm 
+            personalInfo={resumeData.personalInfo} 
+            onChange={handlePersonalInfoChange}
+            onAiOptimize={() => handleAIOptimize('summary')}
+          />
+        )
+    }
+  }, [
+    activeSection, 
+    resumeData.personalInfo, 
+    resumeData.experience, 
+    resumeData.education, 
+    resumeData.skills, 
+    resumeData.projects,
+    handlePersonalInfoChange,
+    handleExperienceChange,
+    handleEducationChange,
+    handleSkillsChange,
+    handleProjectsChange,
+    handleAIOptimize
+  ])
 
+  // 渲染当前活动部分（带动画）
+  const renderActiveSection = useCallback(() => {
     return (
       <AnimatePresence mode="wait">
         <motion.div
           key={activeSection}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.2 }}
+          initial={sectionAnimationVariants.initial}
+          animate={sectionAnimationVariants.animate}
+          exit={sectionAnimationVariants.exit}
+          transition={sectionAnimationTransition}
         >
-          {content}
+          {activeSectionContent}
         </motion.div>
       </AnimatePresence>
     )
-  }
+  }, [activeSection, activeSectionContent])
 
   return (
-    <div className="h-full flex flex-col bg-white/50 backdrop-blur-sm">
-      {/* 标题栏 */}
-      <EditorHeader 
-        onOpenAIAssistant={() => openAIAssistant(activeSection as any)}
-        onSave={handleSave}
-      />
+    <div className={`${hideNavigation ? '' : 'h-full'} flex flex-col bg-white/50 backdrop-blur-sm`}>
+      {/* 标题栏 - 三栏模式下隐藏 */}
+      {!hideNavigation && (
+        <EditorHeader 
+          onOpenAIAssistant={() => openAIAssistant(activeSection as any)}
+          onSave={handleSave}
+        />
+      )}
 
       {/* 主要内容区域 */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* 左侧导航 - 重构为更现代的侧边栏 */}
-        <EditorSidebar 
-          navigationItems={translatedNavigationItems}
-          activeSection={activeSection}
-          onSectionChange={onSectionChange}
-          onShowTemplateSelector={() => onShowTemplateSelector?.()}
-        />
+      <div className={`flex-1 flex ${hideNavigation ? '' : 'overflow-hidden'}`}>
+        {/* 左侧导航 - 三栏模式下隐藏 */}
+        {!hideNavigation && (
+          <EditorSidebar 
+            navigationItems={translatedNavigationItems}
+            activeSection={activeSection}
+            onSectionChange={onSectionChange}
+            onShowTemplateSelector={() => onShowTemplateSelector?.()}
+          />
+        )}
 
         {/* 右侧编辑区域 */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-white/50">
+        <div className={`flex-1 flex flex-col ${hideNavigation ? '' : 'overflow-hidden'} bg-white/50`}>
           {/* 头部面包屑/标题 */}
-          <div className="px-8 py-6 pb-0">
-             <h2 className="text-2xl font-bold text-gray-900 mb-1">
-               {navigationItems.find(item => item.id === activeSection)?.label}
+          <div className={`${hideNavigation ? 'px-6 py-4' : 'px-8 py-6'} pb-0`}>
+             <h2 className={`${hideNavigation ? 'text-xl' : 'text-2xl'} font-bold text-gray-900 mb-1`}>
+               {translatedNavigationItems.find(item => item.id === activeSection)?.label}
              </h2>
              <p className="text-gray-500 text-sm">
-               {navigationItems.find(item => item.id === activeSection)?.description}
+               {translatedNavigationItems.find(item => item.id === activeSection)?.description}
              </p>
           </div>
 
           {/* 桌面端内联编辑 */}
-          <div className="hidden md:block flex-1 px-8 py-6 overflow-y-auto custom-scrollbar">
-            <div className="max-w-3xl">
+          <div className={`hidden md:block flex-1 ${hideNavigation ? 'px-6 py-4' : 'px-8 py-6'} ${hideNavigation ? '' : 'overflow-y-auto custom-scrollbar'}`}>
+            <div className={hideNavigation ? '' : 'max-w-3xl'}>
               {renderActiveSection()}
             </div>
             
             {/* 底部导航按钮 */}
-                <div className="max-w-3xl mt-8 flex items-center justify-between pt-6 border-t border-gray-100">
+                <div className={`${hideNavigation ? '' : 'max-w-3xl'} mt-8 flex items-center justify-between pt-6 border-t border-gray-100`}>
                   <button
                     onClick={handlePrevious}
                     disabled={currentIndex === 0}
@@ -451,7 +516,7 @@ export default function ResumeEditor({
               onClick={() => setShowSectionModal(true)}
               className="w-full px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg shadow active:scale-95"
             >
-              编辑当前分区
+              {t.editor.mobile.editSection}
             </button>
           </div>
         </div>
@@ -500,7 +565,7 @@ export default function ResumeEditor({
               className="relative bg-white w-full max-w-xl mx-4 rounded-lg border border-gray-200 shadow-xl"
             >
               <div className="flex items-center justify-between p-3 border-b border-gray-200">
-                <h3 className="text-sm font-medium text-gray-900">编辑当前分区</h3>
+                <h3 className="text-sm font-medium text-gray-900">{t.editor.mobile.editSection}</h3>
                 <button
                   onClick={() => setShowSectionModal(false)}
                   className="text-gray-400 hover:text-gray-600"
@@ -519,3 +584,11 @@ export default function ResumeEditor({
     </div>
   )
 }
+
+/**
+ * 使用 React.memo 包装组件，避免不必要的重渲染
+ * 只有当 props 发生变化时才会重新渲染
+ */
+const ResumeEditor = memo(ResumeEditorComponent)
+
+export default ResumeEditor

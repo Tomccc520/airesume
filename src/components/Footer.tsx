@@ -12,11 +12,16 @@ import { useLanguage } from '@/contexts/LanguageContext'
  * 全局底部页脚组件
  * 提供网站信息、链接和版权信息
  */
-export default function Footer() {
+
+interface FooterProps {
+  className?: string
+}
+
+export default function Footer({ className = '' }: FooterProps) {
   const { t } = useLanguage()
 
   return (
-    <footer className="bg-white/70 backdrop-blur-xl border-t border-white/40 shadow-lg shadow-blue-900/5 mt-auto" role="contentinfo" aria-label="页面底部">
+    <footer className={`bg-white/70 backdrop-blur-xl border-t border-white/40 shadow-lg shadow-blue-900/5 mt-auto ${className}`} role="contentinfo" aria-label="页面底部">
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center justify-center space-y-8">
           {/* Logo和标题 */}

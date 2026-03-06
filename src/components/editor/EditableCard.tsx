@@ -1,8 +1,16 @@
+/**
+ * @copyright Tomda (https://www.tomda.top)
+ * @copyright UIED技术团队 (https://fsuied.com)
+ * @author UIED技术团队
+ * @createDate 2025-9-22
+ */
+
 'use client'
 
 import React, { useState } from 'react'
 import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion'
-import { ChevronDown, ChevronUp, Trash2, AlertCircle } from 'lucide-react'
+import { ChevronDown, Trash2, AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface EditableCardProps extends Omit<HTMLMotionProps<'div'>, 'title' | 'onAnimationStart' | 'onDragStart' | 'onDragEnd' | 'onDrag' | 'ref'> {
   title: string
@@ -13,6 +21,7 @@ interface EditableCardProps extends Omit<HTMLMotionProps<'div'>, 'title' | 'onAn
   onDelete?: () => void
   hasError?: boolean
   children: React.ReactNode
+  dragHandle?: React.ReactNode
 }
 
 export function EditableCard({
@@ -25,6 +34,7 @@ export function EditableCard({
   hasError = false,
   children,
   className = '',
+  dragHandle,
   ...motionProps
 }: EditableCardProps) {
   const [internalIsExpanded, setInternalIsExpanded] = useState(defaultExpanded)
@@ -33,65 +43,55 @@ export function EditableCard({
   const handleToggle = controlledOnToggle || (() => setInternalIsExpanded(!isExpanded))
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className={`group bg-white/60 backdrop-blur-sm rounded-xl transition-all duration-300 ${
+    <div
+      className={`group bg-white rounded-2xl border transition-all ${
         hasError 
-          ? 'border border-red-500/50 ring-1 ring-red-500/20' 
-          : 'border border-gray-200/60 hover:border-blue-500/50 hover:bg-white/80'
+          ? 'border-red-300 shadow-sm shadow-red-100' 
+          : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
       } ${className}`}
       {...motionProps}
     >
       {/* 卡片头部 */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-100/60">
-        <motion.button 
-          whileTap={{ scale: 0.99 }}
-          onClick={handleToggle} 
-          className="flex items-center gap-3 flex-1 text-left hover:opacity-80 transition-opacity"
-          type="button"
-        >
-          <motion.div
-            animate={{ rotate: isExpanded ? 0 : -90 }}
-            transition={{ duration: 0.2 }}
-            className="p-1.5 rounded-md bg-gray-50 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors"
+      <div className="flex items-center justify-between p-5">
+        <div className="flex items-center flex-1 gap-3 overflow-hidden">
+          {dragHandle}
+          <button
+            onClick={handleToggle} 
+            className="flex items-center gap-3 flex-1 text-left overflow-hidden"
+            type="button"
           >
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
-          </motion.div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-gray-900">{title}</h3>
-            {subtitle && (
-              <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
-            )}
-          </div>
-        </motion.button>
+            <div className={`p-2 rounded-lg transition-all flex-shrink-0 ${
+              isExpanded 
+                ? 'bg-blue-100 text-blue-600' 
+                : 'bg-gray-100 text-gray-500 group-hover:bg-blue-50 group-hover:text-blue-500'
+            }`}>
+              <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 truncate text-base">{title}</h3>
+              {subtitle && (
+                <p className="text-sm text-gray-500 mt-0.5 truncate">{subtitle}</p>
+              )}
+            </div>
+          </button>
+        </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-2">
           {hasError && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="flex items-center"
-            >
+            <div className="flex items-center">
               <AlertCircle className="w-5 h-5 text-red-500" />
-            </motion.div>
+            </div>
           )}
           {onDelete && (
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+            <Button
               onClick={onDelete}
-              className="p-2 text-gray-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+              variant="ghost"
+              size="icon"
+              className="text-gray-400 hover:bg-red-50 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
               type="button"
             >
               <Trash2 className="w-4 h-4" />
-            </motion.button>
+            </Button>
           )}
         </div>
       </div>
@@ -100,29 +100,16 @@ export function EditableCard({
       <AnimatePresence initial={false}>
         {isExpanded && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ 
-              height: 'auto', 
-              opacity: 1,
-              transition: {
-                height: { duration: 0.3, ease: 'easeInOut' },
-                opacity: { duration: 0.2, delay: 0.1 }
-              }
-            }}
-            exit={{ 
-              height: 0, 
-              opacity: 0,
-              transition: {
-                height: { duration: 0.3, ease: 'easeInOut' },
-                opacity: { duration: 0.2 }
-              }
-            }}
-            className="overflow-hidden"
+            initial={{ height: 0 }}
+            animate={{ height: 'auto' }}
+            exit={{ height: 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            className="overflow-hidden border-t border-gray-100"
           >
-            <div className="p-5">{children}</div>
+            <div className="p-6 bg-gray-50/30">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   )
 }

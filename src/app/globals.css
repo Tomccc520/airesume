@@ -2,8 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Merriweather:wght@300;400;700&family=Open+Sans:wght@300;400;600&family=Playfair+Display:wght@400;600;700&family=Roboto:wght@300;400;500;700&display=swap');
+/* 使用系统默认字体 - 更快的加载速度和更好的兼容性 */
 
 /* 引入设计系统 */
 @import '../styles/design-system.css';
@@ -11,28 +10,102 @@
 /* 引入打印样式 */
 @import '../styles/print.css';
 
+@layer base {
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+    /* Shadcn/ui CSS 变量 */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+    
+  /* 现代色彩系统 */
+  --color-ink: 28, 25, 23;           /* 深墨色 #1c1917 */
+  --color-paper: 250, 250, 249;      /* 纸白色 #fafaf9 */
+  --color-amber: 217, 119, 6;        /* 琥珀金 #d97706 */
+  --color-amber-light: 251, 191, 36; /* 浅琥珀 #fbbf24 */
+  --color-slate: 100, 116, 139;      /* 石板灰 #64748b */
+  --color-accent: 239, 68, 68;       /* 红色点缀 #ef4444 */
+  
+  /* 系统字体栈 - 优先使用系统默认字体 */
+  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  
+  /* 间距系统 */
+  --spacing-unit: 8px;
+  
+  /* 阴影系统 - 柔和自然 */
+  --shadow-sm: 0 1px 2px 0 rgba(28, 25, 23, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(28, 25, 23, 0.08);
+  --shadow-lg: 0 10px 15px -3px rgba(28, 25, 23, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(28, 25, 23, 0.12);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 217.2 91.2% 59.8%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 224.3 76.3% 48%;
+  
+    --color-ink: 250, 250, 249;
+    --color-paper: 28, 25, 23;
+    --color-amber: 251, 191, 36;
+    --color-amber-light: 252, 211, 77;
   }
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: #ffffff;
-  font-family: 'Inter', sans-serif;
+  color: rgb(var(--color-ink));
+  background: rgb(var(--color-paper));
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+  letter-spacing: -0.011em;
+}
+
+/* 标题使用系统字体 */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* 代码使用等宽字体 */
+code, pre {
+  font-family: var(--font-mono);
 }
 
 /* 自定义滚动条 - 隐藏滚动条但在部分元素中保留滚动功能 */
@@ -44,23 +117,25 @@ body {
   scrollbar-width: none;  /* Firefox */
 }
 
-/* 自定义细滚动条 */
+/* 自定义细滚动条 - Editorial 风格 */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #e5e7eb;
+  background: rgba(var(--color-ink), 0.05);
   border-radius: 3px;
 }
 
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(var(--color-amber), 0.5);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #d1d5db;
+  background: rgba(var(--color-amber), 0.8);
 }
 
 /* 动画类 */
@@ -70,4 +145,16 @@ body {
 
 .animate-slide-up {
   animation: slideUp 0.3s ease-out;
+}
+
+/* 导出模式样式 - 确保导出时所有内容可见，但不改变颜色 */
+.exporting {
+  transform: none !important;
+  animation: none !important;
+  transition: none !important;
+}
+
+.exporting button,
+.exporting .no-export {
+  display: none !important;
 }

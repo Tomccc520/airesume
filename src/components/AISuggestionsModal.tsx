@@ -8,8 +8,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { X, Check, Sparkles, Copy, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { X, Check, Sparkles, Copy, CheckCircle2, AlertCircle, Loader2, Wrench, Plus, Zap, Lightbulb } from 'lucide-react'
 import { useToastContext } from '@/components/Toast'
 
 interface AISuggestion {
@@ -155,150 +154,86 @@ export default function AISuggestionsModal({
   const getSuggestionStyle = (type: AISuggestion['type']) => {
     switch (type) {
       case 'improvement':
-        return { icon: '🔧', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' }
+        return { icon: <Wrench className="w-5 h-5 text-blue-600" />, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' }
       case 'addition':
-        return { icon: '➕', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' }
+        return { icon: <Plus className="w-5 h-5 text-green-600" />, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' }
       case 'optimization':
-        return { icon: '⚡', color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' }
+        return { icon: <Zap className="w-5 h-5 text-purple-600" />, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' }
       default:
-        return { icon: '💡', color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200' }
+        return { icon: <Lightbulb className="w-5 h-5 text-gray-600" />, color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200' }
     }
-  }
-
-  // 动画变体
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
   }
 
   if (!isOpen) return null
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        {/* 背景遮罩 */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-          onClick={onClose}
-        />
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* 背景遮罩 */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
-        {/* 弹窗内容 */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ type: "spring", duration: 0.5 }}
-          className="relative w-full max-w-4xl max-h-[85vh] mx-4 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-blue-900/20 overflow-hidden flex flex-col border border-white/20"
-        >
-          {/* 头部 */}
-          <div className="flex-none flex items-center justify-between p-6 border-b border-gray-200/50 bg-gradient-to-r from-blue-50/50 to-purple-50/50 backdrop-blur-md">
-            <div className="flex items-center space-x-3">
-              <motion.div 
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                className="p-2.5 bg-blue-100/50 rounded-xl border border-blue-200/50 shadow-sm backdrop-blur-sm"
-              >
-                <Sparkles className="w-6 h-6 text-blue-600" />
-              </motion.div>
-              <div>
-                <motion.h2 
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="text-xl font-bold text-gray-900"
-                >
-                  {title}
-                </motion.h2>
-                <motion.p 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="text-sm text-gray-600 font-medium"
-                >
-                  {loading ? '正在生成建议...' : `共 ${suggestions.length} 条优化建议`}
-                </motion.p>
-              </div>
+      {/* 弹窗内容 */}
+      <div
+        className="relative w-full max-w-4xl max-h-[85vh] mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-200"
+      >
+        {/* 头部 */}
+        <div className="flex-none flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-sm">
+              <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <motion.button
-              whileHover={{ scale: 1.1, rotate: 90 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-black/5 rounded-xl transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </motion.button>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">
+                {title}
+              </h2>
+              <p className="text-sm text-gray-600 font-medium">
+                {loading ? '正在生成建议...' : `共 ${suggestions.length} 条优化建议`}
+              </p>
+            </div>
           </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
           {/* 内容区域 - 可滚动 */}
           <div className="flex-1 overflow-y-auto">
             {/* 加载状态 */}
             {loading && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center py-20"
-              >
+              <div className="flex flex-col items-center justify-center py-20">
                 <div className="text-center">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                    className="inline-block mb-6"
-                  >
-                    <Loader2 className="h-12 w-12 text-indigo-600" />
-                  </motion.div>
-                  <motion.p 
-                    key={thinkingText}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="text-gray-600 mb-6 text-lg font-medium"
-                  >
+                  <div className="inline-block mb-6">
+                    <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
+                  </div>
+                  <p className="text-gray-600 mb-6 text-lg font-medium">
                     {thinkingText}
-                  </motion.p>
+                  </p>
                   <div className="flex justify-center space-x-3">
                     {[0, 1, 2].map((i) => (
-                      <motion.div
+                      <div
                         key={i}
-                        className="w-3 h-3 bg-indigo-500 rounded-full"
-                        animate={{
-                          scale: [1, 1.5, 1],
-                          opacity: [0.5, 1, 0.5]
-                        }}
-                        transition={{
-                          duration: 1,
-                          repeat: Infinity,
-                          delay: i * 0.2
-                        }}
+                        className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"
+                        style={{ animationDelay: `${i * 0.2}s` }}
                       />
                     ))}
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {/* 建议列表 */}
             {!loading && suggestions.length > 0 && (
               <>
                 {/* 操作栏 */}
-                <div className="sticky top-0 z-10 flex items-center justify-between p-4 bg-gray-50/80 backdrop-blur-md border-b border-gray-200/50">
+                <div className="sticky top-0 z-10 flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200">
                   <div className="flex items-center space-x-4">
                     <label className="flex items-center space-x-2 cursor-pointer group">
-                      <motion.input
-                        whileTap={{ scale: 0.9 }}
+                      <input
                         type="checkbox"
                         checked={selectedSuggestions.size === suggestions.length}
                         onChange={toggleSelectAll}
@@ -310,25 +245,18 @@ export default function AISuggestionsModal({
                       已选择 <span className="font-bold text-blue-600">{selectedSuggestions.size}</span> 条建议
                     </span>
                   </div>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                  <button
                     onClick={handleApplySelected}
                     disabled={selectedSuggestions.size === 0 || isBatchProcessing}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30"
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md"
                   >
                     {isBatchProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
                     <span>{isBatchProcessing ? '正在应用...' : `应用选中建议 (${selectedSuggestions.size})`}</span>
-                  </motion.button>
+                  </button>
                 </div>
 
                 {/* 建议卡片列表 */}
-                <motion.div 
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="p-4 space-y-4"
-                >
+                <div className="p-4 space-y-4">
                   {suggestions.map((suggestion) => {
                     const style = getSuggestionStyle(suggestion.type)
                     const isSelected = selectedSuggestions.has(suggestion.id)
@@ -336,56 +264,43 @@ export default function AISuggestionsModal({
                     const isProcessing = applyingId === suggestion.id
 
                     return (
-                      <motion.div
+                      <div
                         key={suggestion.id}
-                        variants={itemVariants}
-                        layout
-                        initial={false}
-                        animate={{
-                          scale: isSelected ? 1.01 : 1,
-                          borderColor: isSelected ? 'rgba(59, 130, 246, 0.5)' : isApplied ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255, 255, 255, 0.6)',
-                          backgroundColor: isSelected ? 'rgba(239, 246, 255, 0.6)' : isApplied ? 'rgba(240, 253, 244, 0.4)' : 'rgba(255, 255, 255, 0.4)'
-                        }}
-                        whileHover={{ scale: isSelected ? 1.01 : 1.005 }}
-                        whileTap={{ scale: 0.99 }}
-                        className={`group relative p-4 border rounded-xl transition-all duration-200 cursor-pointer backdrop-blur-sm ${
-                          !isSelected && !isApplied ? 'hover:bg-white/60 hover:border-blue-200/50 hover:shadow-lg hover:shadow-blue-900/5' : ''
-                        } ${isSelected ? 'shadow-md shadow-blue-900/10' : ''}`}
+                        className={`group relative p-4 border rounded-xl transition-colors cursor-pointer ${
+                          isSelected 
+                            ? 'border-blue-500 bg-blue-50 shadow-md' 
+                            : isApplied 
+                            ? 'border-green-300 bg-green-50' 
+                            : 'border-gray-200 bg-white hover:bg-gray-50 hover:border-blue-300'
+                        }`}
                         onClick={() => !isApplied && !isBatchProcessing && toggleSuggestion(suggestion.id)}
                       >
                         <div className="flex items-start space-x-4">
                           {/* 选择框 */}
                           <div className="pt-1" onClick={(e) => e.stopPropagation()}>
-                            <motion.div
-                              whileTap={{ scale: 0.8 }}
+                            <div
                               onClick={() => !isApplied && !isBatchProcessing && toggleSuggestion(suggestion.id)}
-                              className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${
+                              className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-colors ${
                                 isSelected ? 'bg-blue-600 border-blue-600 shadow-sm' : 'border-gray-300 bg-white/80'
                               } ${isApplied ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-blue-400'}`}
                             >
                               {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
-                            </motion.div>
+                            </div>
                           </div>
 
                           {/* 建议内容 */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2 mb-3">
-                              <span className="text-xl filter drop-shadow-sm">{style.icon}</span>
-                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full border backdrop-blur-sm ${style.border} ${style.bg} ${style.color}`}>
+                              <span className="filter drop-shadow-sm">{style.icon}</span>
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${style.border} ${style.bg} ${style.color}`}>
                                 {suggestion.category}
                               </span>
-                              <AnimatePresence>
-                                {isApplied && (
-                                  <motion.span 
-                                    initial={{ opacity: 0, scale: 0.5, x: -10 }}
-                                    animate={{ opacity: 1, scale: 1, x: 0 }}
-                                    className="flex items-center space-x-1 text-xs font-bold text-green-600 bg-green-100/80 px-2 py-0.5 rounded-full backdrop-blur-sm border border-green-200"
-                                  >
-                                    <CheckCircle2 className="w-3 h-3" />
-                                    <span>已应用</span>
-                                  </motion.span>
-                                )}
-                              </AnimatePresence>
+                              {isApplied && (
+                                <span className="flex items-center space-x-1 text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full border border-green-200">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  <span>已应用</span>
+                                </span>
+                              )}
                             </div>
                             <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap font-medium">
                               {suggestion.content}
@@ -394,88 +309,75 @@ export default function AISuggestionsModal({
 
                           {/* 操作按钮 */}
                           <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
+                            <button
                               onClick={() => copyToClipboard(suggestion.content)}
                               className="p-2 text-gray-400 hover:text-gray-600 hover:bg-black/5 rounded-xl transition-colors"
                               title="复制建议"
                             >
                               <Copy className="w-4 h-4" />
-                            </motion.button>
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
+                            </button>
+                            <button
                               onClick={() => handleApplySingle(suggestion)}
                               disabled={isApplied || isBatchProcessing || applyingId !== null}
-                              className={`flex items-center space-x-1 px-4 py-2 text-xs font-bold rounded-xl transition-all shadow-sm ${
+                              className={`flex items-center space-x-1 px-4 py-2 text-xs font-bold rounded-xl transition-colors shadow-sm ${
                                 isApplied
-                                  ? 'bg-green-100/50 text-green-600 cursor-not-allowed border border-green-200/50'
+                                  ? 'bg-green-100 text-green-600 cursor-not-allowed border border-green-200'
                                   : isProcessing
                                   ? 'bg-blue-500 text-white cursor-wait shadow-md'
-                                  : 'bg-white/80 text-blue-600 border border-blue-200/50 hover:bg-blue-50/80 hover:border-blue-300 hover:shadow-md backdrop-blur-sm'
+                                  : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50 hover:border-blue-300'
                               }`}
                             >
                               {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                               <span>{isApplied ? '已应用' : isProcessing ? '应用中' : '应用'}</span>
-                            </motion.button>
+                            </button>
                           </div>
                         </div>
-                      </motion.div>
+                      </div>
                     )
                   })}
-                </motion.div>
+                </div>
               </>
             )}
 
             {/* 空状态 */}
             {!loading && suggestions.length === 0 && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center justify-center py-20 text-gray-500"
-              >
+              <div className="flex flex-col items-center justify-center py-20 text-gray-500">
                 <div className="bg-gray-50/50 p-6 rounded-full mb-4 backdrop-blur-sm border border-gray-100">
                   <AlertCircle className="w-12 h-12 text-gray-300" />
                 </div>
                 <p className="text-lg font-bold mb-2 text-gray-900">暂无优化建议</p>
                 <p className="text-sm text-gray-500 font-medium">AI 认为当前内容已经很棒了，无需优化</p>
-              </motion.div>
+              </div>
             )}
           </div>
 
           {/* 底部操作栏 */}
           {!loading && suggestions.length > 0 && (
-            <div className="flex-none flex items-center justify-between p-6 border-t border-gray-200/50 bg-gray-50/80 backdrop-blur-md">
+            <div className="flex-none flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
               <div className="text-sm text-gray-600 font-medium">
                 <span className="font-bold text-green-600">{appliedSuggestions.size}</span> 条建议已应用，
                 <span className="font-bold text-blue-600">{suggestions.length - appliedSuggestions.size}</span> 条待处理
               </div>
               <div className="flex items-center space-x-3">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                <button
                   onClick={onClose}
-                  className="px-4 py-2 text-gray-600 bg-white/80 border border-gray-200/50 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm font-medium backdrop-blur-sm"
+                  className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-sm font-medium"
                 >
                   关闭
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                </button>
+                <button
                   onClick={handleApplyAll}
                   disabled={appliedSuggestions.size === suggestions.length || isBatchProcessing}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30 flex items-center gap-2 font-medium"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md flex items-center gap-2 font-medium"
                 >
                   {isBatchProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>{isBatchProcessing ? '正在应用...' : '应用全部建议'}</span>
-                </motion.button>
+                </button>
               </div>
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
-    </AnimatePresence>
   )
 }
 

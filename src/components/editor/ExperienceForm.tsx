@@ -14,6 +14,7 @@ import { EditableCard } from './EditableCard'
 import { AddCardButton } from './AddCardButton'
 import { SectionHeader } from './SectionHeader'
 import FormField, { FormFieldGroup } from '@/components/FormField'
+import { RichTextEditor } from './RichTextEditor'
 import { useLanguage } from '@/contexts/LanguageContext'
 
 interface ExperienceFormProps {
@@ -128,13 +129,16 @@ export function ExperienceForm({ experiences, onChange }: ExperienceFormProps) {
                   placeholder={t.editor.experience.placeholders.location}
                 />
 
-                <FormField
+                {/* 使用富文本编辑器替代普通文本框 */}
+                <RichTextEditor
                   label={t.editor.experience.description_label}
-                  type="textarea"
                   value={exp.description.join('\n')}
-                  onChange={(value) => updateExperience(exp.id, 'description', value.split('\n'))}
+                  onChange={(value) => updateExperience(exp.id, 'description', value.split('\n').filter(line => line.trim()))}
                   placeholder={t.editor.experience.placeholders.description}
-                  rows={4}
+                  minRows={4}
+                  maxRows={12}
+                  showToolbar={true}
+                  enableAI={false}
                 />
               </div>
             </EditableCard>

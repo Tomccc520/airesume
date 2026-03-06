@@ -17,6 +17,7 @@ export interface PersonalInfo {
   website?: string
   summary: string
   avatar?: string  // 添加头像字段
+  avatarBorderRadius?: number  // 头像圆角半径 (0-50)
 }
 
 /**
@@ -55,6 +56,7 @@ export interface Skill {
   name: string
   level: number  // 改为数字类型，表示百分比 0-100
   category: string
+  color?: string // 技能标签颜色
 }
 
 /**

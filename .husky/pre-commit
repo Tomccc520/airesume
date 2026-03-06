@@ -1,0 +1,16 @@
+#!/bin/bash
+
+###############################################################################
+# Git Hooks - Pre-commit
+# 在提交前运行代码检查
+# @copyright Tomda (https://www.tomda.top)
+# @copyright UIED技术团队 (https://fsuied.com)
+# @author UIED技术团队
+# @createDate 2026.3.6
+###############################################################################
+
+. "$(dirname -- "$0")/_/husky.sh"
+
+# 运行 lint-staged
+npx lint-staged
+

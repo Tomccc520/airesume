@@ -12,11 +12,12 @@
 import { useState } from 'react'
 import { X, Download, FileText, Image, File } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface ExportPreviewDialogProps {
   isOpen: boolean
   onClose: () => void
-  onExport: (format: 'pdf' | 'png' | 'jpg' | 'json' | 'docx') => void | Promise<void>
+  onExport: (format: 'pdf' | 'png' | 'jpg' | 'json') => void | Promise<void>
   resumeName: string
   onOptionsChange?: (options: { margin: number; showPageBreaks: boolean; paper: 'a4' | 'letter' }) => void
 }
@@ -28,7 +29,8 @@ export default function ExportPreviewDialog({
   resumeName,
   onOptionsChange
 }: ExportPreviewDialogProps) {
-  const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'png' | 'jpg' | 'json' | 'docx'>('pdf')
+  const { t, locale } = useLanguage()
+  const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'png' | 'jpg' | 'json'>('pdf')
   const [isExporting, setIsExporting] = useState(false)
   const [margin, setMargin] = useState(10)
   const [showPageBreaks, setShowPageBreaks] = useState(true)
@@ -37,41 +39,42 @@ export default function ExportPreviewDialog({
   const formats = [
     {
       id: 'pdf' as const,
-      name: 'PDF 文档',
-      description: '适合打印和投递',
+      name: t.editor.toolbar.pdfFormat,
+      description: t.editor.toolbar.pdfDesc,
       icon: FileText,
       color: 'red',
       recommended: true
     },
     {
-      id: 'docx' as const,
-      name: 'Word 文档',
-      description: '可编辑的文档格式',
-      icon: FileText,
-      color: 'blue'
-    },
-    {
       id: 'png' as const,
-      name: 'PNG 图片',
-      description: '高质量图片格式',
+      name: t.editor.toolbar.pngFormat,
+      description: t.editor.toolbar.pngDesc,
       icon: Image,
       color: 'green'
     },
     {
       id: 'jpg' as const,
-      name: 'JPG 图片',
-      description: '压缩图片格式',
+      name: t.editor.toolbar.jpgFormat,
+      description: t.editor.toolbar.jpgDesc,
       icon: Image,
       color: 'orange'
     },
     {
       id: 'json' as const,
-      name: 'JSON 数据',
-      description: '用于备份和导入',
+      name: locale === 'zh' ? 'JSON 数据' : 'JSON Data',
+      description: locale === 'zh' ? '用于备份和导入' : 'For backup and import',
       icon: File,
       color: 'purple'
     }
   ]
+
+  // 格式提示信息
+  const formatTips = {
+    pdf: locale === 'zh' ? 'PDF 格式最适合打印和投递简历' : 'PDF format is best for printing and submitting resumes',
+    png: locale === 'zh' ? 'PNG 格式保留高质量，适合在线展示' : 'PNG format preserves high quality, suitable for online display',
+    jpg: locale === 'zh' ? 'JPG 格式文件较小，适合快速分享' : 'JPG format has smaller file size, suitable for quick sharing',
+    json: locale === 'zh' ? 'JSON 格式用于备份数据，可以重新导入' : 'JSON format is for data backup and can be re-imported'
+  }
 
   const handleExport = async () => {
     setIsExporting(true)
@@ -101,8 +104,8 @@ export default function ExportPreviewDialog({
           {/* 头部 */}
           <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white">
             <div>
-              <h3 className="text-xl font-bold text-gray-900">导出简历</h3>
-              <p className="text-sm text-gray-500 mt-1">选择导出格式</p>
+              <h3 className="text-xl font-bold text-gray-900">{t.editor.toolbar.exportResume}</h3>
+              <p className="text-sm text-gray-500 mt-1">{t.editor.toolbar.selectFormat}</p>
             </div>
             <button
               onClick={onClose}
@@ -116,9 +119,9 @@ export default function ExportPreviewDialog({
           <div className="p-6">
             {/* 文件名预览 */}
             <div className="mb-6 p-4 bg-gray-50 border border-gray-100 rounded-xl">
-              <p className="text-sm text-gray-500 mb-1">文件名</p>
+              <p className="text-sm text-gray-500 mb-1">{locale === 'zh' ? '文件名' : 'Filename'}</p>
               <p className="text-lg font-semibold text-gray-900">
-                {resumeName || '简历'}.{selectedFormat}
+                {resumeName || (locale === 'zh' ? '简历' : 'Resume')}.{selectedFormat}
               </p>
             </div>
 
@@ -136,7 +139,7 @@ export default function ExportPreviewDialog({
                 >
                   {format.recommended && (
                     <span className="absolute -top-2 -right-2 px-2 py-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs font-semibold rounded-full">
-                      推荐
+                      {locale === 'zh' ? '推荐' : 'Recommended'}
                     </span>
                   )}
                   <div className="flex items-start gap-3">
@@ -173,19 +176,17 @@ export default function ExportPreviewDialog({
                 </svg>
               </div>
               <p className="text-sm text-blue-600 leading-relaxed">
-                <strong className="font-semibold mr-1">提示：</strong>
-                {selectedFormat === 'pdf' && ' PDF 格式最适合打印和投递简历'}
-                {selectedFormat === 'docx' && ' Word 格式可以进一步编辑和修改'}
-                {selectedFormat === 'png' && ' PNG 格式保留高质量，适合在线展示'}
-                {selectedFormat === 'jpg' && ' JPG 格式文件较小，适合快速分享'}
-                {selectedFormat === 'json' && ' JSON 格式用于备份数据，可以重新导入'}
+                <strong className="font-semibold mr-1">{locale === 'zh' ? '提示：' : 'Tip:'}</strong>
+                {formatTips[selectedFormat]}
               </p>
             </div>
 
             {/* 导出选项 */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">页边距（mm）</label>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {locale === 'zh' ? '页边距（mm）' : 'Margin (mm)'}
+                </label>
                 <input
                   type="number"
                   min={5}
@@ -196,7 +197,9 @@ export default function ExportPreviewDialog({
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">显示分页标记</label>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {locale === 'zh' ? '显示分页标记' : 'Page Breaks'}
+                </label>
                 <div className="flex items-center gap-3 h-[38px] px-3 bg-gray-50 border border-gray-200 rounded-lg">
                   <input
                     type="checkbox"
@@ -204,11 +207,13 @@ export default function ExportPreviewDialog({
                     onChange={(e) => setShowPageBreaks(e.target.checked)}
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors"
                   />
-                  <span className="text-sm text-gray-600">启用</span>
+                  <span className="text-sm text-gray-600">{locale === 'zh' ? '启用' : 'Enable'}</span>
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">纸张尺寸</label>
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {locale === 'zh' ? '纸张尺寸' : 'Paper Size'}
+                </label>
                 <select
                   value={paper}
                   onChange={(e) => setPaper((e.target.value as 'a4' | 'letter') || 'a4')}
@@ -228,7 +233,7 @@ export default function ExportPreviewDialog({
               disabled={isExporting}
               className="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-100 hover:text-gray-900 transition-colors disabled:opacity-50 font-medium"
             >
-              取消
+              {t.common.cancel}
             </button>
             <button
               onClick={handleExport}
@@ -238,12 +243,12 @@ export default function ExportPreviewDialog({
               {isExporting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  导出中...
+                  {t.editor.toolbar.exporting}
                 </>
               ) : (
                 <>
                   <Download className="w-4 h-4" />
-                  确认导出
+                  {t.common.confirm}
                 </>
               )}
             </button>

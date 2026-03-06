@@ -14,6 +14,7 @@ import { EditableCard } from './EditableCard'
 import { AddCardButton } from './AddCardButton'
 import { SectionHeader } from './SectionHeader'
 import FormField, { FormFieldGroup } from '@/components/FormField'
+import { RichTextEditor } from './RichTextEditor'
 import { useLanguage } from '@/contexts/LanguageContext'
 
 interface EducationFormProps {
@@ -120,13 +121,16 @@ export function EducationForm({ education, onChange }: EducationFormProps) {
                   />
                 </FormFieldGroup>
 
-                <FormField
+                {/* 使用富文本编辑器 */}
+                <RichTextEditor
                   label={t.editor.education.description_label}
-                  type="textarea"
                   value={edu.description || ''}
                   onChange={(value) => updateEducation(edu.id, 'description', value)}
                   placeholder={t.editor.education.placeholders.description}
-                  rows={3}
+                  minRows={3}
+                  maxRows={8}
+                  showToolbar={true}
+                  enableAI={false}
                 />
               </div>
             </EditableCard>

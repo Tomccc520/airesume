@@ -79,13 +79,13 @@ export interface StyleConfig {
 /**
  * 默认样式配置
  */
-const defaultStyleConfig: StyleConfig = {
+export const defaultStyleConfig: StyleConfig = {
   fontFamily: 'Inter, sans-serif',
   fontSize: {
-    name: 24,
-    title: 16,
-    content: 14,
-    small: 12
+    name: 28,
+    title: 18,
+    content: 15,
+    small: 13
   },
   colors: {
     primary: '#374151',
@@ -95,9 +95,9 @@ const defaultStyleConfig: StyleConfig = {
     background: '#ffffff'
   },
   spacing: {
-    section: 18,
-    item: 10,
-    line: 24
+    section: 40,
+    item: 24,
+    line: 21 // 对应 1.4 行高 (15px * 1.4 = 21)
   },
   avatar: {
     size: 120,
@@ -108,11 +108,11 @@ const defaultStyleConfig: StyleConfig = {
   },
   layout: {
     maxWidth: 800,
-    padding: 32,
+    padding: 25,
     columns: 1,
-    columnGap: 24,
-    leftColumnWidth: 35,
-    rightColumnWidth: 65,
+    columnGap: 32,
+    leftColumnWidth: 30,
+    rightColumnWidth: 70,
     headerLayout: 'centered' as const,
     sectionSpacing: 'normal' as const,
     alignment: 'left' as const,
@@ -134,10 +134,17 @@ const defaultStyleConfig: StyleConfig = {
  */
 interface StyleContextType {
   styleConfig: StyleConfig
-  updateStyleConfig: (updates: Partial<StyleConfig>) => void
+  updateStyleConfig: (updates: DeepPartial<StyleConfig>) => void
   resetStyleConfig: () => void
   activeElement: string | null
   setActiveElement: (element: string | null) => void
+}
+
+/**
+ * 深度部分类型 - 允许嵌套对象的部分更新
+ */
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P]
 }
 
 /**
@@ -146,35 +153,100 @@ interface StyleContextType {
 const StyleContext = createContext<StyleContextType | undefined>(undefined)
 
 /**
+ * 验证并修复 spacing.line 值
+ * 确保行高像素值合理（基于 fontSize.content * 1.4 到 2.0 的范围）
+ */
+function validateSpacingLine(config: StyleConfig): StyleConfig {
+  const contentFontSize = config.fontSize?.content || 15
+  const minLinePixels = contentFontSize * 1.4  // 最小行高 1.4
+  const maxLinePixels = contentFontSize * 2.0  // 最大行高 2.0
+  
+  // 如果 spacing.line 不在合理范围内，重置为默认值
+  if (!config.spacing?.line || config.spacing.line < minLinePixels || config.spacing.line > maxLinePixels * 1.5) {
+    return {
+      ...config,
+      spacing: {
+        section: config.spacing?.section || 40,
+        item: config.spacing?.item || 24,
+        line: Math.round(contentFontSize * 1.4)  // 默认 1.4 行高
+      }
+    }
+  }
+  return config
+}
+
+/**
  * 样式提供者组件
  */
 export function StyleProvider({ children }: { children: ReactNode }) {
-  const [styleConfig, setStyleConfig] = useState<StyleConfig>(defaultStyleConfig)
+  const [styleConfig, setStyleConfig] = useState<StyleConfig>(() => {
+    // 初始化时验证默认配置
+    return validateSpacingLine(defaultStyleConfig)
+  })
   const [activeElement, setActiveElement] = useState<string | null>(null)
 
   /**
    * 更新样式配置
    * @param updates 要更新的样式配置部分
    */
-  const updateStyleConfig = (updates: Partial<StyleConfig>) => {
-    setStyleConfig(prev => ({
-      ...prev,
-      ...updates,
-      // 深度合并嵌套对象
-      fontSize: { ...prev.fontSize, ...updates.fontSize },
-      colors: { ...prev.colors, ...updates.colors },
-      spacing: { ...prev.spacing, ...updates.spacing },
-      avatar: { ...prev.avatar, ...updates.avatar },
-      layout: { ...prev.layout, ...updates.layout },
-      skills: { ...prev.skills, ...updates.skills }
-    }))
+  const updateStyleConfig = (updates: DeepPartial<StyleConfig>) => {
+    setStyleConfig(prev => {
+      const newConfig = { ...prev }
+      
+      // 只合并提供的字段，避免不必要的覆盖
+      if (updates.fontFamily !== undefined) {
+        newConfig.fontFamily = updates.fontFamily
+      }
+      if (updates.fontSize) {
+        newConfig.fontSize = { ...prev.fontSize, ...updates.fontSize }
+      }
+      if (updates.colors) {
+        newConfig.colors = { ...prev.colors, ...updates.colors }
+      }
+      if (updates.spacing) {
+        newConfig.spacing = { ...prev.spacing, ...updates.spacing }
+      }
+      // 头像设置：保持独立，不受其他样式影响
+      // 只有明确更新 avatar 时才修改
+      if (updates.avatar) {
+        // 保留原有的 url，除非明确提供新的
+        newConfig.avatar = { 
+          ...prev.avatar, 
+          ...updates.avatar,
+          // 如果没有提供新的 url，保留原有的
+          url: updates.avatar.url !== undefined ? updates.avatar.url : prev.avatar.url
+        }
+      }
+      if (updates.layout) {
+        // 确保 sectionOrder 不包含 undefined
+        const updatedLayout = { ...prev.layout, ...updates.layout }
+        if (updates.layout.sectionOrder) {
+          updatedLayout.sectionOrder = updates.layout.sectionOrder.filter(
+            (item): item is 'personal' | 'experience' | 'education' | 'skills' | 'projects' => item !== undefined
+          )
+        }
+        newConfig.layout = updatedLayout as StyleConfig['layout']
+      }
+      if (updates.skills) {
+        newConfig.skills = { ...prev.skills, ...updates.skills }
+      }
+      
+      return newConfig
+    })
   }
 
   /**
    * 重置样式配置为默认值
+   * 注意：重置时保留头像URL，避免丢失用户上传的头像
    */
   const resetStyleConfig = () => {
-    setStyleConfig(defaultStyleConfig)
+    setStyleConfig(prev => ({
+      ...defaultStyleConfig,
+      avatar: {
+        ...defaultStyleConfig.avatar,
+        url: prev.avatar.url // 保留原有头像URL
+      }
+    }))
   }
 
   const value: StyleContextType = {

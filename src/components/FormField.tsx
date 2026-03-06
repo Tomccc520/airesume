@@ -143,19 +143,19 @@ export default function FormField({
       return `w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600 ${className}`
     }
 
-    const baseClass = 'w-full px-4 py-3 border rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 min-h-[44px] text-base backdrop-blur-sm'
+    const baseClass = 'w-full px-4 py-2.5 border rounded-lg transition-colors focus:outline-none focus:ring-2 min-h-[44px] text-base'
     
-    let borderClass = 'border-gray-200 bg-white/50 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:bg-white focus:ring-blue-500/20 hover:bg-white/60'
+    let borderClass = 'border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500/20'
     
     if (touched && !isTyping) {
       if (error) {
-        borderClass = 'border-red-500/50 bg-red-50/50 text-gray-900 placeholder-red-300 focus:border-red-500/50 focus:ring-red-500/20'
+        borderClass = 'border-red-300 bg-white text-gray-900 placeholder-red-300 focus:border-red-500 focus:ring-red-500/20'
       } else if (isValid && String(value).trim()) {
-        borderClass = 'border-green-500/50 bg-green-50/50 text-gray-900 placeholder-green-300 focus:border-green-500/50 focus:ring-green-500/20'
+        borderClass = 'border-green-300 bg-white text-gray-900 placeholder-green-300 focus:border-green-500 focus:ring-green-500/20'
       }
     }
     
-    const disabledClass = disabled ? 'bg-gray-50/50 text-gray-500 cursor-not-allowed opacity-60' : 'hover:border-blue-300/50'
+    const disabledClass = disabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed opacity-60' : ''
     
     return `${baseClass} ${borderClass} ${disabledClass} ${className}`
   }
@@ -240,17 +240,15 @@ export default function FormField({
           {required && <span className="text-red-500 ml-1">*</span>}
         </label>
         {showAiButton && (
-          <motion.button
-            whileHover={{ scale: 1.05, backgroundColor: "rgba(243, 232, 255, 1)" }}
-            whileTap={{ scale: 0.95 }}
+          <button
             type="button"
             onClick={onAiOptimize}
             disabled={aiLoading || disabled}
-            className="group flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-purple-200 hover:border-purple-300 shadow-sm hover:shadow-md"
+            className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-purple-200"
           >
-            <Sparkles className={`h-3.5 w-3.5 ${aiLoading ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`} />
+            <Sparkles className={`h-3.5 w-3.5 ${aiLoading ? 'animate-spin' : ''}`} />
             <span>{aiLoading ? 'AI优化中...' : 'AI 优化'}</span>
-          </motion.button>
+          </button>
         )}
       </div>
 
@@ -258,70 +256,36 @@ export default function FormField({
       <div className="relative">
         {renderInput()}
         
-        {/* 验证图标 */}
+        {/* 验证图标 - 简化版本 */}
         {showValidation && touched && !isTyping && (
-          <AnimatePresence>
+          <>
             {error ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2"
-              >
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                 <AlertCircle className="h-5 w-5 text-red-500" />
-              </motion.div>
+              </div>
             ) : isValid && String(value).trim() ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2"
-              >
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                 <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center">
                   <svg className="h-3 w-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-              </motion.div>
+              </div>
             ) : null}
-          </AnimatePresence>
-        )}
-        
-        {/* 输入提示 */}
-        {isTyping && !error && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2"
-          >
-            <div className="h-5 w-5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin"></div>
-          </motion.div>
+          </>
         )}
       </div>
 
-      {/* 错误信息和帮助文本 */}
-      {showValidation && (
-        <AnimatePresence>
-          {error && touched && !isTyping && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="flex items-start space-x-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-200"
+      {/* 错误信息 - 简化版本 */}
+      {showValidation && error && touched && !isTyping && (
+        <div
+          className="flex items-start space-x-2 text-sm text-red-600 bg-red-50 p-2.5 rounded-lg"
               id={`${label}-error`}
               role="alert"
             >
               <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="font-medium">错误：</span>
                 <span>{error}</span>
               </div>
-            </motion.div>
-          )}
-          
-
-        </AnimatePresence>
       )}
       
       {/* 字符计数器（对于有长度限制的字段） */}

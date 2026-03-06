@@ -118,6 +118,7 @@ export interface Translations {
       location: string;
       website: string;
       summary: string;
+      defaultAvatar: string;
       placeholders: {
         name: string;
         jobTitle: string;
@@ -201,8 +202,33 @@ export interface Translations {
     import: string;
     reset: string;
     content: string;
+    mobile: {
+      editSection: string;
+    };
+    shortcuts: {
+      title: string;
+      tip: string;
+    };
     messages: {
       saved: string;
+      saving: string;
+      unsaved: string;
+      savedAt: string;
+      autoSaveSuccess: string;
+      jsonExportSuccess: string;
+      exportError: string;
+      backupRestored: string;
+      backupRestoredDesc: string;
+      generatingExport: string;
+      pleaseWait: string;
+      wordExportUpgrade: string;
+      wordExportUpgradeDesc: string;
+      exportSuccess: string;
+      aiConfigIncomplete: string;
+      aiGenerating: string;
+      aiGenerateSuccess: string;
+      aiGenerateError: string;
+      styleReset: string;
       summaryUpdated: string;
       experienceUpdated: string;
       skillsUpdated: string;
@@ -215,6 +241,133 @@ export interface Translations {
       addProjectsFirst: string;
       unknownError: string;
       applyError: string;
+      aiConfigSaved: string;
+      loadSuccess: string;
+      loadError: string;
+      clearSuccess: string;
+      saveSuccess: string;
+    };
+    toolbar: {
+      save: string;
+      load: string;
+      template: string;
+      exportPreview: string;
+      aiGenerate: string;
+      clear: string;
+      aiConfig: string;
+      aiAssistant: string;
+      preview: string;
+      edit: string;
+      fullscreen: string;
+      exitFullscreen: string;
+      help: string;
+      export: string;
+      exportResume: string;
+      selectFormat: string;
+      exportTip: string;
+      exporting: string;
+      exportSuccess: string;
+      exportFailed: string;
+      pdfFormat: string;
+      pdfDesc: string;
+      pngFormat: string;
+      pngDesc: string;
+      jpgFormat: string;
+      jpgDesc: string;
+      wordFormat: string;
+      wordDesc: string;
+    };
+    jdMatcher: {
+      title: string;
+      subtitle: string;
+      pasteJD: string;
+      placeholder: string;
+      analyze: string;
+      analyzing: string;
+      matchScore: string;
+      matchedKeywords: string;
+      missingKeywords: string;
+      suggestions: string;
+      applySuggestion: string;
+      applyAll: string;
+      noKeywords: string;
+      highMatch: string;
+      mediumMatch: string;
+      lowMatch: string;
+    };
+    scoreCard: {
+      title: string;
+      gradeDescription: string;
+      completeness: string;
+      sectionScores: string;
+      prioritySuggestions: string;
+      viewAllSuggestions: string;
+      perfectResume: string;
+      impactPoints: string;
+      sections: {
+        personalInfo: string;
+        experience: string;
+        education: string;
+        skills: string;
+        projects: string;
+      };
+    };
+    aiConfig: {
+      title: string;
+      subtitle: string;
+      enableAI: string;
+      enableAIDesc: string;
+      selectProvider: string;
+      apiKey: string;
+      apiKeyPlaceholder: string;
+      apiKeyAutoConfigured: string;
+      apiKeyLocalStorage: string;
+      freeModelConfigured: string;
+      apiEndpoint: string;
+      modelSelect: string;
+      freeModel: string;
+      paidModel: string;
+      freeModelNote: string;
+      validating: string;
+      validateConfig: string;
+      resetConfig: string;
+      saveConfig: string;
+      viewDocs: string;
+      free: string;
+      custom: string;
+      validationFailed: string;
+      validationSuccess: string;
+      pleaseEnterApiKey: string;
+      saveSuccess: string;
+      saveFailed: string;
+      networkError: string;
+      sslError: string;
+      timeoutError: string;
+    };
+    templatePreview: {
+      sampleData: {
+        name: string;
+        title: string;
+        location: string;
+        summary: string;
+        company: string;
+        position: string;
+        workDesc1: string;
+        workDesc2: string;
+        school: string;
+        degree: string;
+        major: string;
+        eduDesc: string;
+        projectName: string;
+        projectDesc: string;
+        projectHighlight1: string;
+        projectHighlight2: string;
+        skillCategory1: string;
+        skillCategory2: string;
+      };
+      present: string;
+      personalWebsite: string;
+      personalSummary: string;
     };
   };
   styles: {
@@ -244,6 +397,7 @@ export interface Translations {
     borderRadius: string;
     resetStyles: string;
     realtimePreview: string;
+    previewing: string;
     personalInfoLayout: string;
     contactInfoLayout: string;
     skillStyle: string;
@@ -272,6 +426,25 @@ export interface Translations {
     moveToRight: string;
     moveToLeft: string;
     dragTip: string;
+    colorScheme: {
+      title: string;
+      presetSchemes: string;
+      customSchemes: string;
+      saveCurrentScheme: string;
+      noCustomSchemes: string;
+      createFirst: string;
+      schemeName: string;
+      enterName: string;
+      currentColors: string;
+      deleteConfirm: string;
+      rename: string;
+      primary: string;
+      secondary: string;
+      accent: string;
+      text: string;
+      background: string;
+      createdAt: string;
+    };
   };
   preview: {
     zoomIn: string;
@@ -346,6 +519,82 @@ export interface Translations {
       title: string;
       desc: string;
       button: string;
+    };
+  };
+  stepwise: {
+    modeSelection: {
+      title: string;
+      quickMode: string;
+      quickModeDesc: string;
+      stepByStepMode: string;
+      stepByStepModeDesc: string;
+      lastUsed: string;
+      hint: string;
+    };
+    steps: {
+      summary: string;
+      summaryDesc: string;
+      experience: string;
+      experienceDesc: string;
+      education: string;
+      educationDesc: string;
+      skills: string;
+      skillsDesc: string;
+      projects: string;
+      projectsDesc: string;
+    };
+    controls: {
+      confirm: string;
+      skip: string;
+      regenerate: string;
+      pause: string;
+      resume: string;
+      cancel: string;
+      switchToQuick: string;
+      apply: string;
+      selectAll: string;
+      deselectAll: string;
+    };
+    progress: {
+      generating: string;
+      completed: string;
+      stepsCompleted: string;
+      allComplete: string;
+    };
+    status: {
+      pending: string;
+      generating: string;
+      completed: string;
+      error: string;
+      skipped: string;
+    };
+    errors: {
+      networkError: string;
+      apiError: string;
+      timeout: string;
+      cancelled: string;
+      unknown: string;
+    };
+    userInfo: {
+      title: string;
+      name: string;
+      namePlaceholder: string;
+      targetPosition: string;
+      targetPositionPlaceholder: string;
+      industry: string;
+      industryPlaceholder: string;
+      experienceLevel: string;
+      experienceLevelPlaceholder: string;
+      junior: string;
+      mid: string;
+      senior: string;
+      lead: string;
+      startGeneration: string;
+    };
+    finalReview: {
+      title: string;
+      desc: string;
+      preview: string;
     };
   };
 }

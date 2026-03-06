@@ -3,406 +3,545 @@
  * @copyright UIED技术团队 (https://fsuied.com)
  * @author UIED技术团队
  * @createDate 2025-9-22
+ * @updateDate 2026.1.30 - 优化预览质量，添加骨架屏，改进缩放算法
  */
 
 'use client'
 
-import React from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { TemplateStyle } from '@/types/template'
 import { ResumeData } from '@/types/resume'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { formatDate } from '@/utils/dateFormatter'
+import { Mail, Phone } from 'lucide-react'
 
 interface TemplatePreviewProps {
   template: TemplateStyle
   fullSize?: boolean
+  loading?: boolean
 }
 
 /**
- * 模板预览组件
+ * 模板预览组件 - 优化版
  * 生成模板的真实预览效果，用于模板选择器
+ * 
+ * 优化点：
+ * 1. 添加骨架屏加载状态
+ * 2. 优化缩放算法，使用 CSS transform 提升性能
+ * 3. 使用 will-change 和 contain 优化渲染
+ * 4. 懒加载支持
  */
 const TemplatePreview = ({ 
   template, 
-  fullSize = false
+  fullSize = false,
+  loading = false
 }: TemplatePreviewProps) => {
-  // 使用示例数据
-  const sampleData: ResumeData = {
+  const { locale, t } = useLanguage()
+  const [isLoaded, setIsLoaded] = useState(false)
+  
+  // 模拟加载延迟，实际项目中可以根据图片加载状态控制
+  useEffect(() => {
+    if (!loading) {
+      const timer = setTimeout(() => setIsLoaded(true), 50)
+      return () => clearTimeout(timer)
+    }
+  }, [loading])
+  
+  // 日期格式化辅助函数
+  const formatDateStr = (date?: string) => {
+    return formatDate(date, locale, template.components?.dateFormat?.format)
+  }
+  
+  // 使用示例数据 - 使用 useMemo 优化，避免每次渲染重新创建
+  const sampleData = useMemo<ResumeData>(() => ({
     personalInfo: {
-      name: '张三',
-      title: '前端开发工程师',
-      email: 'zhangsan@example.com',
+      name: t.editor.templatePreview.sampleData.name,
+      title: t.editor.templatePreview.sampleData.title,
+      email: 'example@email.com',
       phone: '138-0000-0000',
-      location: '北京市',
-      summary: '具有3年前端开发经验，熟练掌握React、Vue等主流框架，有丰富的项目开发经验。'
+      location: t.editor.templatePreview.sampleData.location,
+      summary: t.editor.templatePreview.sampleData.summary,
+      avatar: template.components?.personalInfo?.defaultAvatar || '/avatars/img1.png'
     },
     experience: [
       {
         id: '1',
-        company: 'ABC科技有限公司',
-        position: '前端开发工程师',
+        company: t.editor.templatePreview.sampleData.company,
+        position: t.editor.templatePreview.sampleData.position,
         startDate: '2022-03',
-        endDate: '至今',
+        endDate: t.editor.templatePreview.present,
         current: true,
-        description: ['负责公司主要产品的前端开发工作，参与多个重要项目的开发和维护。', '完成了公司官网的重构，提升页面加载速度30%'],
-        location: '北京市'
+        description: [t.editor.templatePreview.sampleData.workDesc1, t.editor.templatePreview.sampleData.workDesc2],
+        location: t.editor.templatePreview.sampleData.location
       }
     ],
     education: [
       {
         id: '1',
-        school: '北京大学',
-        degree: '学士',
-        major: '计算机科学与技术',
+        school: t.editor.templatePreview.sampleData.school,
+        degree: t.editor.templatePreview.sampleData.degree,
+        major: t.editor.templatePreview.sampleData.major,
         startDate: '2018-09',
         endDate: '2022-06',
         gpa: '3.8/4.0',
-        description: '主修计算机科学与技术专业'
+        description: t.editor.templatePreview.sampleData.eduDesc
       }
     ],
     skills: [
-      { id: '1', name: 'JavaScript', level: 90, category: '编程语言' },
-      { id: '2', name: 'React', level: 80, category: '前端框架' },
-      { id: '3', name: 'Vue.js', level: 80, category: '前端框架' }
+      { id: '1', name: 'JavaScript', level: 90, category: t.editor.templatePreview.sampleData.skillCategory1 },
+      { id: '2', name: 'React', level: 80, category: t.editor.templatePreview.sampleData.skillCategory2 },
+      { id: '3', name: 'Vue.js', level: 80, category: t.editor.templatePreview.sampleData.skillCategory2 }
     ],
     projects: [
       {
         id: '1',
-        name: '企业管理系统',
-        description: '基于React开发的企业内部管理系统',
+        name: t.editor.templatePreview.sampleData.projectName,
+        description: t.editor.templatePreview.sampleData.projectDesc,
         technologies: ['React', 'TypeScript', 'Ant Design'],
         startDate: '2023-01',
         endDate: '2023-06',
-        highlights: ['实现了完整的用户权限管理', '优化了系统性能，响应速度提升50%']
+        highlights: [t.editor.templatePreview.sampleData.projectHighlight1, t.editor.templatePreview.sampleData.projectHighlight2]
       }
     ]
-  }
+  }), [t, locale])
 
-  const scale = fullSize ? 1 : 0.3
-  const previewStyle = {
-    transform: `scale(${scale})`,
-    transformOrigin: 'top left',
-    width: `${100 / scale}%`,
-    height: `${100 / scale}%`,
-    backgroundColor: template.colors.background,
-    color: template.colors.text,
-    fontFamily: template.fonts.body
-  }
-
-  // 个人信息渲染
-  const renderPersonalInfo = () => {
-    const isVertical = template.components.personalInfo.layout === 'vertical'
-    const showAvatar = template.components.personalInfo.showAvatar
+  const scale = fullSize ? 1 : 0.28
+  
+  // 根据模板类型选择渲染方式 - 使用 useMemo 优化，避免每次渲染重新计算
+  const layoutType = useMemo((): 'sidebar' | 'gradient' | 'classic' | 'minimal' | 'creative' | 'default' => {
+    const id = template.id
     
-    return (
-      <div className={`${isVertical ? 'text-center' : 'flex items-center space-x-4'} mb-6 pb-4 border-b-2`} 
-           style={{ borderColor: template.colors.primary }}>
-        {showAvatar && (
-          <div 
-            className={`w-16 h-16 rounded-full ${isVertical ? 'mx-auto mb-3' : 'flex-shrink-0'}`}
-            style={{ backgroundColor: template.colors.primary }}
-          />
-        )}
+    // 根据模板ID精确匹配布局类型
+    // 侧边栏布局
+    if (id.includes('sidebar') || id === 'professional-executive' || id === 'frontend-developer-sidebar') {
+      return 'sidebar'
+    }
+    
+    // 顶部横幅布局
+    if (id.includes('header') || id.includes('banner') || id === 'ux-designer-modern') {
+      return 'gradient'
+    }
+    
+    // 居中对称布局
+    if (id.includes('centered') || id.includes('symmetric') || id === 'classic-elegant' || id === 'business-professional' || id === 'general-classic') {
+      return 'classic'
+    }
+    
+    // 极简布局
+    if (id.includes('minimal') || id.includes('clean') || id === 'ui-designer-minimal' || id === 'general-minimal') {
+      return 'minimal'
+    }
+    
+    // 创意布局（左右栏）
+    if (id.includes('creative') || id === 'creative-designer' || id === 'magazine-style' || 
+        id === 'ui-designer-modern' || id === 'graphic-designer-creative' || id === 'fullstack-developer') {
+      return 'creative'
+    }
+    
+    // 根据布局配置判断
+    if (template.layout.columns.count === 2) {
+      // 如果是双栏且左栏宽度小于35%，判断为侧边栏
+      const leftWidth = parseInt(template.layout.columns.leftWidth || '35')
+      if (leftWidth <= 32) {
+        return 'sidebar'
+      }
+      return 'creative'
+    }
+    
+    // 默认单栏布局
+    return 'default'
+  }, [template.id, template.layout.columns])
+
+  // 现代侧边栏布局预览
+  const renderSidebarLayout = () => (
+    <div className="flex w-full h-full">
+      {/* 左侧深色侧边栏 */}
+      <div 
+        className="w-[32%] p-3 text-white flex flex-col gap-3"
+        style={{ backgroundColor: template.colors.primary }}
+      >
+        {/* 头像占位 */}
+        <div className="w-12 h-12 rounded-full bg-white/20 mx-auto" />
+        <div className="text-center">
+          <div className="text-[10px] font-bold">{sampleData.personalInfo.name}</div>
+          <div className="text-[7px] opacity-80">{sampleData.personalInfo.title}</div>
+        </div>
         
-        <div className={isVertical ? '' : 'flex-1'}>
-          <h1 className="text-2xl font-bold mb-1" style={{ color: template.colors.primary, fontSize: `${template.fonts.size.heading}px` }}>
-            {sampleData.personalInfo.name}
-          </h1>
-          <p className="text-lg mb-2" style={{ color: template.colors.secondary }}>
-            {sampleData.personalInfo.title}
-          </p>
-          <div className={`text-sm space-y-1 ${isVertical ? 'text-center' : ''}`}>
-            <p>{sampleData.personalInfo.email}</p>
-            <p>{sampleData.personalInfo.phone}</p>
-            <p>{sampleData.personalInfo.location}</p>
+        {/* 联系信息 */}
+        <div className="space-y-1 text-[6px] opacity-80">
+          <div className="flex items-center gap-1">
+            <Phone size={6} />
+            <span>{sampleData.personalInfo.phone}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Mail size={6} />
+            <span className="truncate">{sampleData.personalInfo.email}</span>
           </div>
         </div>
-      </div>
-    )
-  }
-
-  // 章节标题渲染
-  const renderSectionTitle = (title: string) => {
-    const style = template.components.sectionTitle.style
-    const alignment = template.components.sectionTitle.alignment
-    
-    const baseClasses = `text-lg font-semibold mb-3 ${
-      alignment === 'center' ? 'text-center' : 
-      alignment === 'right' ? 'text-right' : 'text-left'
-    }`
-    
-    const titleStyle = {
-      color: template.colors.primary,
-      fontSize: template.fonts.size.heading
-    }
-
-    switch (style) {
-      case 'background':
-        return (
-          <h2 className={`${baseClasses} px-3 py-1 rounded`} 
-              style={{ ...titleStyle, backgroundColor: template.colors.primary, color: 'white' }}>
-            {title}
-          </h2>
-        )
-      case 'underline':
-        return (
-          <h2 className={`${baseClasses} border-b-2 pb-1`} 
-              style={{ ...titleStyle, borderColor: template.colors.primary }}>
-            {title}
-          </h2>
-        )
-      case 'border':
-        return (
-          <h2 className={`${baseClasses} border-l-4 pl-3`} 
-              style={{ ...titleStyle, borderColor: template.colors.primary }}>
-            {title}
-          </h2>
-        )
-      default:
-        return (
-          <h2 className={baseClasses} style={titleStyle}>
-            {title}
-          </h2>
-        )
-    }
-  }
-
-  // 通用章节渲染
-  const renderSection = (title: string, content: React.ReactNode) => (
-    <div className="mb-6">
-      {renderSectionTitle(title)}
-      {content}
-    </div>
-  )
-
-  // 工作经历渲染
-  const renderExperience = () => (
-    <div className="space-y-4">
-      {sampleData.experience.map((exp) => (
-        <div key={exp.id} className="relative">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <h3 className="font-semibold" style={{ color: template.colors.text }}>
-                {exp.position}
-              </h3>
-              <p className="text-sm" style={{ color: template.colors.secondary }}>
-                {exp.company}
-              </p>
-            </div>
-            <span className="text-sm" style={{ color: template.colors.secondary }}>
-              {exp.startDate} - {exp.endDate}
-            </span>
-          </div>
-          <div className="text-sm space-y-1">
-            {exp.description.map((desc, index) => (
-              <p key={index} style={{ color: template.colors.text }}>
-                • {desc}
-              </p>
+        
+        {/* 技能 */}
+        <div>
+          <div className="text-[7px] font-bold mb-1 border-b border-white/30 pb-1">{t.editor.skills.title}</div>
+          <div className="space-y-1">
+            {sampleData.skills.slice(0, 2).map(skill => (
+              <div key={skill.id}>
+                <div className="text-[6px]">{skill.name}</div>
+                <div className="h-1 bg-white/30 rounded-full">
+                  <div className="h-full rounded-full" style={{ width: `${skill.level}%`, backgroundColor: template.colors.accent }} />
+                </div>
+              </div>
             ))}
           </div>
         </div>
-      ))}
-    </div>
-  )
-
-  // 教育背景渲染
-  const renderEducation = () => (
-    <div className="space-y-4">
-      {sampleData.education.map((edu) => (
-        <div key={edu.id}>
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <h3 className="font-semibold" style={{ color: template.colors.text }}>
-                {edu.major}
-              </h3>
-              <p className="text-sm" style={{ color: template.colors.secondary }}>
-                {edu.school} • {edu.degree}
-              </p>
-            </div>
-            <span className="text-sm" style={{ color: template.colors.secondary }}>
-              {edu.startDate} - {edu.endDate}
-            </span>
+      </div>
+      
+      {/* 右侧内容区 */}
+      <div className="flex-1 p-3 space-y-3" style={{ color: template.colors.text }}>
+        <div>
+          <div className="text-[8px] font-bold border-l-2 pl-1 mb-1" style={{ borderColor: template.colors.accent, color: template.colors.primary }}>
+            {t.editor.experience.title}
+          </div>
+          <div className="text-[6px]">
+            <div className="font-medium">{sampleData.experience[0].position}</div>
+            <div style={{ color: template.colors.accent }}>{sampleData.experience[0].company}</div>
+            <div className="text-gray-400 mt-0.5">{sampleData.experience[0].description[0]}</div>
           </div>
         </div>
-      ))}
+        
+        <div>
+          <div className="text-[8px] font-bold border-l-2 pl-1 mb-1" style={{ borderColor: template.colors.accent, color: template.colors.primary }}>
+            {t.editor.projects.title}
+          </div>
+          <div className="text-[6px] bg-gray-50 p-1.5 rounded">
+            <div className="font-medium">{sampleData.projects[0].name}</div>
+            <div className="text-gray-500 mt-0.5 line-clamp-2">{sampleData.projects[0].description}</div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 
-  // 技能渲染
-  const renderSkills = () => {
-    const levelMap = {
-      'beginner': 25,
-      'intermediate': 50,
-      'advanced': 75,
-      'expert': 90
-    }
-
-    return (
-      <div className="space-y-3">
-        {sampleData.skills.map((skill) => (
-          <div key={skill.id}>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-sm font-medium" style={{ color: template.colors.text }}>
+  // 渐变头部布局预览
+  const renderGradientLayout = () => (
+    <div className="w-full h-full flex flex-col">
+      {/* 渐变头部 */}
+      <div 
+        className="p-3 text-white relative overflow-hidden"
+        style={{ background: `linear-gradient(135deg, ${template.colors.primary} 0%, ${template.colors.secondary} 100%)` }}
+      >
+        <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded-full bg-white/30" />
+          <div>
+            <div className="text-[10px] font-bold">{sampleData.personalInfo.name}</div>
+            <div className="text-[7px] opacity-90">{sampleData.personalInfo.title}</div>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-2 text-[5px] opacity-80">
+          <span>{sampleData.personalInfo.phone}</span>
+          <span>{sampleData.personalInfo.email}</span>
+        </div>
+      </div>
+      
+      {/* 内容区 */}
+      <div className="flex-1 p-3 space-y-2" style={{ color: template.colors.text }}>
+        <div>
+          <div className="text-[8px] font-bold pb-1 border-b" style={{ color: template.colors.primary, borderColor: `${template.colors.primary}30` }}>
+            {t.editor.experience.title}
+          </div>
+          <div className="text-[6px] mt-1">
+            <div className="font-medium">{sampleData.experience[0].position}</div>
+            <div style={{ color: template.colors.primary }}>{sampleData.experience[0].company}</div>
+          </div>
+        </div>
+        
+        <div>
+          <div className="text-[8px] font-bold pb-1 border-b" style={{ color: template.colors.primary, borderColor: `${template.colors.primary}30` }}>
+            {t.editor.skills.title}
+          </div>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {sampleData.skills.map(skill => (
+              <span 
+                key={skill.id} 
+                className="text-[5px] px-1 py-0.5 rounded-full"
+                style={{ backgroundColor: `${template.colors.primary}15`, color: template.colors.primary }}
+              >
                 {skill.name}
               </span>
-              <span className="text-xs" style={{ color: template.colors.secondary }}>
-                {skill.level}
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="h-2 rounded-full" 
-                style={{ 
-                  backgroundColor: template.colors.primary,
-                  width: `${skill.level}%`
-                }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  // 项目经验渲染
-  const renderProjects = () => (
-    <div className="space-y-4">
-      {sampleData.projects.map((project) => (
-        <div key={project.id}>
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="font-semibold" style={{ color: template.colors.text }}>
-              {project.name}
-            </h3>
-            <span className="text-sm" style={{ color: template.colors.secondary }}>
-              {project.startDate} - {project.endDate}
-            </span>
-          </div>
-          <p className="text-sm mb-2" style={{ color: template.colors.text }}>
-            {project.description}
-          </p>
-          <div className="text-sm space-y-1">
-            {project.highlights.map((highlight, index) => (
-              <p key={index} style={{ color: template.colors.text }}>
-                • {highlight}
-              </p>
             ))}
           </div>
         </div>
-      ))}
+      </div>
     </div>
   )
 
-  // 根据模板布局配置渲染不同的布局
-  const renderLayout = () => {
-    const isDoubleColumn = template.layout.columns.count === 2
-    const isLeftSidebar = template.id.includes('sidebar-left')
-    const isRightSidebar = template.id.includes('sidebar-right')
-    const isTimeline = template.id.includes('timeline')
-    const isCompact = template.id.includes('compact')
-
-    if (isDoubleColumn && (isLeftSidebar || isRightSidebar)) {
-      return renderSidebarLayout()
-    } else if (isTimeline) {
-      return renderTimelineLayout()
-    } else if (isCompact) {
-      return renderCompactLayout()
-    } else {
-      return renderSingleColumnLayout()
-    }
-  }
-
-  // 单栏布局
-  const renderSingleColumnLayout = () => (
-    <div className="space-y-6">
-      {renderPersonalInfo()}
-      {renderSection('工作经历', renderExperience())}
-      {renderSection('教育背景', renderEducation())}
-      {renderSection('技能', renderSkills())}
-      {renderSection('项目经验', renderProjects())}
+  // 经典优雅布局预览
+  const renderClassicLayout = () => (
+    <div className="w-full h-full p-4" style={{ color: template.colors.text }}>
+      {/* 居中头部 */}
+      <div className="text-center pb-2 mb-3 border-b-2" style={{ borderColor: template.colors.primary }}>
+        <div className="text-[12px] font-serif font-bold tracking-wider" style={{ color: template.colors.primary }}>
+          {sampleData.personalInfo.name}
+        </div>
+        <div className="text-[8px] text-gray-600 mt-0.5">{sampleData.personalInfo.title}</div>
+        <div className="flex justify-center gap-2 mt-1 text-[5px] text-gray-500">
+          <span>{sampleData.personalInfo.phone}</span>
+          <span>|</span>
+          <span>{sampleData.personalInfo.email}</span>
+        </div>
+      </div>
+      
+      {/* 工作经历 */}
+      <div className="mb-2">
+        <div className="text-[8px] font-serif font-bold text-center pb-1 border-b" style={{ color: template.colors.primary, borderColor: `${template.colors.primary}30` }}>
+          {t.editor.experience.title}
+        </div>
+        <div className="text-[6px] mt-1">
+          <div className="flex justify-between">
+            <span className="font-bold">{sampleData.experience[0].position}</span>
+            <span className="text-gray-500 italic">{formatDateStr(sampleData.experience[0].startDate)}</span>
+          </div>
+          <div className="text-gray-600">{sampleData.experience[0].company}</div>
+        </div>
+      </div>
+      
+      {/* 教育背景 */}
+      <div>
+        <div className="text-[8px] font-serif font-bold text-center pb-1 border-b" style={{ color: template.colors.primary, borderColor: `${template.colors.primary}30` }}>
+          {t.editor.education.title}
+        </div>
+        <div className="text-[6px] mt-1">
+          <div className="font-bold">{sampleData.education[0].school}</div>
+          <div className="text-gray-600">{sampleData.education[0].degree} · {sampleData.education[0].major}</div>
+        </div>
+      </div>
     </div>
   )
 
-  // 侧边栏布局
-  const renderSidebarLayout = () => {
-    const isLeftSidebar = template.id.includes('sidebar-left')
-    const leftContent = isLeftSidebar ? (
-      <div className="space-y-4">
-        {renderPersonalInfo()}
-        {renderSection('技能', renderSkills())}
-      </div>
-    ) : (
-      <div className="space-y-4">
-        {renderSection('工作经历', renderExperience())}
-        {renderSection('项目经验', renderProjects())}
-      </div>
-    )
-
-    const rightContent = isLeftSidebar ? (
-      <div className="space-y-4">
-        {renderSection('工作经历', renderExperience())}
-        {renderSection('教育背景', renderEducation())}
-        {renderSection('项目经验', renderProjects())}
-      </div>
-    ) : (
-      <div className="space-y-4">
-        {renderPersonalInfo()}
-        {renderSection('教育背景', renderEducation())}
-        {renderSection('技能', renderSkills())}
-      </div>
-    )
-
-    return (
-      <div className="grid grid-cols-5 gap-6">
-        <div className={isLeftSidebar ? 'col-span-2' : 'col-span-3'}>
-          {leftContent}
-        </div>
-        <div className={isLeftSidebar ? 'col-span-3' : 'col-span-2'}>
-          {rightContent}
+  // 极简布局预览
+  const renderMinimalLayout = () => (
+    <div className="w-full h-full p-4" style={{ color: template.colors.text }}>
+      {/* 简洁头部 */}
+      <div className="mb-4">
+        <div className="text-[11px] font-light tracking-widest">{sampleData.personalInfo.name}</div>
+        <div className="text-[7px] text-gray-500 font-light">{sampleData.personalInfo.title}</div>
+        <div className="flex gap-3 mt-1 text-[5px] text-gray-400">
+          <span>{sampleData.personalInfo.email}</span>
+          <span>{sampleData.personalInfo.phone}</span>
         </div>
       </div>
-    )
-  }
+      
+      {/* 工作经历 */}
+      <div className="mb-3">
+        <div className="text-[6px] font-medium tracking-[0.2em] text-gray-400 uppercase mb-1">
+          {t.editor.experience.title}
+        </div>
+        <div className="text-[6px]">
+          <div className="font-medium">{sampleData.experience[0].position}</div>
+          <div className="text-gray-500">{sampleData.experience[0].company}</div>
+        </div>
+      </div>
+      
+      {/* 技能 */}
+      <div>
+        <div className="text-[6px] font-medium tracking-[0.2em] text-gray-400 uppercase mb-1">
+          {t.editor.skills.title}
+        </div>
+        <div className="flex flex-wrap gap-2 text-[5px] text-gray-600">
+          {sampleData.skills.map(skill => (
+            <span key={skill.id}>{skill.name}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 
-  // 时间轴布局
-  const renderTimelineLayout = () => (
-    <div className="space-y-6">
-      {renderPersonalInfo()}
-      <div className="relative">
-        {/* 时间轴线 */}
+  // 创意布局预览
+  const renderCreativeLayout = () => (
+    <div className="flex w-full h-full" style={{ backgroundColor: template.colors.background }}>
+      {/* 左侧 */}
+      <div className="w-[35%] p-3 flex flex-col items-center gap-2" style={{ color: template.colors.text }}>
         <div 
-          className="absolute left-4 top-0 bottom-0 w-0.5" 
+          className="w-14 h-14 rounded-full"
           style={{ backgroundColor: template.colors.primary }}
         />
-        <div className="space-y-6 pl-12">
-          {renderSection('工作经历', renderExperience())}
-          {renderSection('教育背景', renderEducation())}
-          {renderSection('项目经验', renderProjects())}
+        <div className="text-center">
+          <div className="text-[9px] font-bold">{sampleData.personalInfo.name}</div>
+          <div className="text-[6px]" style={{ color: template.colors.secondary }}>{sampleData.personalInfo.title}</div>
+        </div>
+        
+        <div className="w-full">
+          <div 
+            className="text-[7px] font-bold px-1.5 py-0.5 rounded mb-1"
+            style={{ backgroundColor: `${template.colors.primary}20`, color: template.colors.primary }}
+          >
+            {t.editor.skills.title}
+          </div>
+          <div className="space-y-1">
+            {sampleData.skills.slice(0, 2).map(skill => (
+              <div key={skill.id} className="text-[5px]">{skill.name}</div>
+            ))}
+          </div>
         </div>
       </div>
-      {renderSection('技能', renderSkills())}
+      
+      {/* 右侧 */}
+      <div className="flex-1 p-3 space-y-2" style={{ color: template.colors.text }}>
+        <div>
+          <div 
+            className="text-[7px] font-bold px-1.5 py-0.5 rounded mb-1 inline-block"
+            style={{ backgroundColor: `${template.colors.primary}20`, color: template.colors.primary }}
+          >
+            {t.editor.experience.title}
+          </div>
+          <div className="text-[6px]">
+            <div className="font-medium">{sampleData.experience[0].position}</div>
+            <div style={{ color: template.colors.accent }}>{sampleData.experience[0].company}</div>
+          </div>
+        </div>
+        
+        <div>
+          <div 
+            className="text-[7px] font-bold px-1.5 py-0.5 rounded mb-1 inline-block"
+            style={{ backgroundColor: `${template.colors.primary}20`, color: template.colors.primary }}
+          >
+            {t.editor.projects.title}
+          </div>
+          <div className="text-[6px]">
+            <div className="font-medium">{sampleData.projects[0].name}</div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 
-  // 紧凑布局
-  const renderCompactLayout = () => (
-    <div className="grid grid-cols-5 gap-4">
-      <div className="col-span-2 space-y-3">
-        {renderPersonalInfo()}
-        {renderSection('技能', renderSkills())}
+  // 默认单栏布局预览
+  const renderDefaultLayout = () => (
+    <div className="w-full h-full p-3" style={{ color: template.colors.text }}>
+      {/* 头部 */}
+      <div className="flex items-center gap-2 pb-2 mb-2 border-b" style={{ borderColor: template.colors.primary }}>
+        {template.components.personalInfo.showAvatar && (
+          <div className="w-10 h-10 rounded-full" style={{ backgroundColor: template.colors.primary }} />
+        )}
+        <div>
+          <div className="text-[10px] font-bold" style={{ color: template.colors.primary }}>
+            {sampleData.personalInfo.name}
+          </div>
+          <div className="text-[7px]" style={{ color: template.colors.secondary }}>
+            {sampleData.personalInfo.title}
+          </div>
+        </div>
       </div>
-      <div className="col-span-3 space-y-3">
-        {renderSection('工作经历', renderExperience())}
-        {renderSection('教育背景', renderEducation())}
-        {renderSection('项目经验', renderProjects())}
+      
+      {/* 工作经历 */}
+      <div className="mb-2">
+        <div className="text-[8px] font-bold pb-0.5 border-b mb-1" style={{ color: template.colors.primary, borderColor: template.colors.primary }}>
+          {t.editor.experience.title}
+        </div>
+        <div className="text-[6px]">
+          <div className="flex justify-between">
+            <span className="font-medium">{sampleData.experience[0].position}</span>
+            <span style={{ color: template.colors.secondary }}>{formatDateStr(sampleData.experience[0].startDate)}</span>
+          </div>
+          <div style={{ color: template.colors.secondary }}>{sampleData.experience[0].company}</div>
+        </div>
+      </div>
+      
+      {/* 技能 */}
+      <div>
+        <div className="text-[8px] font-bold pb-0.5 border-b mb-1" style={{ color: template.colors.primary, borderColor: template.colors.primary }}>
+          {t.editor.skills.title}
+        </div>
+        <div className="space-y-1">
+          {sampleData.skills.slice(0, 2).map(skill => (
+            <div key={skill.id}>
+              <div className="flex justify-between text-[5px] mb-0.5">
+                <span>{skill.name}</span>
+                <span style={{ color: template.colors.secondary }}>{skill.level}%</span>
+              </div>
+              <div className="h-1 bg-gray-200 rounded-full">
+                <div 
+                  className="h-full rounded-full" 
+                  style={{ width: `${skill.level}%`, backgroundColor: template.colors.primary }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+
+  // 根据布局类型选择渲染函数
+  const renderLayout = () => {
+    switch (layoutType) {
+      case 'sidebar': return renderSidebarLayout()
+      case 'gradient': return renderGradientLayout()
+      case 'classic': return renderClassicLayout()
+      case 'minimal': return renderMinimalLayout()
+      case 'creative': return renderCreativeLayout()
+      default: return renderDefaultLayout()
+    }
+  }
+  
+  // 骨架屏组件
+  const renderSkeleton = () => (
+    <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-50 animate-pulse">
+      <div className="p-4 space-y-3">
+        {/* 头部骨架 */}
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-gray-200" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 bg-gray-200 rounded w-2/3" />
+            <div className="h-2 bg-gray-200 rounded w-1/2" />
+          </div>
+        </div>
+        
+        {/* 内容骨架 */}
+        <div className="space-y-2">
+          <div className="h-2 bg-gray-200 rounded w-1/4" />
+          <div className="h-2 bg-gray-200 rounded w-full" />
+          <div className="h-2 bg-gray-200 rounded w-5/6" />
+        </div>
+        
+        <div className="space-y-2">
+          <div className="h-2 bg-gray-200 rounded w-1/3" />
+          <div className="h-2 bg-gray-200 rounded w-full" />
+          <div className="h-2 bg-gray-200 rounded w-4/5" />
+        </div>
       </div>
     </div>
   )
 
   return (
-    <div className={`overflow-hidden ${fullSize ? 'w-full h-full' : 'w-full h-full'}`} style={{ aspectRatio: '3/4' }}>
-      <div style={previewStyle} className="p-8 bg-white">
-        {renderLayout()}
-      </div>
+    <div 
+      className="overflow-hidden bg-white shadow-sm" 
+      style={{ 
+        aspectRatio: '3/4',
+        transform: `scale(${scale})`,
+        transformOrigin: 'top left',
+        width: `${100 / scale}%`,
+        height: `${100 / scale}%`,
+        // 性能优化：使用 CSS containment 和 will-change
+        contain: 'layout style paint',
+        willChange: fullSize ? 'auto' : 'transform',
+        // 优化渲染质量
+        imageRendering: 'crisp-edges',
+        backfaceVisibility: 'hidden',
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale'
+      }}
+    >
+      {loading || !isLoaded ? renderSkeleton() : renderLayout()}
     </div>
   )
 }
 
-export default React.memo(TemplatePreview)
+// 使用 React.memo 优化，只在 template 或 fullSize 变化时重新渲染
+export default React.memo(TemplatePreview, (prevProps, nextProps) => {
+  return (
+    prevProps.template.id === nextProps.template.id &&
+    prevProps.fullSize === nextProps.fullSize &&
+    prevProps.loading === nextProps.loading
+  )
+})

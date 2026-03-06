@@ -91,18 +91,28 @@ export default function PersonalHeader({ personalInfo, styleConfig: propStyleCon
 
   /**
    * 获取头像显示URL
-   * 优先级：用户上传的头像 > 样式配置中的头像 > 模板默认头像
+   * 优先级：用户上传的头像 > 模板默认头像 > 样式配置中的头像
    */
   const getAvatarUrl = (): string | undefined => {
+    // 1. 优先使用用户上传的头像
     if (personalInfo.avatar) {
-      return personalInfo.avatar
+      // 确保本地路径正确
+      if (personalInfo.avatar.startsWith('/') || personalInfo.avatar.startsWith('http') || personalInfo.avatar.startsWith('data:')) {
+        return personalInfo.avatar
+      }
+      return `/${personalInfo.avatar}`
     }
-    if (mergedStyleConfig.avatar.url) {
-      return mergedStyleConfig.avatar.url
-    }
+    
+    // 2. 其次使用模板指定的默认头像（如果有）
     if (currentTemplate?.components.personalInfo.defaultAvatar) {
       return currentTemplate.components.personalInfo.defaultAvatar
     }
+    
+    // 3. 最后使用样式配置中的头像（通常为空或默认值）
+    if (mergedStyleConfig.avatar.url) {
+      return mergedStyleConfig.avatar.url
+    }
+    
     return undefined
   }
 

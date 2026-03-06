@@ -6,6 +6,7 @@
  * 
  * 加载状态骨架屏组件
  * 为动态导入的组件提供优雅的加载状态
+ * Requirements: 1.5
  */
 
 import React from 'react'
@@ -79,6 +80,124 @@ export function EditorSkeleton() {
                 <div className="h-10 bg-gray-100 rounded w-full"></div>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * AI 助手骨架屏
+ * 用于 AIAssistant 组件加载时的占位
+ */
+export function AIAssistantSkeleton() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-pulse">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
+        {/* 头部骨架 */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+            <div>
+              <div className="h-5 bg-gray-200 rounded w-32 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-48"></div>
+            </div>
+          </div>
+          <div className="w-8 h-8 bg-gray-200 rounded-lg"></div>
+        </div>
+        
+        {/* 内容区域骨架 */}
+        <div className="p-6 space-y-4">
+          <div className="h-4 bg-gray-200 rounded w-24"></div>
+          <div className="h-32 bg-gray-100 rounded-lg"></div>
+          <div className="flex justify-end space-x-3">
+            <div className="h-10 bg-gray-200 rounded-lg w-24"></div>
+            <div className="h-10 bg-gray-200 rounded-lg w-24"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 模板选择器骨架屏
+ * 用于 TemplateSelector 组件加载时的占位
+ */
+export function TemplateSelectorSkeleton() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-pulse">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 max-h-[80vh] overflow-hidden">
+        {/* 头部骨架 */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div className="h-6 bg-gray-200 rounded w-32"></div>
+          <div className="w-8 h-8 bg-gray-200 rounded-lg"></div>
+        </div>
+        
+        {/* 分类过滤骨架 */}
+        <div className="flex gap-2 p-4 border-b border-gray-200">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-9 bg-gray-200 rounded-full w-20"></div>
+          ))}
+        </div>
+        
+        {/* 模板网格骨架 */}
+        <div className="p-4 overflow-y-auto max-h-[calc(80vh-140px)]">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="border-2 border-gray-200 rounded-lg overflow-hidden">
+                <div className="aspect-[3/4] bg-gray-100"></div>
+                <div className="p-3">
+                  <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-16"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 导出预览对话框骨架屏
+ * 用于 ExportPreviewDialog 组件加载时的占位
+ */
+export function ExportPreviewDialogSkeleton() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-pulse">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+        {/* 头部骨架 */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="h-6 bg-gray-200 rounded w-32"></div>
+          <div className="w-8 h-8 bg-gray-200 rounded-lg"></div>
+        </div>
+        
+        {/* 内容区域骨架 */}
+        <div className="p-6 space-y-6">
+          {/* 格式选择骨架 */}
+          <div>
+            <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
+            <div className="grid grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-16 bg-gray-100 rounded-lg"></div>
+              ))}
+            </div>
+          </div>
+          
+          {/* 选项骨架 */}
+          <div className="space-y-3">
+            <div className="h-4 bg-gray-200 rounded w-20"></div>
+            <div className="h-10 bg-gray-100 rounded-lg"></div>
+            <div className="h-10 bg-gray-100 rounded-lg"></div>
+          </div>
+          
+          {/* 按钮骨架 */}
+          <div className="flex justify-end space-x-3 pt-4">
+            <div className="h-10 bg-gray-200 rounded-lg w-24"></div>
+            <div className="h-10 bg-gray-200 rounded-lg w-24"></div>
           </div>
         </div>
       </div>

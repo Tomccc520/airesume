@@ -1,6 +1,12 @@
+/**
+ * @copyright Tomda (https://www.tomda.top)
+ * @copyright UIED技术团队 (https://fsuied.com)
+ * @author UIED技术团队
+ * @createDate 2025-9-22
+ */
+
 'use client'
 
-import { motion } from 'framer-motion'
 import { Plus } from 'lucide-react'
 
 interface AddCardButtonProps {
@@ -8,21 +14,21 @@ interface AddCardButtonProps {
   text: string
 }
 
+/**
+ * 添加卡片按钮 - 优化版本
+ * 更清晰的视觉反馈和交互体验
+ */
 export function AddCardButton({ onAdd, text }: AddCardButtonProps) {
   return (
-    <motion.button
-      whileHover={{ scale: 1.01 }}
-      whileTap={{ scale: 0.99 }}
+    <button
       onClick={onAdd}
-      className="w-full p-5 border border-dashed border-gray-300/60 rounded-xl 
-                 hover:border-blue-500/50 hover:bg-blue-50/50 hover:text-blue-600 
-                 transition-all duration-300 group flex items-center justify-center gap-2 backdrop-blur-sm"
+      className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 rounded-xl text-gray-600 hover:text-blue-600 transition-colors group"
       type="button"
     >
-      <div className="p-1.5 rounded-full bg-gray-100 group-hover:bg-blue-100 transition-colors">
-        <Plus className="w-4 h-4 text-gray-500 group-hover:text-blue-500" />
+      <div className="p-1.5 rounded-lg bg-gray-100 group-hover:bg-blue-100 transition-colors">
+        <Plus className="w-4 h-4" />
       </div>
-      <span className="font-medium text-gray-600 group-hover:text-blue-600 transition-colors">{text}</span>
-    </motion.button>
+      <span className="font-medium text-sm">{text}</span>
+    </button>
   )
 }

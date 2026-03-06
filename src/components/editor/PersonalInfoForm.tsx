@@ -11,6 +11,7 @@ import { User } from 'lucide-react'
 import { PersonalInfo } from '@/types/resume'
 import { OptimizedImageUpload } from '../OptimizedImageUpload'
 import FormField, { FormFieldGroup } from '@/components/FormField'
+import { RichTextEditor } from './RichTextEditor'
 import { SectionHeader } from './SectionHeader'
 import { useLanguage } from '@/contexts/LanguageContext'
 
@@ -27,6 +28,14 @@ export function PersonalInfoForm({ personalInfo, onChange, onAiOptimize }: Perso
     onChange({
       ...personalInfo,
       [field]: value
+    })
+  }
+
+  // 更新头像圆角半径
+  const updateAvatarBorderRadius = (value: number) => {
+    onChange({
+      ...personalInfo,
+      avatarBorderRadius: value
     })
   }
 
@@ -50,8 +59,31 @@ export function PersonalInfoForm({ personalInfo, onChange, onAiOptimize }: Perso
           showOptimizationInfo={false}
           showProgress={false}
         />
+        
+        {/* 头像圆角设置 - 简化版本 */}
+        {personalInfo.avatar && (
+          <div className="mt-4 max-w-md mx-auto">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {t.editor.personalInfo.avatarBorderRadius || '头像圆角'}
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min="0"
+                max="50"
+                value={personalInfo.avatarBorderRadius ?? 8}
+                onChange={(e) => updateAvatarBorderRadius(Number(e.target.value))}
+                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              <span className="text-sm font-medium text-gray-600 min-w-[3rem] text-right">
+                {personalInfo.avatarBorderRadius ?? 8}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* 基本信息分组 */}
       <FormFieldGroup>
         <FormField
           label={t.editor.personalInfo.name}
@@ -103,15 +135,17 @@ export function PersonalInfoForm({ personalInfo, onChange, onAiOptimize }: Perso
         />
       </FormFieldGroup>
 
-      <FormField
+      {/* 使用富文本编辑器 */}
+      <RichTextEditor
         label={t.editor.personalInfo.summary}
-        type="textarea"
         value={personalInfo.summary}
         onChange={(value) => updateField('summary', value)}
         placeholder={t.editor.personalInfo.placeholders.summary}
-        rows={4}
-        showAiButton={true}
-        onAiOptimize={onAiOptimize}
+        minRows={4}
+        maxRows={12}
+        showToolbar={true}
+        enableAI={true}
+        onAIOptimize={onAiOptimize}
       />
     </div>
   )

@@ -3,36 +3,45 @@
  * @copyright UIED技术团队 (https://fsuied.com)
  * @author UIED技术团队
  * @createDate 2025-09-22
+ * 
+ * @description 简历导出功能组件，支持PDF、PNG、JPG格式导出
+ * 使用 ExportStyleCapture 服务进行样式预处理，确保导出样式一致性
  */
 
 
 /**
  * 简历导出功能组件
- * 支持PDF和Word格式导出
+ * 支持PDF、PNG、JPG格式导出
  */
 
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, FileText, File, Loader2, CheckCircle, AlertCircle, Image, Camera } from 'lucide-react'
+import { Download, FileText, File, Loader2, CheckCircle, AlertCircle, Image, Camera, Lightbulb } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { ExportStyleCapture } from '@/services/exportStyleCapture'
 
 interface ExportButtonProps {
   className?: string
-  onExport?: (format: 'pdf' | 'png' | 'jpg' | 'docx') => Promise<void>
+  onExport?: (format: 'pdf' | 'png' | 'jpg') => Promise<void>
 }
 
 /**
  * 导出按钮组件
  */
 export default function ExportButton({ className = '', onExport }: ExportButtonProps) {
+  const { t } = useLanguage()
   const [isOpen, setIsOpen] = useState(false)
-  const [isExporting, setIsExporting] = useState<'pdf' | 'png' | 'jpg' | 'docx' | null>(null)
+  const [isExporting, setIsExporting] = useState<'pdf' | 'png' | 'jpg' | null>(null)
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null)
 
   /**
-   * 处理导出 - 支持PDF、PNG、JPG和DOCX格式
+   * 处理导出 - 支持PDF、PNG、JPG格式
    */
-  const handleExport = async (format: 'pdf' | 'png' | 'jpg' | 'docx') => {
+  const handleExport = async (format: 'pdf' | 'png' | 'jpg') => {
     if (isExporting) return
+
+    console.log('🚀 开始导出:', format) // 添加日志确认函数被调用
 
     setIsExporting(format)
     setExportStatus(null)
@@ -42,21 +51,21 @@ export default function ExportButton({ className = '', onExport }: ExportButtonP
         await onExport(format)
         setExportStatus({
           type: 'success',
-          message: `${format.toUpperCase()} 导出成功！`
+          message: `${format.toUpperCase()} ${t.editor.toolbar.exportSuccess}`
         })
       } else {
         // 默认导出逻辑
         await defaultExport(format)
         setExportStatus({
           type: 'success',
-          message: `${format.toUpperCase()} 导出成功！`
+          message: `${format.toUpperCase()} ${t.editor.toolbar.exportSuccess}`
         })
       }
     } catch (error) {
-      console.error('Export failed:', error)
+      console.error('❌ Export failed:', error)
       setExportStatus({
         type: 'error',
-        message: `导出失败，请重试`
+        message: t.editor.toolbar.exportFailed
       })
     } finally {
       setIsExporting(null)
@@ -69,266 +78,242 @@ export default function ExportButton({ className = '', onExport }: ExportButtonP
 
   /**
    * 默认导出逻辑 - 使用html2canvas生成图片，支持多页PNG导出
+   * 修复空白图片问题：
+   * 1. 正确处理元素克隆和样式继承
+   * 2. 移除所有transform变换（包括父元素）
+   * 3. 等待内容完全渲染
    */
-  const defaultExport = async (format: 'pdf' | 'png' | 'jpg' | 'docx') => {
+  const defaultExport = async (format: 'pdf' | 'png' | 'jpg') => {
     const element = document.getElementById('resume-preview')
     if (!element) {
-      throw new Error('找不到简历预览元素')
+      throw new Error('找不到简历预览元素 #resume-preview')
     }
 
-    // 临时设置导出模式
-    const originalStyle = element.style.cssText
-    element.style.transform = 'none'
-    element.style.transformOrigin = 'initial'
-    
-    // 添加导出模式类
-    element.classList.add('export-mode')
+    console.log('✅ 找到元素:', element)
+    console.log('📏 元素尺寸:', element.getBoundingClientRect())
+    console.log('📝 内容长度:', element.innerHTML.length)
+    console.log('👶 子元素数量:', element.children.length)
 
+    // 检查元素是否真的有内容
+    if (element.innerHTML.length === 0) {
+      throw new Error('简历预览元素是空的，请先添加简历内容')
+    }
+
+    // 等待字体加载
+    await document.fonts.ready.catch(() => {
+      console.warn('⚠️ 字体加载超时')
+    })
+
+    // 保存原始样式（包括父元素）
+    const originalTransform = element.style.transform
+    const originalScale = element.style.scale
+    const originalWidth = element.style.width
+    const originalHeight = element.style.height
+    
+    // 查找并保存所有父元素的 transform
+    const parentElements: HTMLElement[] = []
+    const parentTransforms: string[] = []
+    let parent = element.parentElement
+    while (parent) {
+      parentElements.push(parent)
+      parentTransforms.push(parent.style.transform || '')
+      parent = parent.parentElement
+    }
+    
     try {
+      // 临时移除所有变换，确保以原始尺寸渲染
+      element.style.transform = 'none'
+      element.style.scale = '1'
+      
+      // 移除所有父元素的 transform
+      parentElements.forEach((parent, index) => {
+        console.log(`🔄 移除父元素 ${index} 的 transform:`, parent.style.transform)
+        parent.style.transform = 'none'
+      })
+      
+      console.log('📊 所有 transform 已移除，父元素数量:', parentElements.length)
+      
+      // 添加导出标记类
+      element.classList.add('exporting')
+      
+      // 强制重绘
+      element.offsetHeight
+      
+      // 等待一帧确保样式生效
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      
+      // 获取实际渲染尺寸（移除transform后）
+      const rect = element.getBoundingClientRect()
+      const width = 612 // 固定使用A4宽度
+      const height = element.scrollHeight || rect.height || 792
+    
+    console.log('📐 使用尺寸:', { width, height })
+
       // 动态导入html2canvas
       const html2canvas = (await import('html2canvas')).default
       
-      // 生成canvas - 使用固定的A4像素尺寸
-      const A4_WIDTH_PX = 794 // 210mm * 96dpi / 25.4
-      const A4_HEIGHT_PX = 1123 // 297mm * 96dpi / 25.4
+      console.log('🎨 开始生成canvas...')
       
+      // 使用2倍缩放（降低以提高兼容性）
+      const scale = 2
+      
+      // 生成canvas - 简化配置，让 html2canvas 自动处理样式
       const canvas = await html2canvas(element, {
-        scale: 4, // 提高清晰度 (2 -> 4)
+        scale: scale,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        width: A4_WIDTH_PX,
-        height: element.scrollHeight,
-        windowWidth: A4_WIDTH_PX,
-        windowHeight: element.scrollHeight
+        width: width,
+        height: height,
+        logging: true,
+        imageTimeout: 15000,
+        onclone: (clonedDoc, clonedElement) => {
+          console.log('🔄 处理克隆元素...')
+          
+          // 只做最基本的处理
+          clonedElement.style.width = `${width}px`
+          clonedElement.style.minHeight = `${height}px`
+          clonedElement.style.transform = 'none'
+          clonedElement.style.margin = '0'
+          
+          // 移除不需要导出的元素
+          const buttonsToRemove = clonedElement.querySelectorAll('button, .no-export, [data-no-export]')
+          buttonsToRemove.forEach(btn => btn.remove())
+          console.log('🗑️ 移除了', buttonsToRemove.length, '个按钮')
+            
+            // 移除分页线
+            const pageBreakLines = clonedElement.querySelectorAll('[style*="dashed"]')
+            pageBreakLines.forEach(line => line.remove())
+          
+          console.log('✅ 克隆元素处理完成')
+        }
+      })
+      
+      console.log('✅ Canvas生成完成:', { width: canvas.width, height: canvas.height })
+      
+      // 调试：检查canvas内容
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        const imageData = ctx.getImageData(0, 0, Math.min(100, canvas.width), Math.min(100, canvas.height))
+        const data = imageData.data
+        let hasNonWhitePixel = false
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i] !== 255 || data[i + 1] !== 255 || data[i + 2] !== 255) {
+            hasNonWhitePixel = true
+            break
+          }
+        }
+        console.log('🎨 Canvas内容检查:', hasNonWhitePixel ? '有内容' : '全白色（可能有问题）')
+      }
+      
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error('Canvas尺寸为0，无法导出')
+      }
+      
+      // 恢复原始样式
+      element.style.transform = originalTransform
+      element.style.scale = originalScale
+      element.classList.remove('exporting')
+      if (originalWidth) element.style.width = originalWidth
+      if (originalHeight) element.style.height = originalHeight
+      
+      // 恢复父元素的 transform
+      parentElements.forEach((parent, index) => {
+        parent.style.transform = parentTransforms[index]
       })
 
       if (format === 'pdf') {
-        // PDF导出 - 优化A4纸张适配
-        const imgData = canvas.toDataURL('image/png')
-        const { jsPDF } = await import('jspdf')
-        
-        // A4纸张尺寸 (210 x 297 mm)
-        const pdf = new jsPDF({
-          orientation: 'portrait',
-          unit: 'mm',
-          format: 'a4'
-        })
-        
-        const pdfWidth = 210 // A4宽度
-        const pdfHeight = 297 // A4高度
-        const margin = 5 // 减少页边距到5mm
-        const contentWidth = pdfWidth - (margin * 2)
-        const contentHeight = pdfHeight - (margin * 2)
-        
-        // 计算图片在PDF中的尺寸，优先填满页面宽度
-        const imgAspectRatio = canvas.width / canvas.height
-        const contentAspectRatio = contentWidth / contentHeight
-        
-        let imgWidth, imgHeight, xOffset, yOffset
-        
-        // 优先使用全宽度，减少留白
-        imgWidth = contentWidth
-        imgHeight = contentWidth / imgAspectRatio
-        
-        // 如果高度超出页面，则调整为适合高度
-        if (imgHeight > contentHeight) {
-          imgHeight = contentHeight
-          imgWidth = contentHeight * imgAspectRatio
-        }
-        
-        // 计算偏移量（居中或靠左上角）
-        xOffset = margin + Math.max(0, (contentWidth - imgWidth) / 2)
-        yOffset = margin
-        
-        // 如果内容超过一页，需要分页处理
-        const pageHeight = A4_HEIGHT_PX * 2 // canvas的scale是2
-        if (canvas.height > pageHeight) {
-          let remainingHeight = canvas.height
-          let sourceY = 0
-          let pageCount = 0
-          
-          while (remainingHeight > 0) {
-            if (pageCount > 0) {
-              pdf.addPage()
-            }
-            
-            // 计算当前页面要显示的高度
-            const currentPageHeight = Math.min(remainingHeight, pageHeight)
-            
-            // 创建当前页面的canvas片段
-            const pageCanvas = document.createElement('canvas')
-            const pageCtx = pageCanvas.getContext('2d')
-            pageCanvas.width = canvas.width
-            pageCanvas.height = currentPageHeight
-            
-            if (pageCtx) {
-              // 设置白色背景
-              pageCtx.fillStyle = '#ffffff'
-              pageCtx.fillRect(0, 0, canvas.width, currentPageHeight)
-              
-              pageCtx.drawImage(canvas, 0, sourceY, canvas.width, currentPageHeight, 0, 0, canvas.width, currentPageHeight)
-              const pageImgData = pageCanvas.toDataURL('image/png')
-              
-              // 计算页面内容的缩放比例
-              const pageImgHeight = (currentPageHeight / pageHeight) * contentHeight
-              pdf.addImage(pageImgData, 'PNG', margin, margin, contentWidth, pageImgHeight)
-            }
-            
-            sourceY += currentPageHeight
-            remainingHeight -= currentPageHeight
-            pageCount++
-          }
-        } else {
-          // 单页内容
-          pdf.addImage(imgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight)
-        }
-        
-        pdf.save('resume.pdf')
-      } else if (format === 'png') {
-        // PNG导出 - 支持多页导出
-        const maxPageHeight = A4_HEIGHT_PX * 2 // 考虑scale=2
-        const pageWidth = canvas.width
-        
-        if (canvas.height <= maxPageHeight) {
-          // 单页PNG导出
-          const link = document.createElement('a')
-          link.download = 'resume.png'
-          link.href = canvas.toDataURL('image/png')
-          link.click()
-        } else {
-          // 多页PNG导出
-          let remainingHeight = canvas.height
-          let sourceY = 0
-          let pageCount = 1
-          
-          while (remainingHeight > 0) {
-            const currentPageHeight = Math.min(remainingHeight, maxPageHeight)
-            
-            // 创建当前页面的canvas
-            const pageCanvas = document.createElement('canvas')
-            const pageCtx = pageCanvas.getContext('2d')
-            pageCanvas.width = pageWidth
-            pageCanvas.height = currentPageHeight
-            
-            if (pageCtx) {
-              // 设置白色背景
-              pageCtx.fillStyle = '#ffffff'
-              pageCtx.fillRect(0, 0, pageWidth, currentPageHeight)
-              
-              // 绘制当前页面内容
-              pageCtx.drawImage(canvas, 0, sourceY, pageWidth, currentPageHeight, 0, 0, pageWidth, currentPageHeight)
-              
-              // 下载当前页面
-              const link = document.createElement('a')
-              link.download = `resume_page_${pageCount}.png`
-              link.href = pageCanvas.toDataURL('image/png')
-              link.click()
-              
-              // 添加延迟避免浏览器阻止多个下载
-              if (remainingHeight > currentPageHeight) {
-                await new Promise(resolve => setTimeout(resolve, 500))
-              }
-            }
-            
-            sourceY += currentPageHeight
-            remainingHeight -= currentPageHeight
-            pageCount++
-          }
-        }
-      } else if (format === 'jpg') {
-        // JPG导出 - 支持多页导出
-        const maxPageHeight = A4_HEIGHT_PX * 2 // 考虑scale=2
-        const pageWidth = canvas.width
-        
-        if (canvas.height <= maxPageHeight) {
-          // 单页JPG导出
-          const link = document.createElement('a')
-          link.download = 'resume.jpg'
-          link.href = canvas.toDataURL('image/jpeg', 0.9)
-          link.click()
-        } else {
-          // 多页JPG导出
-          let remainingHeight = canvas.height
-          let sourceY = 0
-          let pageCount = 1
-          
-          while (remainingHeight > 0) {
-            const currentPageHeight = Math.min(remainingHeight, maxPageHeight)
-            
-            // 创建当前页面的canvas
-            const pageCanvas = document.createElement('canvas')
-            const pageCtx = pageCanvas.getContext('2d')
-            pageCanvas.width = pageWidth
-            pageCanvas.height = currentPageHeight
-            
-            if (pageCtx) {
-              // 设置白色背景
-              pageCtx.fillStyle = '#ffffff'
-              pageCtx.fillRect(0, 0, pageWidth, currentPageHeight)
-              
-              // 绘制当前页面内容
-              pageCtx.drawImage(canvas, 0, sourceY, pageWidth, currentPageHeight, 0, 0, pageWidth, currentPageHeight)
-              
-              // 下载当前页面
-              const link = document.createElement('a')
-              link.download = `resume_page_${pageCount}.jpg`
-              link.href = pageCanvas.toDataURL('image/jpeg', 0.9)
-              link.click()
-              
-              // 添加延迟避免浏览器阻止多个下载
-              if (remainingHeight > currentPageHeight) {
-                await new Promise(resolve => setTimeout(resolve, 500))
-              }
-            }
-            
-            sourceY += currentPageHeight
-            remainingHeight -= currentPageHeight
-            pageCount++
-          }
-        }
-      } else if (format === 'docx') {
-        // Word导出功能 - 临时使用PDF导出作为替代方案
-        // 由于html-to-docx在客户端环境中存在兼容性问题，暂时使用PDF格式
-        console.warn('DOCX导出暂时不可用，将使用PDF格式导出')
-        
-        // 生成PDF作为替代
-        const imgData = canvas.toDataURL('image/png')
+        // PDF导出
+        console.log('📄 开始生成PDF...')
+        const imgData = canvas.toDataURL('image/png', 1.0)
         const { jsPDF } = await import('jspdf')
         
         const pdf = new jsPDF({
           orientation: 'portrait',
           unit: 'mm',
-          format: 'a4'
+          format: 'a4',
+          compress: false
         })
         
         const pdfWidth = 210
         const pdfHeight = 297
-        const margin = 5
+        const margin = 10
         const contentWidth = pdfWidth - (margin * 2)
         const contentHeight = pdfHeight - (margin * 2)
         
+        // 计算图片在PDF中的尺寸
         const imgAspectRatio = canvas.width / canvas.height
         let imgWidth = contentWidth
         let imgHeight = contentWidth / imgAspectRatio
         
+        // 如果高度超过一页，需要分页
         if (imgHeight > contentHeight) {
-          imgHeight = contentHeight
-          imgWidth = contentHeight * imgAspectRatio
+          const pagesNeeded = Math.ceil(imgHeight / contentHeight)
+          console.log('📑 需要', pagesNeeded, '页')
+          
+          const pageHeightInCanvas = (contentHeight / contentWidth) * canvas.width
+          
+          for (let page = 0; page < pagesNeeded; page++) {
+            if (page > 0) pdf.addPage()
+            
+            const sourceY = page * pageHeightInCanvas
+            const sourceHeight = Math.min(pageHeightInCanvas, canvas.height - sourceY)
+            
+            const pageCanvas = document.createElement('canvas')
+            pageCanvas.width = canvas.width
+            pageCanvas.height = sourceHeight
+            const ctx = pageCanvas.getContext('2d')
+            
+            if (ctx) {
+              ctx.fillStyle = '#ffffff'
+              ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
+              ctx.drawImage(canvas, 0, sourceY, canvas.width, sourceHeight, 0, 0, pageCanvas.width, pageCanvas.height)
+              
+              const pageImg = pageCanvas.toDataURL('image/png', 1.0)
+              const pageImgHeight = (sourceHeight / canvas.width) * contentWidth
+              pdf.addImage(pageImg, 'PNG', margin, margin, contentWidth, pageImgHeight, undefined, 'FAST')
+            }
+          }
+        } else {
+          // 单页
+          pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight, undefined, 'FAST')
         }
         
-        const xOffset = margin + Math.max(0, (contentWidth - imgWidth) / 2)
-        const yOffset = margin
-        
-        pdf.addImage(imgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight)
-        
-        // 下载PDF文件（命名为docx以保持用户体验）
         pdf.save('resume.pdf')
+        console.log('✅ PDF导出完成')
+      } else if (format === 'png') {
+        // PNG导出
+        console.log('🖼️ 开始PNG导出...')
+        const link = document.createElement('a')
+        link.download = 'resume.png'
+        link.href = canvas.toDataURL('image/png', 1.0)
+        link.click()
+        console.log('✅ PNG导出完成')
+      } else if (format === 'jpg') {
+        // JPG导出
+        console.log('🖼️ 开始JPG导出...')
+        const link = document.createElement('a')
+        link.download = 'resume.jpg'
+        link.href = canvas.toDataURL('image/jpeg', 0.95)
+        link.click()
+        console.log('✅ JPG导出完成')
       }
-    } finally {
-      // 恢复原始样式
-      element.style.cssText = originalStyle
-      element.classList.remove('export-mode')
+    } catch (error) {
+      console.error('❌ 导出失败:', error)
+      
+      // 确保恢复所有样式
+      element.style.transform = originalTransform
+      element.style.scale = originalScale
+      element.classList.remove('exporting')
+      if (originalWidth) element.style.width = originalWidth
+      if (originalHeight) element.style.height = originalHeight
+      
+      // 恢复父元素的 transform
+      parentElements.forEach((parent, index) => {
+        parent.style.transform = parentTransforms[index]
+      })
+      
+      throw error
     }
   }
 
@@ -338,54 +323,41 @@ export default function ExportButton({ className = '', onExport }: ExportButtonP
   const exportOptions = [
     {
       format: 'pdf' as const,
-      label: 'PDF 格式',
-      description: '适合打印和在线查看',
+      label: t.editor.toolbar.pdfFormat,
+      description: t.editor.toolbar.pdfDesc,
       icon: FileText,
       color: 'text-red-600',
       bgColor: 'bg-red-50 hover:bg-red-100'
     },
     {
       format: 'png' as const,
-      label: 'PNG 图片',
-      description: '高质量图片格式',
+      label: t.editor.toolbar.pngFormat,
+      description: t.editor.toolbar.pngDesc,
       icon: Image,
       color: 'text-green-600',
       bgColor: 'bg-green-50 hover:bg-green-100'
     },
     {
       format: 'jpg' as const,
-      label: 'JPG 图片',
-      description: '压缩图片格式',
+      label: t.editor.toolbar.jpgFormat,
+      description: t.editor.toolbar.jpgDesc,
       icon: Camera,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50 hover:bg-orange-100'
-    },
-    {
-      format: 'docx' as const,
-      label: 'Word 格式',
-      description: '可编辑的文档格式',
-      icon: File,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50 hover:bg-blue-100'
     }
   ]
 
   return (
     <div className={`relative ${className}`}>
-      {/* 主按钮 */}
-      <motion.button
+      {/* 主按钮 - 调整为更小的尺寸 */}
+      <Button
         onClick={() => setIsOpen(!isOpen)}
-        className="btn btn-primary btn-md flex items-center justify-center space-x-1 sm:space-x-2 group relative"
-        whileHover={{ scale: 1.05, y: -2 }}
-        whileTap={{ scale: 0.95 }}
-        transition={{ type: "spring", stiffness: 400, damping: 17 }}
+        size="sm"
+        className="gap-1.5"
       >
-        <Download className="icon icon-sm" />
-        <span className="hidden xs:inline">导出简历</span>
-        {/* 悬停提示 */}
-        <div className="tooltip xs:hidden" data-tooltip="导出简历">
-        </div>
-      </motion.button>
+        <Download className="w-4 h-4" />
+        <span className="text-sm">{t.editor.toolbar.exportResume}</span>
+      </Button>
 
       {/* 导出选项面板 */}
       <AnimatePresence>
@@ -394,10 +366,10 @@ export default function ExportButton({ className = '', onExport }: ExportButtonP
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="absolute top-full mt-2 right-0 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-[100]"
+            className="absolute top-full mt-2 right-0 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 z-[100]"
           >
             <div className="p-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">选择导出格式</h3>
+              <h3 className="text-sm font-medium text-gray-900 mb-3">{t.editor.toolbar.selectFormat}</h3>
               
               <div className="space-y-2">
                 {exportOptions.map((option) => {
@@ -409,7 +381,7 @@ export default function ExportButton({ className = '', onExport }: ExportButtonP
                       key={option.format}
                       onClick={() => handleExport(option.format)}
                       disabled={isExporting !== null}
-                      className={`btn btn-outline btn-md w-full ${option.bgColor} transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`btn btn-outline btn-md w-full ${option.bgColor} transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md`}
                       whileHover={{ scale: isExporting ? 1 : 1.02 }}
                       whileTap={{ scale: isExporting ? 1 : 0.98 }}
                     >
@@ -475,8 +447,8 @@ export default function ExportButton({ className = '', onExport }: ExportButtonP
 
               {/* 提示信息 */}
               <div className="mt-3 pt-3 border-t border-gray-100">
-                <p className="text-xs text-gray-500">
-                  💡 导出前请确保简历内容已填写完整
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <Lightbulb className="w-3 h-3" /> {t.editor.toolbar.exportTip}
                 </p>
               </div>
             </div>
@@ -492,65 +464,5 @@ export default function ExportButton({ className = '', onExport }: ExportButtonP
         />
       )}
     </div>
-  )
-}
-
-/**
- * 简单导出按钮（不带下拉菜单）
- */
-interface SimpleExportButtonProps {
-  format: 'pdf' | 'docx'
-  className?: string
-  onExport?: (format: 'pdf' | 'docx') => Promise<void>
-}
-
-export function SimpleExportButton({ format, className = '', onExport }: SimpleExportButtonProps) {
-  const [isExporting, setIsExporting] = useState(false)
-
-  const handleExport = async () => {
-    if (isExporting) return
-
-    setIsExporting(true)
-    try {
-      if (onExport) {
-        await onExport(format)
-      }
-    } catch (error) {
-      console.error('Export failed:', error)
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
-  const config = {
-    pdf: {
-      label: '导出 PDF',
-      icon: FileText,
-      color: 'from-red-600 to-red-700'
-    },
-    docx: {
-      label: '导出 Word',
-      icon: File,
-      color: 'from-blue-600 to-blue-700'
-    }
-  }
-
-  const Icon = config[format].icon
-
-  return (
-    <motion.button
-      onClick={handleExport}
-      disabled={isExporting}
-      className={`flex items-center space-x-2 px-4 py-2 bg-gradient-to-r ${config[format].color} text-white rounded-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
-      whileHover={{ scale: isExporting ? 1 : 1.02 }}
-      whileTap={{ scale: isExporting ? 1 : 0.98 }}
-    >
-      {isExporting ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <Icon className="h-4 w-4" />
-      )}
-      <span>{isExporting ? '导出中...' : config[format].label}</span>
-    </motion.button>
   )
 }

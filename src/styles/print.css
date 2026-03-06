@@ -79,24 +79,54 @@
 
 /**
  * 导出PDF时的样式优化
+ * 使用固定像素值确保在不同DPI下的一致性
  */
 .export-mode {
   background: white !important;
+  box-sizing: border-box !important;
 }
 
-.export-mode #resume-preview {
-  width: 200mm !important; /* 增加宽度，减少左右留白 */
-  min-height: 287mm !important; /* 增加高度，减少上下留白 */
-  max-width: 200mm !important;
+.export-mode #resume-preview,
+.export-mode > div {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: auto !important;
   transform: none !important;
   box-shadow: none !important;
   border-radius: 0 !important;
-  margin: 5mm !important; /* 减少外边距 */
+  margin: 0 !important;
   padding: 0 !important;
-  font-size: 12pt !important;
-  line-height: 1.4 !important;
+  box-sizing: border-box !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  color: #111827 !important;
+  background: white !important;
 }
-/* 导出模式样式重置 */
+
+/* CSS 变量默认值 - 确保导出时有备用值 */
+.export-mode,
+.export-mode #resume-preview,
+.export-mode > div {
+  --font-size-name: 28px;
+  --font-size-title: 18px;
+  --font-size-content: 14px;
+  --font-size-small: 12px;
+  --color-primary: #111827;
+  --color-secondary: #374151;
+  --color-text: #111827;
+  --color-accent: #6b7280;
+  --color-background: #ffffff;
+  --spacing-section: 20px;
+  --spacing-item: 12px;
+  --spacing-line: 1.5;
+  --avatar-size: 100px;
+  --avatar-border-width: 2px;
+  --avatar-border-color: #e5e7eb;
+  --layout-max-width: 100%;
+  --layout-padding: 0;
+}
+/* 导出模式样式重置 - 移除所有背景色 */
+.export-mode *,
 .export-mode .bg-gray-100,
 .export-mode .bg-gray-50,
 .export-mode .bg-blue-50,
@@ -105,16 +135,35 @@
 .export-mode .bg-purple-50,
 .export-mode .bg-yellow-50,
 .export-mode .bg-orange-50 {
+  background-color: transparent !important;
+}
+
+/* 确保根容器是白色 */
+.export-mode,
+.export-mode #resume-preview,
+.export-mode > div {
   background-color: white !important;
 }
 
+/* 文字颜色统一为深色，确保打印清晰 */
 .export-mode .text-gray-600,
 .export-mode .text-gray-500,
-.export-mode .text-gray-400 {
+.export-mode .text-gray-400,
+.export-mode .text-gray-700 {
   color: #374151 !important;
 }
 
-/* 重置所有选中状态的边框和背景 */
+.export-mode h1,
+.export-mode h2,
+.export-mode h3,
+.export-mode h4,
+.export-mode h5,
+.export-mode h6 {
+  color: #111827 !important;
+  font-weight: 600 !important;
+}
+
+/* 重置所有边框颜色为浅灰色 */
 .export-mode [class*="border-blue-"],
 .export-mode [class*="border-red-"],
 .export-mode [class*="border-green-"],
@@ -124,7 +173,7 @@
   border-color: #e5e7eb !important;
 }
 
-/* 重置悬停和选中状态 */
+/* 移除所有悬停和交互状态 */
 .export-mode .hover\:bg-blue-50,
 .export-mode .hover\:bg-red-50,
 .export-mode .hover\:bg-green-50,
@@ -132,16 +181,22 @@
 .export-mode .hover\:border-blue-300,
 .export-mode .hover\:border-red-300,
 .export-mode .hover\:border-green-300,
-.export-mode .hover\:border-purple-300 {
-  background-color: white !important;
+.export-mode .hover\:border-purple-300,
+.export-mode [class*="hover:"],
+.export-mode [class*="focus:"],
+.export-mode [class*="active:"] {
+  background-color: transparent !important;
   border-color: #e5e7eb !important;
 }
 
-/* 隐藏所有交互元素 */
+/* 隐藏所有交互元素和按钮 */
 .export-mode button,
 .export-mode .cursor-pointer,
-.export-mode [role="button"] {
-  pointer-events: none !important;
+.export-mode [role="button"],
+.export-mode .no-export,
+.export-mode [data-no-export] {
+  display: none !important;
+  visibility: hidden !important;
 }
 
 /* 重置所有阴影效果 */
@@ -149,6 +204,190 @@
 .export-mode .shadow-xl,
 .export-mode .shadow-md,
 .export-mode .shadow-sm,
-.export-mode .shadow {
+.export-mode .shadow,
+.export-mode [class*="shadow-"] {
   box-shadow: none !important;
 }
+
+/* 确保 Flex 布局正确 */
+.export-mode .flex {
+  display: flex !important;
+}
+
+.export-mode .flex-col {
+  flex-direction: column !important;
+}
+
+.export-mode .flex-row {
+  flex-direction: row !important;
+}
+
+.export-mode .items-center {
+  align-items: center !important;
+}
+
+.export-mode .items-start {
+  align-items: flex-start !important;
+}
+
+.export-mode .items-end {
+  align-items: flex-end !important;
+}
+
+.export-mode .justify-center {
+  justify-content: center !important;
+}
+
+.export-mode .justify-between {
+  justify-content: space-between !important;
+}
+
+.export-mode .justify-start {
+  justify-content: flex-start !important;
+}
+
+.export-mode .justify-end {
+  justify-content: flex-end !important;
+}
+
+.export-mode .gap-1 { gap: 0.25rem !important; }
+.export-mode .gap-2 { gap: 0.5rem !important; }
+.export-mode .gap-3 { gap: 0.75rem !important; }
+.export-mode .gap-4 { gap: 1rem !important; }
+.export-mode .gap-5 { gap: 1.25rem !important; }
+.export-mode .gap-6 { gap: 1.5rem !important; }
+.export-mode .gap-8 { gap: 2rem !important; }
+
+/* 确保 Grid 布局正确 */
+.export-mode .grid {
+  display: grid !important;
+}
+
+.export-mode .grid-cols-1 {
+  grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+}
+
+.export-mode .grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.export-mode .grid-cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+/* 确保文本对齐正确 */
+.export-mode .text-left { text-align: left !important; }
+.export-mode .text-center { text-align: center !important; }
+.export-mode .text-right { text-align: right !important; }
+
+/* 确保 flex-wrap 正确 */
+.export-mode .flex-wrap {
+  flex-wrap: wrap !important;
+}
+
+.export-mode .flex-nowrap {
+  flex-wrap: nowrap !important;
+}
+
+/* 确保图片和头像正确显示 */
+.export-mode img {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block !important;
+}
+
+.export-mode .rounded-full {
+  border-radius: 9999px !important;
+}
+
+.export-mode .rounded-lg {
+  border-radius: 0.5rem !important;
+}
+
+.export-mode .rounded {
+  border-radius: 0.25rem !important;
+}
+
+/* 确保 SVG 图标正确显示 */
+.export-mode svg {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  flex-shrink: 0 !important;
+}
+
+/* 确保间距正确 */
+.export-mode .space-y-1 > * + * { margin-top: 0.25rem !important; }
+.export-mode .space-y-2 > * + * { margin-top: 0.5rem !important; }
+.export-mode .space-y-3 > * + * { margin-top: 0.75rem !important; }
+.export-mode .space-y-4 > * + * { margin-top: 1rem !important; }
+.export-mode .space-y-6 > * + * { margin-top: 1.5rem !important; }
+.export-mode .space-y-8 > * + * { margin-top: 2rem !important; }
+
+.export-mode .space-x-1 > * + * { margin-left: 0.25rem !important; }
+.export-mode .space-x-2 > * + * { margin-left: 0.5rem !important; }
+.export-mode .space-x-3 > * + * { margin-left: 0.75rem !important; }
+.export-mode .space-x-4 > * + * { margin-left: 1rem !important; }
+
+/* 确保字体大小正确 */
+.export-mode .text-xs { font-size: 0.75rem !important; line-height: 1rem !important; }
+.export-mode .text-sm { font-size: 0.875rem !important; line-height: 1.25rem !important; }
+.export-mode .text-base { font-size: 1rem !important; line-height: 1.5rem !important; }
+.export-mode .text-lg { font-size: 1.125rem !important; line-height: 1.75rem !important; }
+.export-mode .text-xl { font-size: 1.25rem !important; line-height: 1.75rem !important; }
+.export-mode .text-2xl { font-size: 1.5rem !important; line-height: 2rem !important; }
+.export-mode .text-3xl { font-size: 1.875rem !important; line-height: 2.25rem !important; }
+.export-mode .text-4xl { font-size: 2.25rem !important; line-height: 2.5rem !important; }
+
+/* 确保字体粗细正确 */
+.export-mode .font-light { font-weight: 300 !important; }
+.export-mode .font-normal { font-weight: 400 !important; }
+.export-mode .font-medium { font-weight: 500 !important; }
+.export-mode .font-semibold { font-weight: 600 !important; }
+.export-mode .font-bold { font-weight: 700 !important; }
+
+/* 确保宽度和高度正确 */
+.export-mode .w-full { width: 100% !important; }
+.export-mode .h-full { height: 100% !important; }
+.export-mode .w-auto { width: auto !important; }
+.export-mode .h-auto { height: auto !important; }
+
+/* 移除所有过渡和动画效果 */
+.export-mode * {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* 确保链接样式正确 */
+.export-mode a {
+  color: inherit !important;
+  text-decoration: none !important;
+}
+
+/* 确保列表样式正确 */
+.export-mode ul {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+}
+
+.export-mode ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+}
+
+.export-mode .list-none {
+  list-style-type: none !important;
+  padding-left: 0 !important;
+}
+
+/* 确保边距和内边距正确应用 */
+.export-mode .m-0 { margin: 0 !important; }
+.export-mode .p-0 { padding: 0 !important; }
+.export-mode .mt-0 { margin-top: 0 !important; }
+.export-mode .mb-0 { margin-bottom: 0 !important; }
+.export-mode .ml-0 { margin-left: 0 !important; }
+.export-mode .mr-0 { margin-right: 0 !important; }
+
+/* 确保溢出处理正确 */
+.export-mode .overflow-hidden { overflow: hidden !important; }
+.export-mode .overflow-visible { overflow: visible !important; }
+.export-mode .overflow-auto { overflow: auto !important; }

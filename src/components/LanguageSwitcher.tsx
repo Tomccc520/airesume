@@ -5,30 +5,36 @@
  * @createDate 2025-09-22
  */
 
-
 'use client'
 
 import React, { useState } from 'react'
-import { useLanguage, type Language } from '@/hooks/useLanguage'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { Locale } from '@/types/i18n'
+
+// 支持的语言列表
+const SUPPORTED_LANGUAGES = [
+  { code: 'zh' as Locale, name: '中文', flag: '🇨🇳' },
+  { code: 'en' as Locale, name: 'English', flag: '🇺🇸' }
+]
 
 /**
  * 语言切换器组件
  * 提供语言选择功能，支持下拉菜单形式的语言切换
  */
 export default function LanguageSwitcher() {
-  const { currentLanguage, changeLanguage, supportedLanguages } = useLanguage()
+  const { locale, setLocale } = useLanguage()
   const [isOpen, setIsOpen] = useState(false)
 
   /**
    * 处理语言切换
    * @param language - 要切换到的语言
    */
-  const handleLanguageChange = (language: Language) => {
-    changeLanguage(language)
+  const handleLanguageChange = (language: Locale) => {
+    setLocale(language)
     setIsOpen(false)
   }
 
-  const currentLangConfig = supportedLanguages.find(lang => lang.code === currentLanguage)
+  const currentLangConfig = SUPPORTED_LANGUAGES.find(lang => lang.code === locale)
 
   return (
     <div className="relative">
@@ -62,19 +68,19 @@ export default function LanguageSwitcher() {
           {/* 下拉菜单 */}
           <div className="absolute right-0 z-20 mt-2 w-40 bg-white border border-gray-200 rounded-md shadow-lg">
             <div className="py-1">
-              {supportedLanguages.map((language) => (
+              {SUPPORTED_LANGUAGES.map((language) => (
                 <button
                   key={language.code}
                   onClick={() => handleLanguageChange(language.code)}
                   className={`btn ${
-                    currentLanguage === language.code
+                    locale === language.code
                       ? 'btn-primary'
                       : 'btn-ghost'
                   } btn-sm w-full justify-start space-x-3`}
                 >
                   <span className="text-lg">{language.flag}</span>
                   <span className="font-medium">{language.name}</span>
-                  {currentLanguage === language.code && (
+                  {locale === language.code && (
                     <svg
                       className="w-4 h-4 ml-auto text-blue-600"
                       fill="currentColor"

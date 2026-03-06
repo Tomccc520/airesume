@@ -9,8 +9,10 @@
 
 'use client'
 
-import { ZoomIn, ZoomOut, Grid, Eye, EyeOff, RotateCcw } from 'lucide-react'
+import { ZoomIn, ZoomOut, Grid, Eye, EyeOff, RotateCcw, Share2 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { useToastContext } from '@/components/Toast'
 
 interface PreviewControlsProps {
   zoom: number
@@ -29,12 +31,18 @@ export default function PreviewControls({
   showPageBreaks,
   onTogglePageBreaks
 }: PreviewControlsProps) {
-  const zoomLevels = [50, 75, 100, 125, 150, 200]
+  const zoomLevels = [50, 75, 80, 90, 100, 110, 120, 125, 150, 200]
+  const { success: showToast } = useToastContext()
+  const [isSharing, setIsSharing] = useState(false)
 
   const handleZoomIn = () => {
     const currentIndex = zoomLevels.indexOf(zoom)
     if (currentIndex < zoomLevels.length - 1) {
       onZoomChange(zoomLevels[currentIndex + 1])
+    } else if (zoom < 200) {
+        // 允许非标准级别的微调
+        const nextZoom = Math.min(200, zoom + 10)
+        onZoomChange(nextZoom)
     }
   }
 
@@ -42,6 +50,9 @@ export default function PreviewControls({
     const currentIndex = zoomLevels.indexOf(zoom)
     if (currentIndex > 0) {
       onZoomChange(zoomLevels[currentIndex - 1])
+    } else if (zoom > 50) {
+        const nextZoom = Math.max(50, zoom - 10)
+        onZoomChange(nextZoom)
     }
   }
 
@@ -49,12 +60,27 @@ export default function PreviewControls({
     onZoomChange(100)
   }
 
+  const handleShare = async () => {
+    setIsSharing(true)
+    // 模拟生成分享链接
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    const shareUrl = `${window.location.origin}/share/${Math.random().toString(36).substring(7)}`
+    try {
+        await navigator.clipboard.writeText(shareUrl)
+        showToast('分享链接已复制到剪贴板', 'success')
+    } catch (err) {
+        showToast('复制链接失败', 'error')
+    }
+    setIsSharing(false)
+  }
+
   return (
     <div className="flex items-center gap-1">
       {/* 缩小按钮 */}
       <motion.button
         onClick={handleZoomOut}
-        disabled={zoom <= zoomLevels[0]}
+        disabled={zoom <= 50}
         className="p-2 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed group text-gray-600 hover:text-blue-600 border border-transparent hover:border-gray-200"
         title="缩小 (Ctrl + -)"
         whileHover={{ scale: 1.05 }}
@@ -66,8 +92,12 @@ export default function PreviewControls({
       {/* 缩放级别显示和选择 */}
       <div className="flex items-center gap-1 relative">
         <select
-          value={zoom}
-          onChange={(e) => onZoomChange(Number(e.target.value))}
+          value={zoomLevels.includes(zoom) ? zoom : 'custom'}
+          onChange={(e) => {
+              if (e.target.value !== 'custom') {
+                onZoomChange(Number(e.target.value))
+              }
+          }}
           className="appearance-none px-3 py-1.5 border border-gray-200/60 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 bg-white/50 hover:bg-white transition-all min-w-[70px] text-center text-gray-700 cursor-pointer hover:border-gray-300"
         >
           {zoomLevels.map((level) => (
@@ -75,13 +105,14 @@ export default function PreviewControls({
               {level}%
             </option>
           ))}
+          {!zoomLevels.includes(zoom) && <option value="custom">{zoom}%</option>}
         </select>
       </div>
 
       {/* 放大按钮 */}
       <motion.button
         onClick={handleZoomIn}
-        disabled={zoom >= zoomLevels[zoomLevels.length - 1]}
+        disabled={zoom >= 200}
         className="p-2 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed group text-gray-600 hover:text-blue-600 border border-transparent hover:border-gray-200"
         title="放大 (Ctrl + +)"
         whileHover={{ scale: 1.05 }}
@@ -136,6 +167,18 @@ export default function PreviewControls({
         ) : (
           <EyeOff className="w-4 h-4" />
         )}
+      </motion.button>
+
+      {/* 分享按钮 */}
+      <motion.button
+        onClick={handleShare}
+        disabled={isSharing}
+        className={`p-2 rounded-lg transition-all duration-200 group hover:bg-blue-50 text-gray-500 hover:text-blue-600 ml-1`}
+        title="分享简历"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <Share2 className={`w-4 h-4 ${isSharing ? 'animate-pulse' : ''}`} />
       </motion.button>
 
       {/* 缩放提示 */}

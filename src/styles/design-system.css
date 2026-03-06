@@ -524,3 +524,217 @@
     @apply shadow-none;
   }
 }
+
+
+/* ===== 动画性能优化 (Requirements: 1.6) ===== */
+
+/* 减少动画偏好支持 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .fade-in,
+  .slide-up,
+  .scale-in {
+    animation: none !important;
+  }
+  
+  .animate-spin {
+    animation: none !important;
+  }
+  
+  .animate-pulse {
+    animation: none !important;
+  }
+  
+  .animate-bounce {
+    animation: none !important;
+  }
+}
+
+/* GPU 加速的动画类 */
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+/* 优化的 transform 动画 - 使用 transform 替代 layout 属性 */
+.optimized-transform {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* 优化的 opacity 动画 */
+.optimized-opacity {
+  will-change: opacity;
+}
+
+/* 组合优化 */
+.optimized-animation {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+/* 低端设备动画禁用 */
+.low-end-device .complex-animation {
+  animation: none !important;
+  transition: opacity 0.1s ease-out !important;
+}
+
+.low-end-device .animate-spin {
+  animation-duration: 2s !important;
+}
+
+/* 平滑过渡 - 使用 transform 替代 top/left */
+.smooth-slide-up {
+  transform: translateY(0);
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+.smooth-slide-up.hidden {
+  transform: translateY(10px);
+  opacity: 0;
+}
+
+.smooth-slide-down {
+  transform: translateY(0);
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+.smooth-slide-down.hidden {
+  transform: translateY(-10px);
+  opacity: 0;
+}
+
+.smooth-slide-left {
+  transform: translateX(0);
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+.smooth-slide-left.hidden {
+  transform: translateX(10px);
+  opacity: 0;
+}
+
+.smooth-slide-right {
+  transform: translateX(0);
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+.smooth-slide-right.hidden {
+  transform: translateX(-10px);
+  opacity: 0;
+}
+
+/* 优化的缩放动画 */
+.smooth-scale {
+  transform: scale(1);
+  transition: transform 0.15s ease-out;
+}
+
+.smooth-scale:hover {
+  transform: scale(1.02);
+}
+
+.smooth-scale:active {
+  transform: scale(0.98);
+}
+
+/* 60fps 动画保证 - 仅使用 transform 和 opacity */
+.fps-60 {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+}
+
+/* 动画性能监控类 */
+.animation-debug {
+  outline: 2px solid red !important;
+}
+
+/* 骨架屏动画优化 */
+.skeleton-pulse {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-pulse {
+    animation: none;
+    background: #e0e0e0;
+  }
+}
+
+/* 页面过渡动画优化 */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+.page-transition-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+/* 模态框动画优化 */
+.modal-backdrop {
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+
+.modal-backdrop.visible {
+  opacity: 1;
+}
+
+.modal-content {
+  opacity: 0;
+  transform: scale(0.95) translateY(10px);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+.modal-content.visible {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .modal-content {
+    transition: none !important;
+  }
+  
+  .modal-backdrop.visible,
+  .modal-content.visible {
+    opacity: 1;
+    transform: none;
+  }
+}

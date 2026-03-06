@@ -167,12 +167,12 @@ export default function SkillsDisplay({ skills }: SkillsDisplayProps) {
           whileHover={{ 
             scale: 1.08, 
             y: -4,
-            boxShadow: `0 8px 25px ${styleConfig.colors.primary}40`
+            boxShadow: `0 8px 25px ${skill.color || styleConfig.colors.primary}40`
           }}
           whileTap={{ scale: 0.95 }}
           className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer relative overflow-hidden"
           style={{
-             background: `linear-gradient(135deg, ${styleConfig.colors.primary}, ${styleConfig.colors.primary}cc)`,
+             background: skill.color ? `linear-gradient(135deg, ${skill.color}, ${skill.color}cc)` : `linear-gradient(135deg, ${styleConfig.colors.primary}, ${styleConfig.colors.primary}cc)`,
              color: 'white',
              fontSize: `${Math.max(styleConfig.fontSize.content - 2, 12)}px`
            }}

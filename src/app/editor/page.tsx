@@ -3,43 +3,98 @@
  * @copyright UIED技术团队 (https://fsuied.com)
  * @author UIED技术团队
  * @createDate 2025-09-22
+ * 
+ * 简历编辑器页面 - 性能优化版本
+ * 使用懒加载优化非关键组件
+ * Requirements: 1.5
  */
 
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import ResumePreview from '@/components/ResumePreview'
-import AIAssistant from '@/components/AIAssistant'
-import TemplateSelector from '@/components/TemplateSelector'
+import TemplateStyleSync from '@/components/TemplateStyleSync'
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import EditorToolbar from '@/components/EditorToolbar'
-import ExportPreviewDialog from '@/components/ExportPreviewDialog'
-import PreviewControls from '@/components/PreviewControls'
-import { QuickLayoutControls } from '@/components/QuickLayoutControls'
 import { StyleProvider } from '@/contexts/StyleContext'
 import { useToastContext } from '@/components/Toast'
 import { useRealtimePreview } from '@/hooks/useRealtimePreview'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { useKeyboardShortcuts, createEditorShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useHorizontalSwipe } from '@/hooks/useSwipeGesture'
-import { ResumeData } from '@/types/resume'
+import { ResumeData, Experience } from '@/types/resume'
 import { TemplateStyle } from '@/types/template'
-import { getDefaultTemplate } from '@/data/templates'
-import { X, Palette } from 'lucide-react'
-import AIResumeGenerator from '@/services/aiResumeGenerator'
-import LoadingModal from '@/components/LoadingModal'
-import { EditorSkeleton } from '@/components/LoadingStates'
+import { getDefaultTemplate, getTemplateById } from '@/data/templates'
+import { X } from 'lucide-react'
+import { 
+  EditorSkeleton, 
+  AIAssistantSkeleton, 
+  TemplateSelectorSkeleton, 
+  ExportPreviewDialogSkeleton 
+} from '@/components/LoadingStates'
 import { StyleSettingsPanel } from '@/components/editor/StyleSettingsPanel'
+import { ThreeColumnLayout } from '@/components/editor/ThreeColumnLayout'
+import { SectionNavigation } from '@/components/editor/SectionNavigation'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { JDSuggestion } from '@/services/jdMatcher'
+import { PreviewPanel } from '@/components/preview'
+import { ExportProgressIndicator, ExportStep, ExportStatus } from '@/components/export/ExportProgressIndicator'
+import { PageBreakOverlay } from '@/components/export/PageBreakPreview'
+import { useExportProgress } from '@/hooks/useExportProgress'
+import { SaveStatusIndicator, SaveStatus, SaveHistoryItem } from '@/components/feedback/SaveStatusIndicator'
+import { ImportExportDialog, ImportedData } from '@/components/data/ImportExportDialog'
+import { StorageMonitor, StorageUsage, CleanupOptions } from '@/components/data/StorageMonitor'
+import { useStorageMonitor } from '@/hooks/useStorageMonitor'
+import { ContextMenu, ContextMenuItem } from '@/components/editor/ContextMenu'
+import { BatchEditToolbar } from '@/components/editor/BatchEditToolbar'
+import { useContextMenu } from '@/hooks/useContextMenu'
+import { useBatchSelection } from '@/hooks/useBatchSelection'
+import { LoadingOverlay } from '@/components/feedback/LoadingOverlay'
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 
-// 动态导入 ResumeEditor 组件以优化初始加载性能
+// 懒加载非关键组件 - 优化初始加载性能 (Requirements: 1.5)
 const ResumeEditor = dynamic(() => import('@/components/ResumeEditor'), {
   loading: () => <EditorSkeleton />,
   ssr: false
 })
+
+// 懒加载 AI 助手组件
+const AIAssistant = dynamic(() => import('@/components/AIAssistant'), {
+  loading: () => <AIAssistantSkeleton />,
+  ssr: false
+})
+
+// 懒加载模板选择器组件
+const TemplateSelector = dynamic(() => import('@/components/TemplateSelector'), {
+  loading: () => <TemplateSelectorSkeleton />,
+  ssr: false
+})
+
+// 懒加载导出预览对话框组件
+const ExportPreviewDialog = dynamic(() => import('@/components/ExportPreviewDialog'), {
+  loading: () => <ExportPreviewDialogSkeleton />,
+  ssr: false
+})
+
+// 懒加载 JD 匹配弹窗组件
+const JDMatcherModal = dynamic(
+  () => import('@/components/ai/JDMatcherModal'),
+  {
+    loading: () => <AIAssistantSkeleton />,
+    ssr: false
+  }
+)
+
+// 懒加载 AI 分步生成弹窗组件
+const StepwiseGeneratorModal = dynamic(
+  () => import('@/components/ai/StepwiseGeneratorModal'),
+  {
+    loading: () => <AIAssistantSkeleton />,
+    ssr: false
+  }
+)
 
 /**
  * 简历编辑器页面 - 简洁版
@@ -54,31 +109,59 @@ export default function EditorPage() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showShortcutHelp, setShowShortcutHelp] = useState(false)
   const [showTemplateSelector, setShowTemplateSelector] = useState(false)
-  const [currentTemplate, setCurrentTemplate] = useState<TemplateStyle>(getDefaultTemplate())
+  const [currentTemplate, setCurrentTemplate] = useState<TemplateStyle>(() => {
+    // 尝试从 localStorage 恢复用户之前选择的模板
+    if (typeof window !== 'undefined') {
+      try {
+        const savedTemplateId = localStorage.getItem('currentTemplateId')
+        if (savedTemplateId) {
+          const savedTemplate = getTemplateById(savedTemplateId)
+          if (savedTemplate) {
+            return savedTemplate
+          }
+        }
+      } catch (error) {
+        console.error('恢复模板失败:', error)
+      }
+    }
+    return getDefaultTemplate()
+  })
   const [activeSection, setActiveSection] = useState('personal')
   const [exportOptions, setExportOptions] = useState<{ margin: number; showPageBreaks: boolean; paper: 'a4' | 'letter' }>({ margin: 10, showPageBreaks: true, paper: 'a4' })
   
   // 新增状态
   const [showExportDialog, setShowExportDialog] = useState(false)
-  const [showStyleSettings, setShowStyleSettings] = useState(false)
   const [previewZoom, setPreviewZoom] = useState(100)
-  const [showGrid, setShowGrid] = useState(false)
-  const [showPageBreaks, setShowPageBreaks] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  
+  // JD 匹配状态
+  const [showJDMatcher, setShowJDMatcher] = useState(false)
+  
+  // AI 分步生成状态
+  const [showStepwiseGenerator, setShowStepwiseGenerator] = useState(false)
+  
+  // 分页预览状态
+  const [showPageBreaks, setShowPageBreaks] = useState(false)
+  const [customBreakPositions, setCustomBreakPositions] = useState<number[]>([])
+  
+  // 导出进度 Hook
+  const {
+    progress: exportProgress,
+    estimatedTimeRemaining,
+    exportStatus,
+    isExporting: isExportInProgress,
+    canCancel,
+    startExport,
+    updateProgress,
+    setStep,
+    completeExport,
+    setError: setExportError,
+    cancelExport,
+    reset: resetExportProgress
+  } = useExportProgress()
   
   const { t } = useLanguage()
-
-  // AI生成加载状态
-  const [aiGenerationState, setAiGenerationState] = useState<{
-    isLoading: boolean
-    type: 'loading' | 'success' | 'error'
-    message: string
-    progress: number
-  }>({
-    isLoading: false,
-    type: 'loading',
-    message: '',
-    progress: 0
-  })
 
   const { success: showSuccess, error: showError, info: showInfo, removeToast } = useToastContext()
   
@@ -86,65 +169,115 @@ export default function EditorPage() {
   const [resumeData, setResumeData] = useState<ResumeData>({
     personalInfo: {
       name: '张三',
-      title: '前端开发工程师',
+      title: '资深前端工程师',
       email: 'zhangsan@example.com',
       phone: '138-0000-0000',
       location: '北京市朝阳区',
       website: 'https://github.com/zhangsan',
-      summary: '具有3年前端开发经验，熟练掌握React、Vue等主流框架，有丰富的项目开发经验。'
+      summary: '拥有5年前端开发经验，专注于构建高性能、可扩展的Web应用。精通React技术栈和现代前端工程化。具备良好的团队协作能力和技术领导力，曾主导多个大型项目的架构设计与开发。',
+      avatar: '/avatars/img1.png'
     },
     experience: [
       {
         id: '1',
-        company: '科技有限公司',
-        position: '前端开发工程师',
+        company: '未来科技有限公司',
+        position: '高级前端开发工程师',
         startDate: '2022-01',
-        endDate: '2024-12',
+        endDate: '至今',
         current: true,
-        description: ['负责公司主要产品的前端开发工作，参与需求分析、技术选型、代码实现等全流程开发', '使用React、TypeScript等技术栈，提升了产品性能和用户体验', '与后端团队协作，完成API接口对接和数据交互']
+        description: [
+          '主导公司核心SaaS产品的前端重构，采用Next.js + TypeScript架构，首屏加载速度提升40%',
+          '设计并实现企业级组件库，覆盖50+常用组件，提升团队开发效率30%',
+          '负责前端团队技术建设，制定代码规范和Code Review流程，显著降低线上故障率'
+        ],
+        location: '北京'
+      },
+      {
+        id: '2',
+        company: '创新网络科技有限公司',
+        position: '前端开发工程师',
+        startDate: '2019-06',
+        endDate: '2021-12',
+        current: false,
+        description: [
+          '负责电商平台C端业务开发，参与双11大促活动页面的性能优化',
+          '实现复杂的数据可视化大屏，支持实时数据更新和交互分析',
+          '优化移动端H5页面体验，解决不同机型的兼容性问题'
+        ],
+        location: '北京'
       }
     ],
     education: [
       {
         id: '1',
         school: '北京大学',
-        degree: '本科',
+        degree: '硕士',
+        major: '软件工程',
+        startDate: '2016-09',
+        endDate: '2019-06',
+        gpa: '3.8/4.0'
+      },
+      {
+        id: '2',
+        school: '北京邮电大学',
+        degree: '学士',
         major: '计算机科学与技术',
-        startDate: '2018-09',
-        endDate: '2022-06',
-        gpa: '3.8'
+        startDate: '2012-09',
+        endDate: '2016-06',
+        gpa: '3.7/4.0'
       }
     ],
     skills: [
       {
         id: '1',
-        name: 'JavaScript',
-        level: 90,
-        category: '编程语言'
+        name: 'React / Next.js',
+        level: 95,
+        category: '前端框架',
+        color: '#3B82F6'
       },
       {
         id: '2',
-        name: 'React',
-        level: 85,
-        category: '前端框架'
+        name: 'TypeScript',
+        level: 90,
+        category: '编程语言',
+        color: '#3B82F6'
       },
       {
         id: '3',
-        name: 'TypeScript',
+        name: 'Node.js',
+        level: 85,
+        category: '后端技术',
+        color: '#10B981'
+      },
+      {
+        id: '4',
+        name: '性能优化',
+        level: 85,
+        category: '核心能力',
+        color: '#F59E0B'
+      },
+      {
+        id: '5',
+        name: 'CI/CD',
         level: 80,
-        category: '编程语言'
+        category: '工程化',
+        color: '#6B7280'
       }
     ],
     projects: [
       {
         id: '1',
-        name: '企业管理系统',
-        description: '基于React和Node.js开发的企业内部管理系统，包含用户管理、权限控制、数据统计等功能。',
-        technologies: ['React', 'Node.js', 'MongoDB'],
+        name: '企业级协作平台',
+        description: '一款支持千人即时通讯和文档协作的企业级SaaS平台。',
+        technologies: ['React', 'WebSocket', 'WebRTC', 'Redis'],
         startDate: '2023-03',
         endDate: '2023-08',
-        url: 'https://github.com/zhangsan/enterprise-system',
-        highlights: ['实现了完整的用户权限管理系统', '优化了数据查询性能，提升50%响应速度', '集成了实时数据统计和可视化图表']
+        url: 'https://example.com/project',
+        highlights: [
+          '设计并实现即时通讯模块，支持单聊、群聊和消息漫游，日均消息量达百万级',
+          '基于WebRTC实现多人音视频通话功能，延迟控制在200ms以内',
+          '优化富文本编辑器性能，支持大文档流畅编辑和协同操作'
+        ]
       }
     ]
   })
@@ -179,15 +312,212 @@ export default function EditorPage() {
     hasUnsavedChanges,
     saveNow,
   } = useAutoSave(resumeData, saveResumeData, {
-    interval: 3000, // 3秒自动保存
+    interval: 30000, // 30秒自动保存
     enabled: true,
     onSaveSuccess: () => {
-      console.log('自动保存成功')
+      console.log(t.editor.messages.autoSaveSuccess)
     },
     onSaveError: (error) => {
       console.error('自动保存失败:', error)
     }
   })
+
+  // 数据导入导出对话框状态
+  const [showImportExportDialog, setShowImportExportDialog] = useState(false)
+  
+  // 存储监控 Hook
+  const {
+    usage: storageUsage,
+    refresh: refreshStorageUsage,
+    cleanupOldData: cleanupStorage
+  } = useStorageMonitor()
+  
+  // 上下文菜单 Hook
+  const {
+    isOpen: isContextMenuOpen,
+    position: contextMenuPosition,
+    openMenu: openContextMenu,
+    closeMenu: closeContextMenu,
+    menuItems: contextMenuItems
+  } = useContextMenu()
+  
+  // 批量选择 Hook (用于工作经历)
+  const {
+    selectedIds: selectedExperienceIds,
+    hasSelection: hasExperienceSelection,
+    selectionCount: experienceSelectionCount,
+    toggleSelection: toggleExperienceSelection,
+    selectAll: selectAllExperiences,
+    clearSelection: clearExperienceSelection,
+    isSelected: isExperienceSelected,
+    batchDelete: batchDeleteExperiences,
+    batchCopy: batchCopyExperiences,
+    batchMove: batchMoveExperiences
+  } = useBatchSelection<Experience>()
+  
+  // 确认对话框状态
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    type: 'warning' | 'danger' | 'info'
+    onConfirm: () => void
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning',
+    onConfirm: () => {}
+  })
+  
+  // 全局加载状态
+  const [globalLoading, setGlobalLoading] = useState(false)
+  const [globalLoadingMessage, setGlobalLoadingMessage] = useState('')
+  
+  // 保存历史记录
+  const [saveHistory, setSaveHistory] = useState<SaveHistoryItem[]>([])
+  
+  // 计算保存状态
+  const saveStatus: SaveStatus = useMemo(() => {
+    if (isSaving) return 'saving'
+    if (hasUnsavedChanges) return 'unsaved'
+    return 'saved'
+  }, [isSaving, hasUnsavedChanges])
+  
+  // 处理数据导入
+  const handleDataImport = useCallback((data: ImportedData, mode: 'replace' | 'merge') => {
+    if (data.resumeData) {
+      if (mode === 'replace') {
+        setResumeData(data.resumeData as unknown as ResumeData)
+      } else {
+        // 合并模式：简单覆盖
+        setResumeData(data.resumeData as unknown as ResumeData)
+      }
+    }
+    showSuccess(t.editor.messages.exportSuccess || '数据导入成功')
+    refreshStorageUsage()
+  }, [showSuccess, t, refreshStorageUsage])
+  
+  // 处理存储清理
+  const handleStorageCleanup = useCallback(async (options: CleanupOptions): Promise<number> => {
+    const freedBytes = await cleanupStorage(options)
+    refreshStorageUsage()
+    return freedBytes
+  }, [cleanupStorage, refreshStorageUsage])
+  
+  // 上下文菜单项生成器
+  const createExperienceContextMenuItems = useCallback((experienceId: string): ContextMenuItem[] => {
+    const isZh = t.common.edit === '编辑'
+    return [
+      {
+        id: 'edit',
+        label: t.common.edit,
+        onClick: () => {
+          setActiveSection('experience')
+        }
+      },
+      {
+        id: 'duplicate',
+        label: isZh ? '复制' : 'Duplicate',
+        onClick: () => {
+          const exp = resumeData.experience.find(e => e.id === experienceId)
+          if (exp) {
+            const newExp = { ...exp, id: `exp-${Date.now()}` }
+            setResumeData(prev => ({
+              ...prev,
+              experience: [...prev.experience, newExp]
+            }))
+            showSuccess(isZh ? '复制成功' : 'Duplicated successfully')
+          }
+        },
+        divider: true
+      },
+      {
+        id: 'delete',
+        label: t.common.delete,
+        danger: true,
+        onClick: () => {
+          setConfirmDialog({
+            isOpen: true,
+            title: isZh ? '确认删除' : 'Confirm Delete',
+            message: isZh ? '确定要删除这条工作经历吗？此操作无法撤销。' : 'Are you sure you want to delete this experience? This action cannot be undone.',
+            type: 'danger',
+            onConfirm: () => {
+              setResumeData(prev => ({
+                ...prev,
+                experience: prev.experience.filter(e => e.id !== experienceId)
+              }))
+              setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+              showSuccess(isZh ? '删除成功' : 'Deleted successfully')
+            }
+          })
+        }
+      }
+    ]
+  }, [resumeData, setResumeData, showSuccess, t])
+  
+  // 批量删除工作经历
+  const handleBatchDeleteExperiences = useCallback(() => {
+    if (experienceSelectionCount === 0) return
+    
+    const isZh = t.common.edit === '编辑'
+    setConfirmDialog({
+      isOpen: true,
+      title: isZh ? '确认删除' : 'Confirm Delete',
+      message: isZh 
+        ? `确定要删除选中的 ${experienceSelectionCount} 条工作经历吗？此操作无法撤销。`
+        : `Are you sure you want to delete ${experienceSelectionCount} selected experience(s)? This action cannot be undone.`,
+      type: 'danger',
+      onConfirm: () => {
+        const remainingExperiences = batchDeleteExperiences(
+          resumeData.experience,
+          () => {}
+        )
+        setResumeData(prev => ({
+          ...prev,
+          experience: remainingExperiences
+        }))
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+        showSuccess(isZh ? `已删除 ${experienceSelectionCount} 条工作经历` : `Deleted ${experienceSelectionCount} experience(s)`)
+      }
+    })
+  }, [experienceSelectionCount, batchDeleteExperiences, resumeData.experience, setResumeData, showSuccess, t])
+  
+  // 批量复制工作经历
+  const handleBatchCopyExperiences = useCallback(() => {
+    const isZh = t.common.edit === '编辑'
+    const copiedExperiences = batchCopyExperiences(
+      resumeData.experience,
+      () => `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    )
+    setResumeData(prev => ({
+      ...prev,
+      experience: copiedExperiences
+    }))
+    showSuccess(isZh ? `已复制 ${experienceSelectionCount} 条工作经历` : `Copied ${experienceSelectionCount} experience(s)`)
+  }, [batchCopyExperiences, resumeData.experience, experienceSelectionCount, setResumeData, showSuccess, t])
+  
+  // 批量移动工作经历
+  const handleBatchMoveExperiences = useCallback((direction: 'up' | 'down') => {
+    const movedExperiences = batchMoveExperiences(resumeData.experience, direction)
+    setResumeData(prev => ({
+      ...prev,
+      experience: movedExperiences
+    }))
+  }, [batchMoveExperiences, resumeData.experience, setResumeData])
+  
+  // 更新保存历史
+  useEffect(() => {
+    if (lastSavedAt) {
+      setSaveHistory(prev => {
+        const newHistory: SaveHistoryItem[] = [
+          { timestamp: lastSavedAt, success: true },
+          ...prev.slice(0, 4) // 保留最近5条
+        ]
+        return newHistory
+      })
+    }
+  }, [lastSavedAt])
 
   /**
    * 手动保存 - 使用 useCallback 优化
@@ -209,10 +539,10 @@ export default function EditorPage() {
       link.download = `${resumeData.personalInfo.name || '简历'}_${new Date().toISOString().split('T')[0]}.json`
       link.click()
       URL.revokeObjectURL(url)
-      showSuccess('JSON导出成功')
+      showSuccess(t.editor.messages.jsonExportSuccess)
     } catch (error) {
       console.error('导出JSON失败:', error)
-      showError('导出失败，请重试')
+      showError(t.editor.messages.exportError)
     }
   }, [resumeData, showSuccess, showError])
   
@@ -224,23 +554,38 @@ export default function EditorPage() {
       const savedData = localStorage.getItem('resumeData')
       if (savedData) {
         const parsedData = JSON.parse(savedData)
-        setResumeData(parsedData)
+        // 验证数据完整性，确保至少有基本的个人信息
+        if (parsedData?.personalInfo?.name) {
+          setResumeData(parsedData)
+        } else {
+          console.log('本地存储数据不完整，使用默认数据')
+        }
       }
     } catch (error) {
       console.error('加载数据失败，尝试从备份恢复:', error)
       try {
-        document.body.classList.add('export-mode')
         const backupData = localStorage.getItem('resumeData_backup')
         if (backupData) {
           const parsedData = JSON.parse(backupData)
-          setResumeData(parsedData)
-          showInfo('已从备份恢复数据', '由于加载失败，系统自动恢复了最近的备份')
+          if (parsedData?.personalInfo?.name) {
+            setResumeData(parsedData)
+            showInfo(t.editor.messages.backupRestored, t.editor.messages.backupRestoredDesc)
+          }
         }
       } catch (backupError) {
         console.error('备份恢复也失败:', backupError)
       }
     }
   }, [])
+
+  /**
+   * 保存当前模板到本地存储
+   */
+  useEffect(() => {
+    if (currentTemplate?.id) {
+      localStorage.setItem('currentTemplateId', currentTemplate.id)
+    }
+  }, [currentTemplate])
 
   /**
    * 更新简历数据 - 使用 useCallback 优化
@@ -254,82 +599,128 @@ export default function EditorPage() {
   
 
   /**
-   * 导出功能 - 支持多种格式，优化PDF质量和文件大小 - 使用 useCallback 优化
+   * 导出功能 - 简化版本，直接使用 html2canvas
+   * 不使用复杂的 exportStyleCapture 服务
    */
-  const handleExport = useCallback(async (format: 'pdf' | 'png' | 'jpg' | 'docx') => {
+  const handleExport = useCallback(async (format: 'pdf' | 'png' | 'jpg') => {
     try {
-      setIsExporting(true) // 设置导出模式
+      setIsExporting(true)
+      startExport(1)
+      
+      await new Promise(resolve => requestAnimationFrame(resolve))
       
       const element = document.getElementById('resume-preview')
       if (!element) {
         showError('请等待简历预览加载完成后再导出')
+        setIsExporting(false)
+        setExportError('预览元素未找到')
         return
       }
 
-      // 显示导出进度提示
-      const loadingToastId = showInfo('正在生成导出文件...', '请稍候', { duration: 0 })
+      console.log('✅ 找到元素:', element)
+      console.log('📏 元素尺寸:', element.getBoundingClientRect())
 
+      setStep('preparing-styles')
+      updateProgress(10)
+
+      setStep('loading-fonts')
+      updateProgress(20)
+
+      await document.fonts.ready.catch(() => {
+        console.warn('⚠️ 字体加载超时')
+      })
+        updateProgress(30)
+
+      // 保存原始样式
+      const originalTransform = element.style.transform
+      const originalScale = element.style.scale
+      
+      // 查找并保存所有父元素的 transform
+      const parentElements: HTMLElement[] = []
+      const parentTransforms: string[] = []
+      let parent = element.parentElement
+      while (parent) {
+        parentElements.push(parent)
+        parentTransforms.push(parent.style.transform || '')
+        parent = parent.parentElement
+      }
+      
       try {
-        if (format === 'docx') {
-          // 临时禁用 DOCX 导出，转为 PDF
-          showInfo('Word 导出功能升级中', '将为您导出 PDF 格式作为替代')
-          format = 'pdf'
-        }
+        // 临时移除所有变换
+        element.style.transform = 'none'
+        element.style.scale = '1'
+        parentElements.forEach(p => {
+          p.style.transform = 'none'
+        })
+        
+        element.classList.add('exporting')
+        element.offsetHeight
+        await new Promise(resolve => requestAnimationFrame(resolve))
+        
+        const rect = element.getBoundingClientRect()
+        const width = 612
+        const height = element.scrollHeight || rect.height || 792
+        
+        console.log('📐 使用尺寸:', { width, height })
 
-        // 动态导入html2canvas
         const html2canvas = (await import('html2canvas')).default
         
-        // 克隆元素以确保导出样式的一致性（不受当前屏幕尺寸影响）
-        const clone = element.cloneNode(true) as HTMLElement
-        const container = document.createElement('div')
-        container.style.position = 'absolute'
-        container.style.top = '-9999px'
-        container.style.left = '0'
-        container.style.width = '794px' // A4 宽度 (96 DPI)
-        container.appendChild(clone)
-        document.body.appendChild(container)
+        console.log('🎨 开始生成canvas...')
         
-        // 强制克隆元素样式
-        clone.style.width = '100%'
-        clone.style.height = 'auto'
-        clone.style.transform = 'none'
-        clone.style.margin = '0'
-        clone.classList.add('export-mode')
+        setStep('rendering-page')
+        updateProgress(40)
         
-        // 等待布局重绘
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
-        // 优化canvas生成参数，减小文件大小
-        const canvas = await html2canvas(clone, {
-          scale: 2, // 统一使用 2 倍缩放以保证清晰度
+        const canvas = await html2canvas(element, {
+          scale: 2,
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#ffffff',
-          logging: false,
-          width: 794,
-          windowWidth: 794,
-          height: clone.scrollHeight
+          width: width,
+          height: height,
+          logging: true,
+          imageTimeout: 15000,
+          onclone: (clonedDoc, clonedElement) => {
+            console.log('🔄 处理克隆元素...')
+            clonedElement.style.width = `${width}px`
+            clonedElement.style.minHeight = `${height}px`
+            clonedElement.style.transform = 'none'
+            clonedElement.style.margin = '0'
+            
+            const buttonsToRemove = clonedElement.querySelectorAll('button, .no-export, [data-no-export]')
+            buttonsToRemove.forEach(btn => btn.remove())
+            console.log('🗑️ 移除了', buttonsToRemove.length, '个按钮')
+            
+            const pageBreakLines = clonedElement.querySelectorAll('[style*="dashed"]')
+            pageBreakLines.forEach(line => line.remove())
+            
+            console.log('✅ 克隆元素处理完成')
+          }
         })
         
-        // 清理 DOM
-        document.body.removeChild(container)
+        console.log('✅ Canvas生成完成:', { width: canvas.width, height: canvas.height })
+        
+        updateProgress(70)
+        
+        // 恢复原始样式
+        element.style.transform = originalTransform
+        element.style.scale = originalScale
+        element.classList.remove('exporting')
+        parentElements.forEach((p, i) => {
+          p.style.transform = parentTransforms[i]
+        })
+
+        setStep('generating-file')
+        updateProgress(80)
 
         if (format === 'pdf') {
           const { jsPDF } = await import('jspdf')
-          const pdfFormat = exportOptions.paper === 'letter' ? 'letter' : 'a4'
-          const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: pdfFormat })
-          const pdfWidth = pdfFormat === 'letter' ? 216 : 210
-          const pdfHeight = pdfFormat === 'letter' ? 279 : 297
-          const margin = exportOptions.margin ?? 10
+          const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+          const pdfWidth = 210
+          const pdfHeight = 297
+          const margin = 10
           const contentWidth = pdfWidth - margin * 2
           const contentHeight = pdfHeight - margin * 2
-
-          // Calculate scale factor to fit canvas width to PDF content width
-          // canvas.width (px) maps to contentWidth (mm)
           const pxToMmScale = contentWidth / canvas.width
-          
-          // Calculate page height in pixels based on the aspect ratio
-          // pageHeightPx corresponds to the height of the content area on one PDF page
           const pageHeightPx = Math.floor(contentHeight / pxToMmScale)
 
           let offsetY = 0
@@ -351,131 +742,47 @@ export default function EditorPage() {
             }
             offsetY += sliceHeight
             pageIndex++
+            updateProgress(80 + (pageIndex / Math.ceil(canvas.height / pageHeightPx)) * 15)
           }
 
           const fileName = `${resumeData.personalInfo.name || '简历'}_${new Date().toISOString().split('T')[0]}.pdf`
           pdf.save(fileName)
         } else if (format === 'png') {
-          // PNG导出 - 支持多页导出
-          const maxPageHeight = 3508 // A4纸张像素高度 (297mm * 300dpi / 25.4)
-          const pageWidth = canvas.width
-          
-          if (canvas.height <= maxPageHeight) {
-            // 单页PNG导出
             const link = document.createElement('a')
             link.download = `${resumeData.personalInfo.name || '简历'}_${new Date().toISOString().split('T')[0]}.png`
             link.href = canvas.toDataURL('image/png')
             link.click()
-          } else {
-            // 多页PNG导出
-            let remainingHeight = canvas.height
-            let sourceY = 0
-            let pageCount = 1
-            
-            while (remainingHeight > 0) {
-              const currentPageHeight = Math.min(remainingHeight, maxPageHeight)
-              
-              // 创建当前页面的canvas
-              const pageCanvas = document.createElement('canvas')
-              const pageCtx = pageCanvas.getContext('2d')
-              pageCanvas.width = pageWidth
-              pageCanvas.height = currentPageHeight
-              
-              if (pageCtx) {
-                // 设置白色背景
-                pageCtx.fillStyle = '#ffffff'
-                pageCtx.fillRect(0, 0, pageWidth, currentPageHeight)
-                
-                // 绘制当前页面内容
-                pageCtx.drawImage(canvas, 0, sourceY, pageWidth, currentPageHeight, 0, 0, pageWidth, currentPageHeight)
-                
-                // 下载当前页面
-                const link = document.createElement('a')
-                link.download = `${resumeData.personalInfo.name || '简历'}_第${pageCount}页_${new Date().toISOString().split('T')[0]}.png`
-                link.href = pageCanvas.toDataURL('image/png')
-                link.click()
-                
-                // 添加延迟避免浏览器阻止多个下载
-                if (remainingHeight > currentPageHeight) {
-                  await new Promise(resolve => setTimeout(resolve, 500))
-                }
-              }
-              
-              sourceY += currentPageHeight
-              remainingHeight -= currentPageHeight
-              pageCount++
-            }
-          }
         } else if (format === 'jpg') {
-          // JPG导出 - 支持多页导出
-          const maxPageHeight = 3508 // A4纸张像素高度
-          const pageWidth = canvas.width
-          
-          if (canvas.height <= maxPageHeight) {
-            // 单页JPG导出
             const link = document.createElement('a')
             link.download = `${resumeData.personalInfo.name || '简历'}_${new Date().toISOString().split('T')[0]}.jpg`
             link.href = canvas.toDataURL('image/jpeg', 0.9)
             link.click()
-          } else {
-            // 多页JPG导出
-            let remainingHeight = canvas.height
-            let sourceY = 0
-            let pageCount = 1
-            
-            while (remainingHeight > 0) {
-              const currentPageHeight = Math.min(remainingHeight, maxPageHeight)
-              
-              // 创建当前页面的canvas
-              const pageCanvas = document.createElement('canvas')
-              const pageCtx = pageCanvas.getContext('2d')
-              pageCanvas.width = pageWidth
-              pageCanvas.height = currentPageHeight
-              
-              if (pageCtx) {
-                // 设置白色背景
-                pageCtx.fillStyle = '#ffffff'
-                pageCtx.fillRect(0, 0, pageWidth, currentPageHeight)
-                
-                // 绘制当前页面内容
-                pageCtx.drawImage(canvas, 0, sourceY, pageWidth, currentPageHeight, 0, 0, pageWidth, currentPageHeight)
-                
-                // 下载当前页面
-                const link = document.createElement('a')
-                link.download = `${resumeData.personalInfo.name || '简历'}_第${pageCount}页_${new Date().toISOString().split('T')[0]}.jpg`
-                link.href = pageCanvas.toDataURL('image/jpeg', 0.9)
-                link.click()
-                
-                // 添加延迟避免浏览器阻止多个下载
-                if (remainingHeight > currentPageHeight) {
-                  await new Promise(resolve => setTimeout(resolve, 500))
-                }
-              }
-              
-              sourceY += currentPageHeight
-              remainingHeight -= currentPageHeight
-              pageCount++
-            }
-          }
         }
 
-        // 移除 loading toast
-        removeToast(loadingToastId)
-        showSuccess('导出成功！')
+        completeExport()
+        showSuccess(t.editor.messages.exportSuccess)
+        
+        setTimeout(() => {
+          resetExportProgress()
+        }, 3000)
       } catch (error) {
-        removeToast(loadingToastId)
+        setExportError(error instanceof Error ? error.message : '导出失败')
         throw error
       } finally {
-        document.body.classList.remove('export-mode')
-        setIsExporting(false) // 重置导出模式
+        element.style.transform = originalTransform
+        element.style.scale = originalScale
+        element.classList.remove('exporting')
+        parentElements.forEach((p, i) => {
+          p.style.transform = parentTransforms[i]
+        })
+        setIsExporting(false)
       }
     } catch (error) {
       console.error(`${format.toUpperCase()}导出失败:`, error)
-      showError(`${format.toUpperCase()}导出失败，请重试`)
-      
-      setIsExporting(false) // 重置导出模式
+      showError(t.editor.messages.exportError)
+      setIsExporting(false)
     }
-  }, [resumeData.personalInfo.name, previewZoom, exportOptions, showSuccess, showError, showInfo, removeToast])
+  }, [resumeData.personalInfo.name, showSuccess, showError, showInfo, startExport, updateProgress, setStep, completeExport, setExportError, resetExportProgress, t])
 
   
 
@@ -496,6 +803,7 @@ export default function EditorPage() {
    */
   /**
    * 处理模板选择
+   * 修复：确保即使删除内容后也能正常切换模板
    */
   const handleTemplateSelect = useCallback((template: TemplateStyle) => {
     console.log('=== 编辑器页面处理模板选择 ===')
@@ -503,126 +811,120 @@ export default function EditorPage() {
     console.log('模板ID:', template.id)
     console.log('模板名称:', template.name)
     
+    // 检查简历数据完整性，如果数据为空或不完整，使用默认数据
+    setResumeData(prevData => {
+      // 确保至少有基本的个人信息结构
+      if (!prevData.personalInfo || !prevData.personalInfo.name) {
+        console.log('⚠️ 检测到简历数据不完整，使用默认数据')
+        return {
+          personalInfo: {
+            name: '请填写姓名',
+            title: '请填写职位',
+            email: '',
+            phone: '',
+            location: '',
+            website: '',
+            summary: '',
+            avatar: template.components?.personalInfo?.defaultAvatar || '/avatars/img1.png'
+          },
+          experience: [],
+          education: [],
+          skills: [],
+          projects: []
+        }
+      }
+      
+      // 数据完整，保持原样
+      return prevData
+    })
+    
     setCurrentTemplate(template)
-    console.log('模板状态已更新')
+    console.log('✅ 模板状态已更新')
     
     setShowTemplateSelector(false)
-    console.log('模板选择器已关闭')
+    console.log('✅ 模板选择器已关闭')
+    
+    // 不显示切换提示
     console.log('=== 模板选择处理完成 ===')
-  }, [])
+  }, [showSuccess])
 
   /**
-   * AI一键生成简历
-   * 使用AI生成完整的简历内容并自动填充到编辑器
+   * 应用单个 JD 建议
+   * @param suggestion - JD 优化建议
    */
-  const handleAIGenerateResume = async () => {
-    try {
-      // 检查AI服务是否已配置
-      const savedConfig = localStorage.getItem('ai-config')
-      if (!savedConfig) {
-        setAiGenerationState({
-          isLoading: true,
-          type: 'error',
-          message: '请先在工具栏中点击"AI配置"按钮配置AI服务，然后再使用AI生成功能',
-          progress: 0
-        })
-        return
-      }
-
-      const config = JSON.parse(savedConfig)
-      if (!config.apiKey || !config.provider || !config.modelName) {
-        setAiGenerationState({
-          isLoading: true,
-          type: 'error',
-          message: 'AI配置不完整，请重新配置AI服务',
-          progress: 0
-        })
-        return
-      }
-
-      // 获取用户基本信息作为生成参数
-      const userInfo = {
-        name: resumeData.personalInfo.name || '求职者',
-        targetPosition: resumeData.personalInfo.title || '软件工程师',
-        industry: 'IT',
-        experience: '3年'
-      }
-
-      // 显示加载状态
-      setAiGenerationState({
-        isLoading: true,
-        type: 'loading',
-        message: '正在分析您的信息并生成简历内容...',
-        progress: 10
-      })
-      
-      // 模拟进度更新
-      const progressInterval = setInterval(() => {
-        setAiGenerationState(prev => ({
-          ...prev,
-          progress: Math.min(prev.progress + 15, 90)
+  const handleApplyJDSuggestion = useCallback((suggestion: JDSuggestion) => {
+    const updatedData = { ...resumeData }
+    
+    switch (suggestion.section) {
+      case 'skills':
+        // 添加建议的技能
+        const newSkills = suggestion.keywords.map((keyword, index) => ({
+          id: `skill-jd-${Date.now()}-${index}`,
+          name: keyword,
+          level: 70,
+          category: '技术技能'
         }))
-      }, 1000)
-      
-      // 调用AI生成器生成完整简历
-      const generatedResume = await AIResumeGenerator.generateCompleteResume(userInfo)
-      
-      // 清除进度定时器
-      clearInterval(progressInterval)
-      
-      // 合并生成的数据与现有数据
-      const mergedData: ResumeData = {
-        personalInfo: {
-          ...resumeData.personalInfo,
-          ...generatedResume.personalInfo,
-          // 保留用户已填写的基本信息
-          name: resumeData.personalInfo.name || generatedResume.personalInfo.name,
-          title: resumeData.personalInfo.title || generatedResume.personalInfo.title,
-          email: resumeData.personalInfo.email || generatedResume.personalInfo.email,
-          phone: resumeData.personalInfo.phone || generatedResume.personalInfo.phone,
-          location: resumeData.personalInfo.location || generatedResume.personalInfo.location
-        },
-        experience: generatedResume.experience,
-        education: generatedResume.education,
-        skills: generatedResume.skills,
-        projects: generatedResume.projects
-      }
-      
-      // 更新简历数据
-      setResumeData(mergedData)
-      
-      // 显示成功状态
-      setAiGenerationState({
-        isLoading: true,
-        type: 'success',
-        message: 'AI简历生成完成！已自动填充到编辑器中',
-        progress: 100
-      })
-      
-    } catch (error) {
-      console.error('AI生成简历失败:', error)
-      setAiGenerationState({
-        isLoading: true,
-        type: 'error',
-        message: 'AI生成简历失败，请检查网络连接或AI配置后重试',
-        progress: 0
-      })
+        // 过滤掉已存在的技能
+        const existingSkillNames = updatedData.skills.map(s => s.name.toLowerCase())
+        const uniqueNewSkills = newSkills.filter(
+          s => !existingSkillNames.includes(s.name.toLowerCase())
+        )
+        updatedData.skills = [...updatedData.skills, ...uniqueNewSkills]
+        showSuccess(t.editor.messages.skillsUpdated)
+        break
+        
+      case 'summary':
+        // 在个人简介中添加关键词提示
+        const currentSummary = updatedData.personalInfo.summary || ''
+        if (suggestion.keywords.length > 0) {
+          const keywordHint = `具备 ${suggestion.keywords.join('、')} 相关经验。`
+          if (!currentSummary.includes(keywordHint)) {
+            updatedData.personalInfo.summary = currentSummary + ' ' + keywordHint
+          }
+        }
+        showSuccess(t.editor.messages.summaryUpdated)
+        break
+        
+      case 'experience':
+        // 在最近的工作经历中添加关键词
+        if (updatedData.experience.length > 0) {
+          const lastExp = updatedData.experience[0]
+          const keywordDesc = `展现了 ${suggestion.keywords.join('、')} 等能力。`
+          if (Array.isArray(lastExp.description)) {
+            if (!lastExp.description.some(d => d.includes(keywordDesc))) {
+              lastExp.description = [...lastExp.description, keywordDesc]
+            }
+          }
+        }
+        showSuccess(t.editor.messages.experienceUpdated)
+        break
+        
+      case 'projects':
+        // 在最近的项目中添加技术栈
+        if (updatedData.projects.length > 0) {
+          const lastProject = updatedData.projects[0]
+          const existingTech = lastProject.technologies.map(t => t.toLowerCase())
+          const newTech = suggestion.keywords.filter(
+            k => !existingTech.includes(k.toLowerCase())
+          )
+          lastProject.technologies = [...lastProject.technologies, ...newTech]
+        }
+        showSuccess(t.editor.messages.projectsUpdated)
+        break
     }
-  }
+    
+    setResumeData(updatedData)
+  }, [resumeData, showSuccess, t])
 
   /**
-   * 关闭AI生成模态框
+   * 应用所有 JD 建议
+   * @param suggestions - JD 优化建议数组
    */
-  const handleCloseAIModal = () => {
-    setAiGenerationState({
-      isLoading: false,
-      type: 'loading',
-      message: '',
-      progress: 0
+  const handleApplyAllJDSuggestions = useCallback((suggestions: JDSuggestion[]) => {
+    suggestions.forEach(suggestion => {
+      handleApplyJDSuggestion(suggestion)
     })
-  }
-
-  
+  }, [handleApplyJDSuggestion])
 
   // 键盘快捷键配置 - 使用 useMemo 优化
   const shortcuts = useMemo(() => createEditorShortcuts({
@@ -634,7 +936,7 @@ export default function EditorPage() {
   }), [saveNow])
 
   // 添加滑动手势支持
-  const swipeHandlers = useHorizontalSwipe(
+  const { isSwiping, ...swipeHandlers } = useHorizontalSwipe(
     () => {
       // 左滑：切换到预览模式（仅在移动端且当前为编辑模式时）
       if (typeof window !== 'undefined' && window.innerWidth < 1024 && !isPreviewMode) {
@@ -658,11 +960,12 @@ export default function EditorPage() {
 
   return (
       <StyleProvider>
-          <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 text-gray-900 flex flex-col">
+          <TemplateStyleSync currentTemplate={currentTemplate} />
+          <div className="h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 text-gray-900 flex flex-col overflow-hidden">
             {!isFullscreen && <Header />}
 
-          {/* 主要内容区域 - 自适应布局，预留上下空间 */}
-          <main className="flex-1 flex flex-col py-6 lg:py-8">
+          {/* 主要内容区域 - 固定高度，禁止页面滚动 */}
+          <main className="flex-1 flex flex-col py-4 lg:py-6 overflow-hidden min-h-0">
             {/* 顶部工具栏 */}
             <EditorToolbar
               resumeData={resumeData}
@@ -680,19 +983,20 @@ export default function EditorPage() {
               onShowExportDialog={() => setShowExportDialog(true)}
               onExport={handleExport}
               onSave={handleSave}
-              onAIGenerateResume={handleAIGenerateResume}
+              onShowJDMatcher={() => setShowJDMatcher(true)}
+              onShowStepwiseGenerator={() => setShowStepwiseGenerator(true)}
             />
 
-            {/* 编辑器和预览区域 - 支持滑动手势 */}
+            {/* 编辑器和预览区域 - 使用三栏布局 */}
             <div 
-              className="flex-1 flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 mx-4 sm:mx-6 lg:mx-8 items-start"
+              className="flex-1 flex flex-col mx-4 sm:mx-6 lg:mx-8 overflow-hidden min-h-0"
               {...swipeHandlers}
             >
               {/* 移动端切换按钮 */}
-              <div className="lg:hidden flex items-center justify-center gap-3 mb-4 px-4 sticky top-20 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 py-2 border-b border-gray-200 w-full">
+              <div className="xl:hidden flex-shrink-0 flex items-center justify-center gap-2 px-2 sm:px-4 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 py-2 border-b border-gray-200">
                 <button
                   onClick={() => setIsPreviewMode(false)}
-                  className={`mobile-toggle-btn flex-1 max-w-32 px-6 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${
+                  className={`flex-1 max-w-28 sm:max-w-32 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all duration-300 ${
                     !isPreviewMode 
                       ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 active:scale-95' 
                       : 'bg-white/50 text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-gray-200/60 active:scale-95 backdrop-blur-sm'
@@ -702,7 +1006,7 @@ export default function EditorPage() {
                 </button>
                 <button
                   onClick={() => setIsPreviewMode(true)}
-                  className={`mobile-toggle-btn flex-1 max-w-32 px-6 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${
+                  className={`flex-1 max-w-28 sm:max-w-32 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all duration-300 ${
                     isPreviewMode 
                       ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 active:scale-95' 
                       : 'bg-white/50 text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-gray-200/60 active:scale-95 backdrop-blur-sm'
@@ -712,125 +1016,103 @@ export default function EditorPage() {
                 </button>
               </div>
 
-              {/* 左侧编辑器 - 固定定位 */}
-              <div className={`${isPreviewMode ? 'hidden lg:flex' : 'flex'} flex-1 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] flex-col`}>
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                  <ResumeEditor
-                    resumeData={resumeData}
-                    onUpdateResumeData={handleResumeUpdate}
-                    activeSection={activeSection}
-                    onSectionChange={setActiveSection}
-                    onShowTemplateSelector={() => setShowTemplateSelector(true)}
-                  />
-                </div>
+              {/* 三栏布局 - 桌面端 (>=1280px) */}
+              <div className="hidden xl:flex flex-1 min-h-0 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                <ThreeColumnLayout
+                  className="h-full w-full"
+                  leftPanel={
+                    <SectionNavigation
+                      activeSection={activeSection}
+                      onSectionChange={setActiveSection}
+                      onShowTemplateSelector={() => setShowTemplateSelector(true)}
+                    />
+                  }
+                  centerPanel={
+                    <ResumeEditor
+                      resumeData={resumeData}
+                      onUpdateResumeData={handleResumeUpdate}
+                      activeSection={activeSection}
+                      onSectionChange={setActiveSection}
+                      onShowTemplateSelector={() => setShowTemplateSelector(true)}
+                      hideNavigation={true}
+                    />
+                  }
+                  rightPanel={
+                    <PreviewPanel
+                      resumeData={previewData}
+                      template={currentTemplate}
+                      zoom={previewZoom}
+                      onZoomChange={setPreviewZoom}
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                      onExport={handleExport}
+                      isLoading={false}
+                      isDarkMode={false}
+                      isUpdating={isUpdating}
+                    >
+                      <div style={{ transform: `scale(${previewZoom / 100})`, transformOrigin: 'top center' }}>
+                        <ResumePreview 
+                          key={currentTemplate.id}
+                          resumeData={previewData} 
+                          className="resume-preview" 
+                          currentTemplate={currentTemplate}
+                          isExporting={isExporting}
+                        />
+                      </div>
+                    </PreviewPanel>
+                  }
+                  defaultWidths={{ left: 15, center: 45, right: 40 }}
+                  storageKey="editor-column-widths"
+                />
               </div>
 
-              {/* 右侧预览 - 跟随页面滚动 */}
-                <div className={`${isPreviewMode ? 'flex' : 'hidden lg:flex'} flex-1 lg:w-1/2 bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden flex-col`}>
-                  <div className="h-full flex flex-col relative">
-                    {/* 顶部统一工具栏 - 绝对定位在预览框内 */}
-                    <div className="sticky top-0 z-20 flex items-center justify-between p-4 bg-gray-50/95 backdrop-blur border-b border-gray-200">
-                      <div className="bg-white/90 backdrop-blur-md border border-gray-200 rounded-lg px-3 py-1.5 flex items-center gap-2">
-                        <h2 className="text-sm font-semibold text-gray-800">{t.common.preview}</h2>
-                        <div className={`w-1.5 h-1.5 rounded-full ${isUpdating ? 'bg-yellow-400 animate-pulse' : 'bg-green-500'}`} title={isUpdating ? '更新中...' : '就绪'}></div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <div className="bg-white/90 backdrop-blur-md border border-gray-200 rounded-lg p-1 flex items-center gap-2">
-                           <PreviewControls
-                              zoom={previewZoom}
-                              onZoomChange={setPreviewZoom}
-                              showGrid={showGrid}
-                              onToggleGrid={() => setShowGrid(!showGrid)}
-                              showPageBreaks={showPageBreaks}
-                              onTogglePageBreaks={() => setShowPageBreaks(!showPageBreaks)}
-                            />
-                           <div className="w-px h-4 bg-gray-200 mx-1"></div>
-                           <QuickLayoutControls />
-                           <div className="w-px h-4 bg-gray-200 mx-1 xl:hidden"></div>
-                           <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => setShowStyleSettings(true)}
-                              className={`p-1.5 rounded-md transition-all xl:hidden ${
-                                showStyleSettings 
-                                  ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-200' 
-                                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 border border-transparent hover:border-gray-200'
-                              }`}
-                              title="样式设置"
-                           >
-                             <Palette className="w-4 h-4" />
-                           </motion.button>
-                        </div>
-                      </div>
-                    </div>
-                  
-                  {/* 预览内容区域 - 自然高度 */}
-                  <div className="flex-1 flex flex-col relative bg-gray-100/50 min-h-[800px]">
-                    <div className="flex-1 p-4 sm:p-8 flex justify-center">
-                        <div className="w-full max-w-4xl transition-transform duration-200 ease-out origin-top" style={{ transform: `scale(${previewZoom / 100})` }}>
-                          <ResumePreview 
-                            resumeData={previewData} 
-                            className="resume-preview shadow-lg border border-gray-200/60" 
-                            currentTemplate={currentTemplate}
-                            scale={1} 
-                            isExporting={isExporting}
-                          />
-                        </div>
-                    </div>
+              {/* 双栏/单栏布局 - 平板和移动端 (<1280px) */}
+              <div className="xl:hidden flex-1 flex flex-col lg:flex-row gap-4 min-h-0 overflow-hidden">
+                {/* 左侧编辑器 */}
+                <div className={`${isPreviewMode ? 'hidden lg:flex' : 'flex'} flex-1 min-h-0 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm flex-col`}>
+                  <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    <ResumeEditor
+                      resumeData={resumeData}
+                      onUpdateResumeData={handleResumeUpdate}
+                      activeSection={activeSection}
+                      onSectionChange={setActiveSection}
+                      onShowTemplateSelector={() => setShowTemplateSelector(true)}
+                    />
                   </div>
                 </div>
-              </div>
 
-              {/* 样式设置面板 - 固定定位 */}
-              <div className="hidden xl:flex w-80 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] flex-col">
-                <div className="p-4 border-b border-gray-100 bg-white/50 backdrop-blur-sm shrink-0">
-                  <h3 className="text-lg font-semibold text-gray-900">{t.editor.styleSettings}</h3>
-                </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                  <StyleSettingsPanel />
+                {/* 右侧预览 */}
+                <div className={`${isPreviewMode ? 'flex' : 'hidden lg:flex'} flex-1 min-h-0 lg:w-1/2 bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden flex-col`}>
+                  <PreviewPanel
+                    resumeData={previewData}
+                    template={currentTemplate}
+                    zoom={previewZoom}
+                    onZoomChange={setPreviewZoom}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    onExport={handleExport}
+                    isLoading={false}
+                    isDarkMode={false}
+                    isUpdating={isUpdating}
+                    className="h-full"
+                  >
+                    <div style={{ transform: `scale(${previewZoom / 100})`, transformOrigin: 'top center' }}>
+                      <ResumePreview 
+                        key={currentTemplate.id}
+                        resumeData={previewData} 
+                        className="resume-preview" 
+                        currentTemplate={currentTemplate}
+                        isExporting={isExporting}
+                      />
+                    </div>
+                  </PreviewPanel>
                 </div>
               </div>
             </div>
 
           </main>
-
-        {!isFullscreen && <Footer />}
-
-        {/* 样式设置抽屉 */}
-        <AnimatePresence>
-          {showStyleSettings && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
-                onClick={() => setShowStyleSettings(false)}
-              />
-              <motion.div
-                initial={{ x: '100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200"
-              >
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                  <h3 className="text-lg font-semibold text-gray-900">{t.editor.styleSettings}</h3>
-                  <button
-                    onClick={() => setShowStyleSettings(false)}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                  <StyleSettingsPanel />
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
 
         {/* AI助手弹窗 */}
         {showAIAssistant && (
@@ -1000,56 +1282,192 @@ export default function EditorPage() {
           </div>
         )}
 
-        {/* AI生成加载模态框 */}
-        <LoadingModal
-          isOpen={aiGenerationState.isLoading}
-          onClose={handleCloseAIModal}
-          type={aiGenerationState.type}
-          message={aiGenerationState.message}
-          progress={aiGenerationState.progress}
-          showProgress={aiGenerationState.type === 'loading'}
-        />
+        {/* JD 匹配弹窗 - 仅在打开时渲染 */}
+        {showJDMatcher && (
+          <JDMatcherModal
+            isOpen={showJDMatcher}
+            onClose={() => setShowJDMatcher(false)}
+            resumeData={resumeData}
+            onApplySuggestion={handleApplyJDSuggestion}
+            onApplyAllSuggestions={handleApplyAllJDSuggestions}
+          />
+        )}
 
-        {/* 模板选择器 */}
+        {/* AI 分步生成弹窗 - 仅在打开时渲染 */}
+        {showStepwiseGenerator && (
+          <StepwiseGeneratorModal
+            isOpen={showStepwiseGenerator}
+            onClose={() => setShowStepwiseGenerator(false)}
+            onComplete={(data) => {
+              // 合并生成的数据到简历
+              setResumeData(prev => ({
+                ...prev,
+                ...data,
+                personalInfo: data.personalInfo ? { ...prev.personalInfo, ...data.personalInfo } : prev.personalInfo
+              }))
+              showSuccess('AI 生成内容已应用到简历')
+            }}
+            initialUserInfo={{
+              name: resumeData.personalInfo.name,
+              targetPosition: resumeData.personalInfo.title,
+              industry: '',
+              experienceLevel: 'mid'
+            }}
+          />
+        )}
+
+        {/* 模板选择器 - 仅在打开时渲染 */}
         {showTemplateSelector && (
           <TemplateSelector
             isOpen={showTemplateSelector}
             currentTemplate={currentTemplate.id}
             onSelectTemplate={handleTemplateSelect}
             onUpdateResumeData={(data) => {
-              console.log('=== 编辑器页面接收到模板数据 ===')
-              console.log('接收到的数据:', data)
-              console.log('数据中的个人信息:', data.personalInfo)
-              console.log('数据中的工作经历:', data.experience)
-              console.log('数据中的教育背景:', data.education)
-              console.log('数据中的技能:', data.skills)
-              console.log('数据中的项目经历:', data.projects)
-              console.log('当前resumeData状态:', resumeData)
               setResumeData(data)
-              console.log('setResumeData调用完成')
-              console.log('=== 编辑器页面数据更新结束 ===')
             }}
             onClose={() => setShowTemplateSelector(false)}
           />
         )}
         
-        {/* 导出预览对话框 */}
-        <ExportPreviewDialog
-          isOpen={showExportDialog}
-          onClose={() => setShowExportDialog(false)}
-          onExport={(format) => {
-            if (format === 'json') {
-              handleExportJSON()
-            } else {
-              handleExport(format)
-            }
-          }}
-          resumeName={resumeData.personalInfo.name}
-          onOptionsChange={(opts) => {
-            setExportOptions(opts)
-            setShowPageBreaks(opts.showPageBreaks)
-          }}
+        {/* 导出预览对话框 - 仅在打开时渲染 */}
+        {showExportDialog && (
+          <ExportPreviewDialog
+            isOpen={showExportDialog}
+            onClose={() => setShowExportDialog(false)}
+            onExport={(format) => {
+              if (format === 'json') {
+                handleExportJSON()
+              } else {
+                handleExport(format)
+              }
+            }}
+            resumeName={resumeData.personalInfo.name}
+            onOptionsChange={(opts) => {
+              setExportOptions(opts)
+            }}
+          />
+        )}
+
+        {/* 导出进度指示器 */}
+        <AnimatePresence>
+          {isExportInProgress && (
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              className="fixed bottom-4 right-4 z-50 w-80"
+            >
+              <ExportProgressIndicator
+                progress={exportProgress.percentage}
+                currentStep={exportProgress.step}
+                currentPage={exportProgress.currentPage}
+                totalPages={exportProgress.totalPages}
+                estimatedTimeRemaining={estimatedTimeRemaining}
+                cancellable={canCancel}
+                onCancel={cancelExport}
+                status={exportStatus}
+                errorMessage={exportProgress.error}
+                onRetry={() => {
+                  resetExportProgress()
+                  setShowExportDialog(true)
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 数据导入导出对话框 - 仅在打开时渲染 */}
+        {showImportExportDialog && (
+          <ImportExportDialog
+            isOpen={showImportExportDialog}
+            onClose={() => setShowImportExportDialog(false)}
+            resumeData={{
+              personalInfo: resumeData.personalInfo,
+              experience: resumeData.experience.map(exp => ({
+                company: exp.company,
+                position: exp.position,
+                startDate: exp.startDate,
+                endDate: exp.endDate,
+                description: Array.isArray(exp.description) ? exp.description.join('\n') : exp.description
+              })),
+              education: resumeData.education.map(edu => ({
+                school: edu.school,
+                degree: edu.degree,
+                major: edu.major,
+                startDate: edu.startDate,
+                endDate: edu.endDate
+              })),
+              skills: resumeData.skills.map(skill => ({
+                name: skill.name,
+                level: skill.level
+              })),
+              projects: resumeData.projects.map(proj => ({
+                name: proj.name,
+                description: proj.description,
+                technologies: proj.technologies?.join(', '),
+                link: proj.url
+              }))
+            }}
+            styleConfig={{
+              colors: {
+                primary: '#2563eb',
+                secondary: '#4b5563',
+                accent: '#3b82f6'
+              },
+              fontFamily: 'Inter',
+              fontSize: {
+                content: 14,
+                title: 18,
+                name: 28
+              },
+              spacing: {
+                section: 24,
+                item: 16,
+                line: 22
+              }
+            }}
+            onImport={handleDataImport}
+          />
+        )}
+
+        {/* 上下文菜单 */}
+        <ContextMenu
+          items={contextMenuItems}
+          position={contextMenuPosition}
+          onClose={closeContextMenu}
+          isOpen={isContextMenuOpen}
         />
+
+        {/* 批量编辑工具栏 */}
+        <BatchEditToolbar
+          selectedCount={experienceSelectionCount}
+          onBatchDelete={handleBatchDeleteExperiences}
+          onBatchMove={handleBatchMoveExperiences}
+          onBatchCopy={handleBatchCopyExperiences}
+          onClearSelection={clearExperienceSelection}
+          onSelectAll={() => selectAllExperiences(resumeData.experience.map(e => e.id))}
+          canMoveUp={selectedExperienceIds.length > 0 && !selectedExperienceIds.includes(resumeData.experience[0]?.id)}
+          canMoveDown={selectedExperienceIds.length > 0 && !selectedExperienceIds.includes(resumeData.experience[resumeData.experience.length - 1]?.id)}
+        />
+
+        {/* 确认对话框 */}
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          type={confirmDialog.type}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        />
+
+        {/* 全局加载遮罩 */}
+        {globalLoading && (
+          <LoadingOverlay
+            isLoading={globalLoading}
+            message={globalLoadingMessage}
+            fullScreen={true}
+          />
+        )}
 
         </div>
       </StyleProvider>

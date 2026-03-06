@@ -11,6 +11,7 @@ import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { ResumeData } from '@/types/resume'
 import { ResumeScorer, ScoreResult } from '@/utils/resumeScorer'
+import { useLanguage } from '@/contexts/LanguageContext'
 import { 
   AlertCircle, 
   CheckCircle, 
@@ -18,7 +19,8 @@ import {
   XCircle,
   Award,
   Target,
-  Zap
+  Zap,
+  PartyPopper
 } from 'lucide-react'
 
 interface ResumeScoreCardProps {
@@ -36,6 +38,8 @@ export default function ResumeScoreCard({
   className = '',
   showDetails = true 
 }: ResumeScoreCardProps) {
+  const { t } = useLanguage()
+  
   // 计算评分
   const scoreResult: ScoreResult = useMemo(() => {
     return ResumeScorer.calculateScore(resumeData)
@@ -98,7 +102,7 @@ export default function ResumeScoreCard({
               <Award className={`w-6 h-6 ${getScoreColor(totalScore)}`} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900">简历质量评分</h3>
+              <h3 className="text-lg font-bold text-gray-900">{t.editor.scoreCard.title}</h3>
               <p className="text-sm text-gray-600 font-medium">
                 {ResumeScorer.getGradeDescription(grade)}
               </p>
@@ -116,7 +120,7 @@ export default function ResumeScoreCard({
               {totalScore}
             </motion.div>
             <div className="text-sm text-gray-600 mt-1 font-medium">
-              等级: <span className={`font-bold ${getScoreColor(totalScore)}`}>{grade}</span>
+              {t.editor.scoreCard.gradeDescription}: <span className={`font-bold ${getScoreColor(totalScore)}`}>{grade}</span>
             </div>
           </div>
         </div>
@@ -124,7 +128,7 @@ export default function ResumeScoreCard({
         {/* 完成度进度条 */}
         <div className="mt-4">
           <div className="flex items-center justify-between text-sm text-gray-600 mb-2 font-medium">
-            <span>完成度</span>
+            <span>{t.editor.scoreCard.completeness}</span>
             <span className="font-bold">{completeness}%</span>
           </div>
           <div className="w-full bg-gray-200/60 rounded-full h-2 overflow-hidden">
@@ -149,16 +153,16 @@ export default function ResumeScoreCard({
           <div className="p-6 border-b border-gray-200/50">
             <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center">
               <Target className="w-4 h-4 mr-2 text-blue-500" />
-              各部分得分
+              {t.editor.scoreCard.sectionScores}
             </h4>
             <div className="space-y-3">
               {Object.entries(scores).map(([key, score]) => {
                 const labels: Record<string, string> = {
-                  personalInfo: '个人信息',
-                  experience: '工作经历',
-                  education: '教育背景',
-                  skills: '技能专长',
-                  projects: '项目经验'
+                  personalInfo: t.editor.scoreCard.sections.personalInfo,
+                  experience: t.editor.scoreCard.sections.experience,
+                  education: t.editor.scoreCard.sections.education,
+                  skills: t.editor.scoreCard.sections.skills,
+                  projects: t.editor.scoreCard.sections.projects
                 }
                 
                 return (
@@ -193,7 +197,7 @@ export default function ResumeScoreCard({
             <div className="p-6">
               <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center">
                 <Zap className="w-4 h-4 mr-2 text-yellow-500" />
-                优先改进建议
+                {t.editor.scoreCard.prioritySuggestions}
               </h4>
               <div className="space-y-3">
                 {topSuggestions.map((suggestion, index) => (
@@ -213,7 +217,7 @@ export default function ResumeScoreCard({
                           {suggestion.title}
                         </h5>
                         <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                          +{suggestion.impact}分
+                          {t.editor.scoreCard.impactPoints.replace('{impact}', String(suggestion.impact))}
                         </span>
                       </div>
                       <p className="text-xs text-gray-600 leading-relaxed">
@@ -227,7 +231,7 @@ export default function ResumeScoreCard({
               {suggestions.length > 3 && (
                 <div className="mt-4 text-center">
                   <button className="text-sm text-blue-600 hover:text-blue-700 font-semibold hover:underline decoration-blue-200 underline-offset-4 transition-all">
-                    查看全部 {suggestions.length} 条建议
+                    {t.editor.scoreCard.viewAllSuggestions.replace('{count}', String(suggestions.length))}
                   </button>
                 </div>
               )}
@@ -238,8 +242,8 @@ export default function ResumeScoreCard({
           {suggestions.length === 0 && (
             <div className="p-6 text-center">
               <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-              <p className="text-sm text-gray-600">
-                太棒了！您的简历已经很完善了 🎉
+              <p className="text-sm text-gray-600 flex items-center justify-center gap-2">
+                {t.editor.scoreCard.perfectResume} <PartyPopper className="w-4 h-4 text-yellow-500" />
               </p>
             </div>
           )}

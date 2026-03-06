@@ -139,7 +139,8 @@ export class AIResumeGenerator {
         id: `skill-${Date.now()}-${index}`,
         name: cleanSkill,
         level,
-        category
+        category,
+        color: '#3B82F6' // 默认蓝色
       }
     }).filter(skill => skill.name.length > 0)
   }

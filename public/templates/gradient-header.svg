@@ -1,0 +1,63 @@
+<svg width="300" height="400" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景 -->
+  <rect width="300" height="400" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+  
+  <!-- 渐变定义 -->
+  <defs>
+    <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="50%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#a855f7"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- 顶部渐变头部 -->
+  <rect x="0" y="0" width="300" height="80" fill="url(#headerGradient)"/>
+  
+  <!-- 头像区域 -->
+  <circle cx="45" cy="50" r="25" fill="#ffffff" opacity="0.9"/>
+  
+  <!-- 姓名 (头部) -->
+  <rect x="85" y="30" width="120" height="12" fill="#ffffff" rx="2"/>
+  <rect x="85" y="48" width="80" height="6" fill="#ffffff" opacity="0.8" rx="1"/>
+  
+  <!-- 联系信息 (头部右侧) -->
+  <rect x="220" y="25" width="60" height="4" fill="#ffffff" opacity="0.8" rx="1"/>
+  <rect x="220" y="35" width="55" height="4" fill="#ffffff" opacity="0.8" rx="1"/>
+  <rect x="220" y="45" width="65" height="4" fill="#ffffff" opacity="0.8" rx="1"/>
+  <rect x="220" y="55" width="50" height="4" fill="#ffffff" opacity="0.8" rx="1"/>
+  
+  <!-- 工作经历标题 -->
+  <rect x="20" y="100" width="70" height="8" fill="#6366f1" rx="2"/>
+  
+  <!-- 工作经历内容 -->
+  <rect x="20" y="120" width="180" height="6" fill="#1f2937" rx="1"/>
+  <rect x="20" y="132" width="140" height="4" fill="#6b7280" rx="1"/>
+  <rect x="20" y="142" width="200" height="4" fill="#6b7280" rx="1"/>
+  <rect x="20" y="152" width="160" height="4" fill="#6b7280" rx="1"/>
+  
+  <!-- 第二个工作经历 -->
+  <rect x="20" y="175" width="170" height="6" fill="#1f2937" rx="1"/>
+  <rect x="20" y="187" width="130" height="4" fill="#6b7280" rx="1"/>
+  <rect x="20" y="197" width="190" height="4" fill="#6b7280" rx="1"/>
+  
+  <!-- 教育背景标题 -->
+  <rect x="20" y="225" width="60" height="8" fill="#6366f1" rx="2"/>
+  
+  <!-- 教育背景内容 -->
+  <rect x="20" y="245" width="160" height="6" fill="#1f2937" rx="1"/>
+  <rect x="20" y="257" width="120" height="4" fill="#6b7280" rx="1"/>
+  <rect x="20" y="267" width="140" height="4" fill="#6b7280" rx="1"/>
+  
+  <!-- 技能标题 -->
+  <rect x="20" y="295" width="40" height="8" fill="#6366f1" rx="2"/>
+  
+  <!-- 技能标签 -->
+  <rect x="20" y="315" width="50" height="16" fill="#f3f4f6" rx="8"/>
+  <rect x="75" y="315" width="60" height="16" fill="#f3f4f6" rx="8"/>
+  <rect x="140" y="315" width="45" height="16" fill="#f3f4f6" rx="8"/>
+  <rect x="190" y="315" width="55" height="16" fill="#f3f4f6" rx="8"/>
+  <rect x="20" y="337" width="55" height="16" fill="#f3f4f6" rx="8"/>
+  <rect x="80" y="337" width="50" height="16" fill="#f3f4f6" rx="8"/>
+  <rect x="135" y="337" width="65" height="16" fill="#f3f4f6" rx="8"/>
+</svg>

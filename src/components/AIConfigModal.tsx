@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { X, Settings, Key, Globe, AlertCircle, CheckCircle, ExternalLink, Sparkles } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 /**
  * AI配置模态框组件
@@ -55,11 +55,11 @@ const defaultConfig: AIConfig = {
 /**
  * 预设的AI提供商配置
  */
-const aiProviders = [
+const getAiProviders = (t: any, locale: string) => [
   {
     id: 'free' as const,
-    name: '免费模型',
-    description: '无需配置，开箱即用的免费AI模型',
+    name: t.editor.aiConfig.free,
+    description: locale === 'zh' ? '无需配置，开箱即用的免费AI模型' : 'No configuration needed, free AI model ready to use',
     endpoint: 'https://api.siliconflow.cn/v1',
     models: [
       'Qwen/Qwen2.5-7B-Instruct',
@@ -73,7 +73,7 @@ const aiProviders = [
   {
     id: 'siliconflow' as const,
     name: 'SiliconFlow',
-    description: '免费AI服务，支持多种模型',
+    description: locale === 'zh' ? '免费AI服务，支持多种模型' : 'Free AI service with multiple models',
     endpoint: 'https://api.siliconflow.cn/v1',
     models: [
       // Qwen系列 (免费)
@@ -143,7 +143,7 @@ const aiProviders = [
   {
     id: 'deepseek' as const,
     name: 'DeepSeek',
-    description: 'DeepSeek官方API服务，高质量AI模型',
+    description: locale === 'zh' ? 'DeepSeek官方API服务，高质量AI模型' : 'DeepSeek official API service, high-quality AI models',
     endpoint: 'https://api.deepseek.com',
     models: ['deepseek-chat', 'deepseek-reasoner'],
     docUrl: 'https://api-docs.deepseek.com/zh-cn/',
@@ -151,8 +151,8 @@ const aiProviders = [
   },
   {
     id: 'custom' as const,
-    name: '自定义',
-    description: '使用自定义API端点',
+    name: t.editor.aiConfig.custom,
+    description: locale === 'zh' ? '使用自定义API端点' : 'Use custom API endpoint',
     endpoint: '',
     models: [],
     docUrl: '',
@@ -169,6 +169,7 @@ const isModelFree = (modelName: string): boolean => {
 }
 
 export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModalProps) {
+  const { t, locale } = useLanguage()
   const [config, setConfig] = useState<AIConfig>(defaultConfig)
   const [isValidating, setIsValidating] = useState(false)
   const [validationResult, setValidationResult] = useState<{
@@ -198,7 +199,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
     if (!config.apiKey.trim()) {
       setValidationResult({
         isValid: false,
-        message: '请输入API密钥'
+        message: t.editor.aiConfig.pleaseEnterApiKey
       })
       return
     }
@@ -207,11 +208,12 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
     setValidationResult(null)
 
     try {
+      const aiProviders = getAiProviders(t, locale)
       const provider = aiProviders.find(p => p.id === config.provider)
       const endpoint = config.provider === 'custom' ? config.customEndpoint : provider?.endpoint
       
       if (!endpoint) {
-        throw new Error('API端点未配置')
+        throw new Error(locale === 'zh' ? 'API端点未配置' : 'API endpoint not configured')
       }
 
       // 这里可以添加实际的API验证逻辑
@@ -220,12 +222,12 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
       
       setValidationResult({
         isValid: true,
-        message: 'API配置验证成功'
+        message: t.editor.aiConfig.validationSuccess
       })
     } catch (error) {
       setValidationResult({
         isValid: false,
-        message: error instanceof Error ? error.message : '验证失败'
+        message: error instanceof Error ? error.message : t.editor.aiConfig.validationFailed
       })
     } finally {
       setIsValidating(false)
@@ -237,7 +239,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
    */
   const handleSave = async () => {
     if (!config.apiKey.trim() && config.provider !== 'free') {
-      alert('请输入API密钥')
+      alert(t.editor.aiConfig.pleaseEnterApiKey)
       return
     }
 
@@ -254,7 +256,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
         // 调用回调
         onSave(config)
         
-        alert('AI配置保存成功！')
+        alert(t.editor.aiConfig.saveSuccess)
         onClose()
         return
       }
@@ -265,7 +267,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
       const result = await aiService.validateConfig(config)
       
       if (!result.isValid) {
-        alert(`配置验证失败: ${result.message}`)
+        alert(`${t.editor.aiConfig.validationFailed}: ${result.message}`)
         return
       }
 
@@ -278,21 +280,21 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
       // 调用回调
       onSave(config)
       
-      alert('AI配置保存成功！')
+      alert(t.editor.aiConfig.saveSuccess)
       onClose()
     } catch (error) {
       console.error('保存配置失败:', error)
-      let errorMessage = '保存配置失败，请检查网络连接'
+      let errorMessage = t.editor.aiConfig.saveFailed
       
       if (error instanceof Error) {
         if (error.message.includes('fetch failed')) {
-          errorMessage = '网络连接失败，请检查网络设置或稍后重试'
+          errorMessage = t.editor.aiConfig.networkError
         } else if (error.message.includes('UNABLE_TO_GET_ISSUER_CERT_LOCALLY')) {
-          errorMessage = 'SSL证书验证失败，请检查网络环境'
+          errorMessage = t.editor.aiConfig.sslError
         } else if (error.message.includes('timeout')) {
-          errorMessage = '请求超时，请稍后重试'
+          errorMessage = t.editor.aiConfig.timeoutError
         } else {
-          errorMessage = `配置验证失败: ${error.message}`
+          errorMessage = `${t.editor.aiConfig.validationFailed}: ${error.message}`
         }
       }
       
@@ -322,6 +324,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
    * 选择提供商
    */
   const selectProvider = (providerId: AIConfig['provider']) => {
+    const aiProviders = getAiProviders(t, locale)
     const provider = aiProviders.find(p => p.id === providerId)
     if (provider) {
       const newConfig: Partial<AIConfig> = {
@@ -339,32 +342,30 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
     }
   }
 
+  const aiProviders = getAiProviders(t, locale)
   const selectedProvider = aiProviders.find(p => p.id === config.provider)
 
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white/90 backdrop-blur-xl border border-white/40 shadow-2xl shadow-blue-900/20 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+      <div
+        className="bg-white border border-gray-200 shadow-2xl rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
       >
         {/* 头部 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200/50 bg-white/50 backdrop-blur-md">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-xl shadow-sm">
-              <Settings className="h-5 w-5 text-indigo-600" />
+            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-sm">
+              <Settings className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700">AI模型配置</h2>
-              <p className="text-sm text-gray-500">配置AI助手的API密钥和模型设置</p>
+              <h2 className="text-xl font-bold text-gray-900">{t.editor.aiConfig.title}</h2>
+              <p className="text-sm text-gray-500">{t.editor.aiConfig.subtitle}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100/50 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
           >
             <X className="h-5 w-5" />
           </button>
@@ -374,13 +375,13 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
         <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
           <div className="space-y-8">
             {/* 启用开关 */}
-            <div className="flex items-center justify-between p-5 bg-white/60 backdrop-blur-sm rounded-xl border border-gray-200/50 shadow-sm hover:shadow-md transition-all duration-300">
+            <div className="flex items-center justify-between p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-1">
-                  <Sparkles className="w-4 h-4 text-indigo-500" />
-                  <h3 className="font-semibold text-gray-900 text-base">启用AI助手</h3>
+                  <Sparkles className="w-4 h-4 text-blue-500" />
+                  <h3 className="font-semibold text-gray-900 text-base">{t.editor.aiConfig.enableAI}</h3>
                 </div>
-                <p className="text-sm text-gray-500 ml-6">开启后可使用AI功能辅助简历编写，支持智能润色和建议</p>
+                <p className="text-sm text-gray-500 ml-6">{t.editor.aiConfig.enableAIDesc}</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer ml-4">
                 <input
@@ -389,7 +390,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                   onChange={(e) => updateConfig({ enabled: e.target.checked })}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-indigo-500 peer-checked:to-purple-600"></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-500 peer-checked:to-purple-600"></div>
               </label>
             </div>
 
@@ -398,7 +399,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                 {/* 提供商选择 */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-4 px-1">
-                    选择AI服务提供商
+                    {t.editor.aiConfig.selectProvider}
                   </label>
                   <div className="grid grid-cols-1 gap-4">
                     {aiProviders.map((provider) => (
@@ -406,8 +407,8 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                         key={provider.id}
                         className={`relative p-4 border rounded-xl cursor-pointer transition-all duration-300 ${
                           config.provider === provider.id
-                            ? 'border-indigo-500/50 bg-indigo-50/50 backdrop-blur-sm shadow-md shadow-indigo-500/10'
-                            : 'border-gray-200/50 bg-white/40 hover:bg-white/60 hover:border-gray-300/50 hover:shadow-sm'
+                            ? 'border-blue-500 bg-blue-50 shadow-md'
+                            : 'border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm'
                         }`}
                         onClick={() => selectProvider(provider.id)}
                       >
@@ -417,7 +418,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                               <h4 className="font-semibold text-gray-900 text-base">{provider.name}</h4>
                               {provider.free && (
                                 <span className="px-2.5 py-0.5 bg-green-100/80 text-green-700 text-xs font-medium rounded-full border border-green-200/50">
-                                  免费
+                                  {t.editor.aiConfig.freeModel}
                                 </span>
                               )}
                             </div>
@@ -427,18 +428,18 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                                 href={provider.docUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center space-x-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium transition-colors group"
+                                className="inline-flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors group"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <span className="group-hover:underline decoration-indigo-300 underline-offset-2">查看文档</span>
+                                <span className="group-hover:underline decoration-blue-300 underline-offset-2">{t.editor.aiConfig.viewDocs}</span>
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </a>
                             )}
                           </div>
                           <div className={`w-5 h-5 rounded-full border flex-shrink-0 ml-4 flex items-center justify-center transition-all ${
                             config.provider === provider.id
-                              ? 'border-indigo-500 bg-indigo-500 shadow-sm'
-                              : 'border-gray-300 bg-white/50'
+                              ? 'border-blue-500 bg-blue-500 shadow-sm'
+                              : 'border-gray-300 bg-white'
                           }`}>
                             {config.provider === provider.id && (
                               <div className="w-2 h-2 rounded-full bg-white"></div>
@@ -454,26 +455,26 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-3 px-1">
                     <Key className="inline h-4 w-4 mr-2 text-gray-500" />
-                    API密钥
+                    {t.editor.aiConfig.apiKey}
                   </label>
                   <div className="relative">
                     <input
                       type="password"
                       value={config.apiKey}
                       onChange={(e) => updateConfig({ apiKey: e.target.value })}
-                      placeholder={config.provider === 'free' ? '已自动配置免费模型密钥' : '请输入您的API密钥'}
+                      placeholder={config.provider === 'free' ? t.editor.aiConfig.apiKeyAutoConfigured : t.editor.aiConfig.apiKeyPlaceholder}
                       disabled={config.provider === 'free'}
                       className={`w-full px-4 py-3 border rounded-xl text-sm transition-all duration-200 ${
                         config.provider === 'free' 
-                          ? 'bg-gray-50/50 text-gray-400 border-gray-200/50 cursor-not-allowed' 
-                          : 'bg-white/50 border-gray-200/60 text-gray-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 backdrop-blur-sm'
+                          ? 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed' 
+                          : 'bg-white border-gray-200 text-gray-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
                       }`}
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-2 leading-relaxed px-1">
                     {config.provider === 'free' 
-                      ? '免费模型已预配置，无需手动输入API密钥' 
-                      : 'API密钥将安全存储在本地，不会上传到服务器'
+                      ? t.editor.aiConfig.freeModelConfigured
+                      : t.editor.aiConfig.apiKeyLocalStorage
                     }
                   </p>
                 </div>
@@ -483,14 +484,14 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                   <div>
                     <label className="block text-sm font-semibold text-gray-900 mb-3 px-1">
                       <Globe className="inline h-4 w-4 mr-2 text-gray-500" />
-                      API端点
+                      {t.editor.aiConfig.apiEndpoint}
                     </label>
                     <input
                       type="url"
                       value={config.customEndpoint || ''}
                       onChange={(e) => updateConfig({ customEndpoint: e.target.value })}
                       placeholder="https://api.example.com/v1"
-                      className="w-full px-4 py-3 border border-gray-200/60 rounded-xl bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 text-sm transition-all duration-200"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm transition-all duration-200"
                     />
                   </div>
                 )}
@@ -499,17 +500,17 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                 {selectedProvider && selectedProvider.models.length > 0 && (
                   <div>
                     <label className="block text-sm font-semibold text-gray-900 mb-3 px-1">
-                      模型选择
+                      {t.editor.aiConfig.modelSelect}
                     </label>
                     <div className="relative">
                       <select
                         value={config.modelName}
                         onChange={(e) => updateConfig({ modelName: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-200/60 rounded-xl bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 text-sm appearance-none transition-all duration-200"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm appearance-none transition-all duration-200"
                       >
                         {selectedProvider.models.map((model) => (
                           <option key={model} value={model}>
-                            {model} {isModelFree(model) ? '(免费)' : '(付费)'}
+                            {model} {isModelFree(model) ? `(${t.editor.aiConfig.freeModel})` : `(${t.editor.aiConfig.paidModel})`}
                           </option>
                         ))}
                       </select>
@@ -520,50 +521,45 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                       </div>
                     </div>
                     <p className="text-xs text-gray-500 mt-2 px-1 flex items-center">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500 mr-2"></span>
-                      免费模型无需付费即可使用，付费模型需要相应的API额度
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
+                      {t.editor.aiConfig.freeModelNote}
                     </p>
                   </div>
                 )}
 
                 {/* 验证结果 */}
-                <AnimatePresence>
-                  {validationResult && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className={`flex items-center space-x-3 p-4 rounded-xl border backdrop-blur-sm ${
-                        validationResult.isValid
-                          ? 'bg-green-50/50 text-green-700 border-green-200/50 shadow-sm shadow-green-500/5'
-                          : 'bg-red-50/50 text-red-700 border-red-200/50 shadow-sm shadow-red-500/5'
-                      }`}
-                    >
-                      {validationResult.isValid ? (
-                        <CheckCircle className="h-5 w-5 flex-shrink-0" />
-                      ) : (
-                        <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                      )}
-                      <span className="text-sm font-medium">{validationResult.message}</span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {validationResult && (
+                  <div
+                    className={`flex items-center space-x-3 p-4 rounded-xl border ${
+                      validationResult.isValid
+                        ? 'bg-green-50 text-green-700 border-green-200 shadow-sm'
+                        : 'bg-red-50 text-red-700 border-red-200 shadow-sm'
+                    }`}
+                  >
+                    {validationResult.isValid ? (
+                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    )}
+                    <span className="text-sm font-medium">{validationResult.message}</span>
+                  </div>
+                )}
 
                 {/* 验证按钮 */}
                 <button
                   onClick={validateConfig}
                   disabled={isValidating || !config.apiKey.trim()}
-                  className="w-full flex items-center justify-center space-x-2 py-3 px-4 border border-gray-200/60 rounded-xl bg-white/50 hover:bg-white/80 backdrop-blur-sm transition-all duration-200 text-sm font-medium text-gray-700 hover:text-gray-900 shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                  className="w-full flex items-center justify-center space-x-2 py-3 px-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-all duration-200 text-sm font-medium text-gray-700 hover:text-gray-900 shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                 >
                   {isValidating ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-600 rounded-full animate-spin"></div>
-                      <span>验证中...</span>
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                      <span>{t.editor.aiConfig.validating}</span>
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="h-4 w-4 text-indigo-500" />
-                      <span>验证配置</span>
+                      <CheckCircle className="h-4 w-4 text-blue-500" />
+                      <span>{t.editor.aiConfig.validateConfig}</span>
                     </>
                   )}
                 </button>
@@ -573,29 +569,29 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
         </div>
 
         {/* 底部按钮 */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200/50 bg-gray-50/50 backdrop-blur-md">
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
           <button
             onClick={handleReset}
-            className="px-4 py-2 text-gray-500 hover:text-gray-700 transition-colors text-sm font-medium hover:bg-gray-100/50 rounded-lg"
+            className="px-4 py-2 text-gray-500 hover:text-gray-700 transition-colors text-sm font-medium hover:bg-white rounded-lg"
           >
-            重置配置
+            {t.editor.aiConfig.resetConfig}
           </button>
           <div className="flex items-center space-x-3">
             <button
               onClick={onClose}
-              className="px-5 py-2.5 text-gray-600 hover:text-gray-800 transition-colors bg-white/50 border border-gray-200/50 rounded-xl text-sm font-medium hover:bg-white/80 shadow-sm"
+              className="px-5 py-2.5 text-gray-600 hover:text-gray-800 transition-colors bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 shadow-sm"
             >
-              取消
+              {t.common.cancel}
             </button>
             <button
               onClick={handleSave}
-              className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 text-sm font-medium"
+              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-md text-sm font-medium"
             >
-              保存配置
+              {t.editor.aiConfig.saveConfig}
             </button>
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   )
 }

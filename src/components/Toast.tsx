@@ -18,6 +18,14 @@ import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
+// 不同类型的默认持续时间
+export const DEFAULT_DURATIONS: Record<ToastType, number> = {
+  success: 3000,  // 成功提示 3 秒后自动关闭
+  info: 4000,     // 信息提示 4 秒后自动关闭
+  warning: 5000,  // 警告提示 5 秒后自动关闭
+  error: 0        // 错误提示不自动关闭，需手动关闭
+}
+
 export interface ToastProps {
   /**
    * 唯一标识符
@@ -37,6 +45,7 @@ export interface ToastProps {
   description?: string
   /**
    * 自动关闭时间（毫秒），0表示不自动关闭
+   * 如果不指定，将使用类型对应的默认值
    */
   duration?: number
   /**
@@ -51,6 +60,10 @@ export interface ToastProps {
    * 点击回调
    */
   onClick?: () => void
+  /**
+   * 创建时间戳（用于排序）
+   */
+  createdAt?: number
 }
 
 /**
@@ -61,12 +74,15 @@ export function Toast({
   type,
   title,
   description,
-  duration = 4000,
+  duration,
   closable = true,
   onClose,
   onClick
 }: ToastProps) {
   const [isVisible, setIsVisible] = useState(true)
+  
+  // 使用类型对应的默认持续时间
+  const effectiveDuration = duration !== undefined ? duration : DEFAULT_DURATIONS[type]
 
   /**
    * 处理Toast关闭
@@ -83,14 +99,14 @@ export function Toast({
   }, [id, onClose])
 
   useEffect(() => {
-    if (duration > 0) {
+    if (effectiveDuration > 0) {
       const timer = setTimeout(() => {
         handleClose()
-      }, duration)
+      }, effectiveDuration)
 
       return () => clearTimeout(timer)
     }
-  }, [duration, handleClose])
+  }, [effectiveDuration, handleClose])
 
   const getIcon = () => {
     switch (type) {
@@ -200,12 +216,12 @@ export function Toast({
           </div>
 
           {/* 进度条 */}
-          {duration > 0 && (
+          {effectiveDuration > 0 && (
             <motion.div
               className="absolute bottom-0 left-0 h-1 bg-current opacity-30 rounded-b-lg"
               initial={{ width: '100%' }}
               animate={{ width: '0%' }}
-              transition={{ duration: duration / 1000, ease: "linear" }}
+              transition={{ duration: effectiveDuration / 1000, ease: "linear" }}
             />
           )}
         </motion.div>
@@ -283,7 +299,8 @@ export function useToast() {
     const id = Math.random().toString(36).slice(2, 11)
     const newToast: ToastProps = {
       ...toast,
-      id
+      id,
+      createdAt: Date.now()
     }
     setToasts(prev => [...prev, newToast])
     return id

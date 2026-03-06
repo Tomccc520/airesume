@@ -14,6 +14,7 @@ import { EditableCard } from './EditableCard'
 import { AddCardButton } from './AddCardButton'
 import { SectionHeader } from './SectionHeader'
 import FormField, { FormFieldGroup } from '@/components/FormField'
+import { RichTextEditor } from './RichTextEditor'
 import { useLanguage } from '@/contexts/LanguageContext'
 
 interface ProjectsFormProps {
@@ -79,13 +80,16 @@ export function ProjectsForm({ projects, onChange }: ProjectsFormProps) {
                   placeholder={t.editor.projects.placeholders.name}
                 />
 
-                <FormField
+                {/* 使用富文本编辑器 */}
+                <RichTextEditor
                   label={t.editor.projects.description_label}
-                  type="textarea"
                   value={project.description}
                   onChange={(value) => updateProject(project.id, 'description', value)}
                   placeholder={t.editor.projects.placeholders.description}
-                  rows={3}
+                  minRows={3}
+                  maxRows={10}
+                  showToolbar={true}
+                  enableAI={false}
                 />
 
                 <FormFieldGroup>
@@ -119,13 +123,16 @@ export function ProjectsForm({ projects, onChange }: ProjectsFormProps) {
                   placeholder={t.editor.projects.placeholders.technologies}
                 />
 
-                <FormField
+                {/* 使用富文本编辑器 */}
+                <RichTextEditor
                   label={t.editor.projects.highlights}
-                  type="textarea"
                   value={project.highlights.join('\n')}
-                  onChange={(value) => updateProject(project.id, 'highlights', value.split('\n'))}
+                  onChange={(value) => updateProject(project.id, 'highlights', value.split('\n').filter(line => line.trim()))}
                   placeholder={t.editor.projects.placeholders.highlights}
-                  rows={3}
+                  minRows={3}
+                  maxRows={10}
+                  showToolbar={true}
+                  enableAI={false}
                 />
               </div>
             </EditableCard>

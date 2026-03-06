@@ -24,8 +24,10 @@ import {
   Trash2,
   Sparkles,
   Palette,
-  HelpCircle
+  HelpCircle,
+  FileText
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import ExportButton from './ExportButton'
 import LoadingSpinner from './LoadingSpinner'
 import SaveDialog from './SaveDialog'
@@ -67,12 +69,16 @@ interface EditorToolbarProps {
   /** 显示导出预览对话框 */
   onShowExportDialog?: () => void
   /** 导出功能 */
-  onExport: (format: 'pdf' | 'png' | 'jpg' | 'docx') => Promise<void>
+  onExport: (format: 'pdf' | 'png' | 'jpg') => Promise<void>
   /** 手动保存功能 */
   onSave?: () => Promise<void>
-  /** AI一键生成简历 */
-  onAIGenerateResume?: () => void
+  /** 显示JD匹配器 */
+  onShowJDMatcher?: () => void
+  /** 显示AI分步生成器 */
+  onShowStepwiseGenerator?: () => void
 }
+
+import { useLanguage } from '@/contexts/LanguageContext'
 
 /**
  * 编辑器工具栏组件
@@ -93,19 +99,21 @@ export default function EditorToolbar({
   onShowExportDialog,
   onExport,
   onSave,
-  onAIGenerateResume
+  onShowJDMatcher,
+  onShowStepwiseGenerator
 }: EditorToolbarProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [showAIConfig, setShowAIConfig] = useState(false)
   // 直接清空，无需确认
   const { success, error: showError } = useToastContext()
+  const { t, locale } = useLanguage()
 
   /**
    * 处理AI配置保存
    */
   const handleAIConfigSave = () => {
-    success('AI配置已保存')
+    success(t.editor.messages.aiConfigSaved)
   }
 
   /**
@@ -124,11 +132,11 @@ export default function EditorToolbar({
       const loadedData = await loadResumeFromFile()
       if (loadedData) {
         onUpdate(loadedData)
-        success('简历数据加载成功！')
+        success(t.editor.messages.loadSuccess)
       }
     } catch (error) {
       console.error('加载文件失败:', error)
-      showError('加载文件失败，请检查文件格式')
+      showError(t.editor.messages.loadError)
     } finally {
       setIsLoading(false)
     }
@@ -155,237 +163,149 @@ export default function EditorToolbar({
     }
     
     onUpdate(emptyResumeData)
-    success('所有内容已清空')
+    success(t.editor.messages.clearSuccess)
   }
 
   /**
    * 保存成功回调
    */
   const handleSaveSuccess = () => {
-    success('简历已成功保存到本地！')
+    success(t.editor.messages.saveSuccess)
   }
 
   return (
     <>
-      {/* 顶部工具栏 */}
-      <div className="relative z-40 bg-white border border-gray-200 rounded-xl mx-4 lg:mx-6 mb-4 px-4 py-3 flex-shrink-0">
-        <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col xs:flex-row items-start xs:items-center space-y-2 xs:space-y-0 xs:space-x-3 sm:space-x-4">
-            <h1 className="text-lg sm:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">简历编辑器</h1>
+      {/* 顶部工具栏 - Magic Resume 风格：简洁分组 */}
+      <div className="relative z-40 bg-white border-b border-gray-200 px-4 lg:px-6 py-3 flex-shrink-0">
+        <div className="flex items-center justify-between gap-4">
+          {/* 左侧：标题 + 状态 */}
+          <div className="flex items-center gap-4">
+            <h1 className="text-lg font-semibold text-gray-900 whitespace-nowrap">{t.editor.title}</h1>
             
-            {/* 自动保存状态显示 */}
-            <div className="flex flex-col xs:flex-row items-start xs:items-center space-y-2 xs:space-y-0 xs:space-x-3 sm:space-x-4">
-              {/* 自动保存状态 */}
-              <div className="flex items-center space-x-2">
+            {/* 自动保存状态 */}
+            <div className="flex items-center">
                 {isSaving ? (
-                  <div className="flex items-center text-xs sm:text-sm text-blue-400">
-                    <div className="animate-spin w-3 h-3 sm:w-4 sm:h-4 border-2 border-blue-400 border-t-transparent rounded-full mr-1 sm:mr-2"></div>
-                    <span className="hidden xs:inline">保存中...</span>
-                    <span className="xs:hidden">保存</span>
+                <div className="flex items-center text-xs text-gray-500">
+                  <div className="animate-spin w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full mr-1.5"></div>
+                  <span>{t.editor.messages.saving}</span>
                   </div>
                 ) : hasUnsavedChanges ? (
-                  <div className="flex items-center text-xs sm:text-sm text-orange-400">
-                    <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                    <span className="hidden xs:inline">有未保存的更改</span>
-                    <span className="xs:hidden">未保存</span>
+                <div className="flex items-center text-xs text-orange-500">
+                  <AlertCircle className="w-3 h-3 mr-1.5" />
+                  <span>{t.editor.messages.unsaved}</span>
                   </div>
                 ) : (
-                  <div className="flex items-center text-xs sm:text-sm text-green-400">
-                    <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                    <span className="hidden xs:inline">已保存</span>
-                    <span className="xs:hidden">已保存</span>
-                    {lastSavedAt && (
-                      <span className="hidden sm:inline ml-2 text-gray-400">
-                        {lastSavedAt.toLocaleTimeString()}
-                      </span>
-                    )}
+                <div className="flex items-center text-xs text-emerald-500">
+                  <CheckCircle className="w-3 h-3 mr-1.5" />
+                  <span>{t.editor.messages.saved}</span>
                   </div>
                 )}
-              </div>
             </div>
           </div>
 
-          {/* 工具栏按钮组 */}
-          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 lg:gap-4 mt-3 sm:mt-0 flex-1 ml-0 sm:ml-4">
-            {/* 手动保存按钮 */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+          {/* 右侧：工具栏按钮组 - 分组设计 */}
+          <div className="flex items-center gap-2">
+            {/* 第一组：主要操作 */}
+            <div className="flex items-center gap-1 pr-2 border-r border-gray-200">
+              <Button
               onClick={() => onSave ? onSave() : handleManualSave()}
               disabled={isSaving}
-              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 shadow-sm flex items-center space-x-1 sm:space-x-2 min-w-0 touch-manipulation"
-              style={{ minHeight: '40px' }}
-              title="保存简历 (Ctrl+S)"
+                variant="ghost"
+                size="sm"
+              title={`${t.editor.toolbar.save} (Ctrl+S)`}
             >
-              {isSaving ? (
-                <LoadingSpinner size="sm" />
-              ) : (
-                <Save className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-              )}
-              <span className="hidden xs:inline">保存</span>
-            </motion.button>
+                <Save className="w-4 h-4" />
+              </Button>
 
-            {/* 加载文件按钮 */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              <Button
               onClick={handleLoadFile}
               disabled={isLoading}
-              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-white border border-gray-200/50 text-gray-600 hover:bg-gray-50 hover:text-gray-900 shadow-sm flex items-center space-x-1 sm:space-x-2 min-w-0 touch-manipulation"
-              style={{ minHeight: '40px' }}
-              title="加载本地简历文件"
+                variant="ghost"
+                size="sm"
+              title={t.editor.toolbar.load}
             >
-              {isLoading ? (
-                <LoadingSpinner size="sm" />
-              ) : (
-                <LoadIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-              )}
-              <span className="hidden sm:inline">加载</span>
-            </motion.button>
+                <LoadIcon className="w-4 h-4" />
+              </Button>
+            </div>
 
-            {/* 模板选择按钮 */}
+            {/* 第二组：模板和AI */}
+            <div className="flex items-center gap-1 pr-2 border-r border-gray-200">
             {onShowTemplateSelector && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                <Button
                 onClick={onShowTemplateSelector}
-                className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-white border border-gray-200/50 text-gray-600 hover:bg-gray-50 hover:text-gray-900 shadow-sm flex items-center space-x-1 sm:space-x-2 min-w-0 touch-manipulation"
-                style={{ minHeight: '40px' }}
-                title="选择简历模板"
+                  variant="ghost"
+                  size="sm"
+                title={t.editor.toolbar.template}
               >
-                <Palette className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                <span className="hidden sm:inline">模板</span>
-              </motion.button>
+                  <Palette className="w-4 h-4" />
+                </Button>
             )}
 
-            {/* 导出预览按钮 */}
-            {onShowExportDialog && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={onShowExportDialog}
-                className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-white border border-gray-200/50 text-gray-600 hover:bg-gray-50 hover:text-gray-900 shadow-sm flex items-center space-x-1 sm:space-x-2 min-w-0 touch-manipulation"
-                style={{ minHeight: '40px' }}
-                title="导出预览"
+            {onShowStepwiseGenerator && (
+                <Button
+                onClick={onShowStepwiseGenerator}
+                  variant="ghost"
+                  size="sm"
               >
-                <Eye className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                <span className="hidden sm:inline">导出预览</span>
-              </motion.button>
+                  <Sparkles className="w-4 h-4" />
+                </Button>
             )}
 
-            {/* AI一键生成按钮 */}
-            {onAIGenerateResume && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={onAIGenerateResume}
-                className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 text-blue-700 hover:from-blue-100 hover:to-purple-100 shadow-sm flex items-center space-x-1 sm:space-x-2 min-w-0 touch-manipulation"
-                style={{ minHeight: '40px' }}
-                title="AI智能生成简历"
-              >
-                <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                <span className="hidden sm:inline">AI生成</span>
-              </motion.button>
-            )}
-
-            {/* 清空内容按钮 */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleClearContent}
-              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-white border border-red-200 text-red-600 hover:bg-red-50 shadow-sm flex items-center space-x-1 sm:space-x-2 min-w-0 touch-manipulation"
-              style={{ minHeight: '40px' }}
-              title="清空所有内容"
-            >
-              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-              <span className="hidden lg:inline">清空</span>
-            </motion.button>
-
-            {/* AI配置按钮 */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowAIConfig(true)}
-              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-white border border-gray-200/50 text-gray-600 hover:bg-gray-50 hover:text-gray-900 shadow-sm flex items-center space-x-1 sm:space-x-2 min-w-0 touch-manipulation"
-              style={{ minHeight: '40px' }}
-              title="配置AI模型"
-            >
-              <Settings className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-              <span className="hidden lg:inline">AI配置</span>
-            </motion.button>
-
-            {/* AI助手按钮 */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              <Button
               onClick={onShowAIAssistant}
-              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-white border border-gray-200/50 text-gray-600 hover:bg-gray-50 hover:text-gray-900 shadow-sm flex items-center space-x-1 sm:space-x-2 min-w-0 touch-manipulation"
-              style={{ minHeight: '40px' }}
-              title="打开AI助手"
+                variant="ghost"
+                size="sm"
+              title={t.editor.toolbar.aiAssistant}
             >
-              <Bot className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-              <span className="hidden sm:inline">AI助手</span>
-            </motion.button>
+                <Bot className="w-4 h-4" />
+              </Button>
+            </div>
 
-            {/* 预览切换按钮 */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            {/* 第三组：视图控制 */}
+            <div className="flex items-center gap-1 pr-2 border-r border-gray-200">
+              <Button
               onClick={onTogglePreview}
-              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-white border border-gray-200/50 text-gray-600 hover:bg-gray-50 hover:text-gray-900 shadow-sm flex items-center space-x-1 sm:space-x-2 min-w-0 touch-manipulation"
-              style={{ minHeight: '40px' }}
-              title={isPreviewMode ? '切换到编辑模式' : '切换到预览模式'}
+                variant="ghost"
+                size="sm"
+              title={isPreviewMode ? t.editor.toolbar.edit : t.editor.toolbar.preview}
             >
               {isPreviewMode ? (
-                <EyeOff className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <EyeOff className="w-4 h-4" />
               ) : (
-                <Eye className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <Eye className="w-4 h-4" />
               )}
-              <span className="hidden sm:inline">
-                {isPreviewMode ? '编辑' : '预览'}
-              </span>
-            </motion.button>
+              </Button>
 
-            {/* 全屏切换按钮 */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              <Button
               onClick={onToggleFullscreen}
-              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-white border border-gray-200/50 text-gray-600 hover:bg-gray-50 hover:text-gray-900 shadow-sm flex items-center space-x-1 sm:space-x-2 min-w-0 touch-manipulation"
-              style={{ minHeight: '40px' }}
-              title={isFullscreen ? '退出全屏' : '全屏模式'}
+                variant="ghost"
+                size="sm"
+              title={isFullscreen ? t.editor.toolbar.exitFullscreen : t.editor.toolbar.fullscreen}
             >
               {isFullscreen ? (
-                <Minimize2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <Minimize2 className="w-4 h-4" />
               ) : (
-                <Maximize2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <Maximize2 className="w-4 h-4" />
               )}
-              <span className="hidden sm:inline">
-                {isFullscreen ? '退出全屏' : '全屏'}
-              </span>
-            </motion.button>
+              </Button>
+            </div>
 
-            {/* 快捷键帮助按钮 */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onShowShortcutHelp}
-              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-white border border-gray-200/50 text-gray-600 hover:bg-gray-50 hover:text-gray-900 shadow-sm flex items-center space-x-1 sm:space-x-2 min-w-0 touch-manipulation"
-              style={{ minHeight: '40px' }}
-              title="查看快捷键"
+            {/* 第四组：导出和更多 */}
+            <div className="flex items-center gap-1">
+              <ExportButton onExport={onExport} />
+
+              {/* 更多菜单 */}
+              <Button
+                onClick={() => setShowAIConfig(true)}
+                variant="ghost"
+                size="sm"
+                title={t.editor.toolbar.aiConfig}
             >
-              <HelpCircle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-              <span className="hidden lg:inline">帮助</span>
-            </motion.button>
-
-            {/* 导出按钮 */}
-            <ExportButton 
-              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 bg-green-50 border border-green-200 text-green-600 hover:bg-green-100 shadow-sm flex items-center space-x-1 sm:space-x-2 min-w-0 touch-manipulation"
-              onExport={onExport}
-            />
+                <Settings className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
-
       </div>
 
       {/* 保存对话框 */}

@@ -9,7 +9,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { FileText, Menu, X, Languages, ChevronDown } from 'lucide-react'
+import { FileText, Menu, X, Languages, ChevronDown, Github } from 'lucide-react'
 import { useState } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -94,6 +94,16 @@ export default function Header() {
       link: '/editor',
       external: false,
       order: 0,
+      visible: true
+    },
+    {
+      id: 'updates',
+      text: locale === 'zh' ? '更新日志' : 'Updates',
+      link: '/updates',
+      external: false,
+      label: 'NEW',
+      labelType: 'info' as const,
+      order: 2,
       visible: true
     },
     {
@@ -310,6 +320,17 @@ export default function Header() {
 
           {/* 右侧工具栏 */}
           <div className="flex items-center space-x-4">
+            {/* GitHub Star */}
+            <Link
+              href="https://github.com/Tomccc520/uied-resume"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <Github size={18} />
+              <span className="hidden sm:inline">Star</span>
+            </Link>
+
             {/* 语言切换按钮 */}
             <button
               onClick={toggleLocale}
