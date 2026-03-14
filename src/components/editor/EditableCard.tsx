@@ -43,7 +43,7 @@ export function EditableCard({
   const handleToggle = controlledOnToggle || (() => setInternalIsExpanded(!isExpanded))
 
   return (
-    <div
+    <motion.div
       className={`group bg-white rounded-2xl border transition-all ${
         hasError 
           ? 'border-red-300 shadow-sm shadow-red-100' 
@@ -110,6 +110,6 @@ export function EditableCard({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   )
 }

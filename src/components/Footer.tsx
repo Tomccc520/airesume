@@ -21,12 +21,11 @@ export default function Footer({ className = '' }: FooterProps) {
   const { t } = useLanguage()
 
   return (
-    <footer className={`bg-white/70 backdrop-blur-xl border-t border-white/40 shadow-lg shadow-blue-900/5 mt-auto ${className}`} role="contentinfo" aria-label="页面底部">
+    <footer className={`bg-white border-t border-gray-200 mt-auto ${className}`} role="contentinfo" aria-label="页面底部">
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center justify-center space-y-8">
           {/* Logo和标题 */}
           <Link href="/" className="logo-container group relative" aria-label="返回首页">
-            <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="relative flex items-center transform group-hover:scale-105 transition-transform duration-300">
               <div className="logo-wrapper flex items-center" aria-hidden="true">
                 <svg width="60" height="30" viewBox="0 0 204 96" version="1.1" xmlns="http://www.w3.org/2000/svg"
@@ -78,9 +77,9 @@ export default function Footer({ className = '' }: FooterProps) {
             {/* 快捷链接区域 */}
             <nav className="grid grid-cols-1 md:grid-cols-2 gap-8" aria-label="底部导航">
               {/* 工具快捷入口 */}
-              <section className="w-full bg-white/40 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-sm transition-all duration-300" aria-labelledby="quick-tools">
-                <h2 id="quick-tools" className="text-base font-semibold text-gray-800 mb-6 flex items-center gap-2">
-                  <span className="w-1 h-4 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></span>
+              <section className="w-full bg-slate-50 rounded-2xl p-6 border border-gray-200 transition-all duration-300" aria-labelledby="quick-tools">
+                <h2 id="quick-tools" className="text-base font-semibold text-gray-900 mb-6 flex items-center gap-2">
+                  <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
                   {t.footer.quickTools}
                 </h2>
                 <div className="flex flex-col space-y-4">
@@ -198,9 +197,9 @@ export default function Footer({ className = '' }: FooterProps) {
               </section>
 
               {/* 友情链接 */}
-              <section className="w-full bg-white/40 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-sm transition-all duration-300" aria-labelledby="friend-links">
-                <h2 id="friend-links" className="text-base font-semibold text-gray-800 mb-6 flex items-center gap-2">
-                  <span className="w-1 h-4 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full"></span>
+              <section className="w-full bg-slate-50 rounded-2xl p-6 border border-gray-200 transition-all duration-300" aria-labelledby="friend-links">
+                <h2 id="friend-links" className="text-base font-semibold text-gray-900 mb-6 flex items-center gap-2">
+                  <span className="w-1 h-4 bg-indigo-600 rounded-full"></span>
                   {t.footer.friendLinks}
                 </h2>
                 <div className="space-y-4">
@@ -209,19 +208,19 @@ export default function Footer({ className = '' }: FooterProps) {
                     <span className="text-sm font-medium text-gray-500 shrink-0 mt-0.5 w-12">{t.footer.ai}</span>
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
                       <a href="https://www.uied.cn/category/aigc/ai" target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:text-purple-600 transition-colors whitespace-nowrap hover:underline decoration-purple-200 underline-offset-4">
+                        className="text-sm text-gray-600 hover:text-indigo-600 transition-colors whitespace-nowrap hover:underline decoration-indigo-200 underline-offset-4">
                         {t.footer.links.aiArticle}
                       </a>
                       <a href="https://hot.uied.cn/ai-realtime" target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:text-purple-600 transition-colors whitespace-nowrap hover:underline decoration-purple-200 underline-offset-4">
+                        className="text-sm text-gray-600 hover:text-indigo-600 transition-colors whitespace-nowrap hover:underline decoration-indigo-200 underline-offset-4">
                         {t.footer.links.aiNews}
                       </a>
                       <a href="https://hao.uied.cn/ai" target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:text-purple-600 transition-colors whitespace-nowrap hover:underline decoration-purple-200 underline-offset-4">
+                        className="text-sm text-gray-600 hover:text-indigo-600 transition-colors whitespace-nowrap hover:underline decoration-indigo-200 underline-offset-4">
                         {t.footer.links.aiTools}
                       </a>
                       <a href="https://www.uied.cn/wechat" target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:text-purple-600 transition-colors whitespace-nowrap hover:underline decoration-purple-200 underline-offset-4">
+                        className="text-sm text-gray-600 hover:text-indigo-600 transition-colors whitespace-nowrap hover:underline decoration-indigo-200 underline-offset-4">
                         {t.footer.links.aiChat}
                       </a>
                     </div>
@@ -233,19 +232,19 @@ export default function Footer({ className = '' }: FooterProps) {
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
                       <a href="https://www.uied.cn/category/wenzhang/ui-wenzhang" target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:text-purple-600 transition-colors whitespace-nowrap hover:underline decoration-purple-200 underline-offset-4">
+                        className="text-sm text-gray-600 hover:text-indigo-600 transition-colors whitespace-nowrap hover:underline decoration-indigo-200 underline-offset-4">
                         {t.footer.links.designArticle}
                       </a>
                       <a href="https://hao.uied.cn/" target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:text-purple-600 transition-colors whitespace-nowrap hover:underline decoration-purple-200 underline-offset-4">
+                        className="text-sm text-gray-600 hover:text-indigo-600 transition-colors whitespace-nowrap hover:underline decoration-indigo-200 underline-offset-4">
                         {t.footer.links.designNav}
                       </a>
                       <a href="https://uiedtool.com/" target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:text-purple-600 transition-colors whitespace-nowrap hover:underline decoration-purple-200 underline-offset-4">
+                        className="text-sm text-gray-600 hover:text-indigo-600 transition-colors whitespace-nowrap hover:underline decoration-indigo-200 underline-offset-4">
                         {t.footer.links.designTools}
                       </a>
                       <a href="https://hot.uied.cn/" target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:text-purple-600 transition-colors whitespace-nowrap hover:underline decoration-purple-200 underline-offset-4">
+                        className="text-sm text-gray-600 hover:text-indigo-600 transition-colors whitespace-nowrap hover:underline decoration-indigo-200 underline-offset-4">
                         {t.footer.links.designNews}
                       </a>
                     </div>
@@ -256,23 +255,23 @@ export default function Footer({ className = '' }: FooterProps) {
                     <span className="text-sm font-medium text-gray-500 shrink-0 mt-0.5 w-12">{t.footer.other}</span>
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
                       <a href="https://uied.cn" target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:text-purple-600 transition-colors whitespace-nowrap hover:underline decoration-purple-200 underline-offset-4">
+                        className="text-sm text-gray-600 hover:text-indigo-600 transition-colors whitespace-nowrap hover:underline decoration-indigo-200 underline-offset-4">
                         {t.footer.links.aigcLearn}
                       </a>
                       <a href="https://fsuied.com" target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:text-purple-600 transition-colors whitespace-nowrap hover:underline decoration-purple-200 underline-offset-4">
+                        className="text-sm text-gray-600 hover:text-indigo-600 transition-colors whitespace-nowrap hover:underline decoration-indigo-200 underline-offset-4">
                         {t.footer.links.uiedTeam}
                       </a>
                       <a href="https://www.88sheji.cn/" target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:text-purple-600 transition-colors whitespace-nowrap hover:underline decoration-purple-200 underline-offset-4">
+                        className="text-sm text-gray-600 hover:text-indigo-600 transition-colors whitespace-nowrap hover:underline decoration-indigo-200 underline-offset-4">
                         {t.footer.links.baibaiNav}
                       </a>
                       <a href="https://www.tomda.top/" target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:text-purple-600 transition-colors whitespace-nowrap hover:underline decoration-purple-200 underline-offset-4">
+                        className="text-sm text-gray-600 hover:text-indigo-600 transition-colors whitespace-nowrap hover:underline decoration-indigo-200 underline-offset-4">
                         {t.footer.links.tomda}
                       </a>
                       <a href="https://fsuied.com/contact.html" target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-gray-600 hover:text-purple-600 transition-colors whitespace-nowrap hover:underline decoration-purple-200 underline-offset-4">
+                        className="text-sm text-gray-600 hover:text-indigo-600 transition-colors whitespace-nowrap hover:underline decoration-indigo-200 underline-offset-4">
                         {t.footer.links.applyLink}
                       </a>
                     </div>
@@ -281,9 +280,9 @@ export default function Footer({ className = '' }: FooterProps) {
               </section>
 
               {/* 官方媒体 */}
-              <section className="w-full md:col-span-2 bg-white/40 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-sm hover:shadow-md transition-all duration-300" aria-labelledby="official-media">
-                <h2 id="official-media" className="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <span className="w-1 h-4 bg-gradient-to-b from-pink-500 to-red-500 rounded-full"></span>
+              <section className="w-full md:col-span-2 bg-slate-50 rounded-2xl p-6 border border-gray-200 transition-all duration-300" aria-labelledby="official-media">
+                <h2 id="official-media" className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
                   {t.footer.officialMedia}
                 </h2>
                 <div className="flex flex-wrap gap-6">
@@ -316,7 +315,7 @@ export default function Footer({ className = '' }: FooterProps) {
           </div>
 
           {/* 底部信息 */}
-          <div className="w-full flex flex-col items-center text-sm text-gray-500 border-t border-gray-200/50 pt-8 mt-4 space-y-4">
+          <div className="w-full flex flex-col items-center text-sm text-gray-500 border-t border-gray-200 pt-8 mt-4 space-y-4">
             <div className="w-full max-w-5xl flex flex-col sm:flex-row justify-between items-center gap-6">
               {/* 左侧信息 */}
               <div className="flex flex-col space-y-3 text-center sm:text-left">
@@ -373,10 +372,9 @@ export default function Footer({ className = '' }: FooterProps) {
         }
 
         .logo-wrapper {
-          background: #6C54FF;
+          background: #2563eb;
           border-radius: 6px;
           padding: 1px;
-          box-shadow: 0 4px 6px -1px rgba(108, 84, 255, 0.1), 0 2px 4px -1px rgba(108, 84, 255, 0.06);
           height: 32px;
           width: 64px;
           display: flex;
@@ -390,45 +388,23 @@ export default function Footer({ className = '' }: FooterProps) {
           margin: 0 auto;
         }
 
+        /* 性能优化：禁用 SVG 动画以减少卡顿 */
         .svg-elem {
-          stroke-dasharray: 1000;
-          stroke-dashoffset: 1000;
           stroke-width: 1;
-          fill: transparent;
+          fill: #fff;
           stroke: #fff;
           stroke-linejoin: round;
           stroke-linecap: round;
-          animation: draw 2s linear forwards, fill-color 2s linear forwards;
-        }
-
-        @keyframes draw {
-          from {
-            stroke-dashoffset: 1000;
-          }
-
-          to {
-            stroke-dashoffset: 0;
-          }
-        }
-
-        @keyframes fill-color {
-          0% {
-            fill: transparent;
-          }
-
-          100% {
-            fill: #fff;
-          }
         }
 
         #矩形 {
-          fill: #6C54FF;
+          fill: #2563eb;
         }
 
         .tools-text {
           font-size: 1.5rem;
           font-weight: 600;
-          color: #6C54FF;
+          color: #2563eb;
           letter-spacing: 0.5px;
           height: 32px;
           line-height: 32px;

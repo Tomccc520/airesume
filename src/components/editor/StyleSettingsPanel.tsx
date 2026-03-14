@@ -15,6 +15,22 @@ import { useStyle } from '@/contexts/StyleContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 
 /**
+ * 本地字体最小元数据定义
+ * 仅声明当前组件实际用到的 family 字段
+ */
+interface LocalFontMetadata {
+  family: string
+}
+
+/**
+ * 扩展 Window 类型以声明 queryLocalFonts
+ * 避免使用 ts-ignore，保持类型安全
+ */
+type WindowWithLocalFonts = Window & {
+  queryLocalFonts?: () => Promise<LocalFontMetadata[]>
+}
+
+/**
  * 增强版样式设置面板
  * 提供配色、字体（含本地字体）、间距等完整设置
  */
@@ -51,8 +67,10 @@ export function StyleSettingsPanel() {
   
   // 检测本地字体
   const detectLocalFonts = useCallback(async () => {
+    const windowWithLocalFonts = window as WindowWithLocalFonts
+
     // 检查浏览器是否支持 Local Font Access API
-    if (!('queryLocalFonts' in window)) {
+    if (!windowWithLocalFonts.queryLocalFonts) {
       setFontError(locale === 'zh' ? '您的浏览器不支持本地字体检测' : 'Your browser does not support local font detection')
       return
     }
@@ -61,8 +79,7 @@ export function StyleSettingsPanel() {
     setFontError(null)
     
     try {
-      // @ts-ignore - Local Font Access API
-      const fonts = await window.queryLocalFonts()
+      const fonts = await windowWithLocalFonts.queryLocalFonts()
       
       // 去重并获取字体家族名称
       const fontFamilies = new Map<string, string>()

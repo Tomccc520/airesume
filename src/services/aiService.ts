@@ -63,6 +63,7 @@ export class AIService {
    * 从本地存储加载配置
    */
   private loadConfig() {
+    if (typeof window === 'undefined') return
     try {
       const savedConfig = localStorage.getItem('ai-config')
       if (savedConfig) {
@@ -87,6 +88,9 @@ export class AIService {
 
     this.config = config
     // 持久化配置到本地存储
+    if (typeof window === 'undefined') {
+      return { success: true }
+    }
     try {
       localStorage.setItem('ai-config', JSON.stringify(config))
       return { success: true }
@@ -322,6 +326,7 @@ export class AIService {
         body: JSON.stringify({
           provider: this.config!.provider,
           apiKey: this.config!.apiKey,
+          customEndpoint: this.config!.customEndpoint,
           model: this.config!.modelName,
           messages: [
             {
@@ -438,6 +443,7 @@ export class AIService {
       body: JSON.stringify({
         provider: this.config!.provider,
         apiKey: this.config!.apiKey,
+        customEndpoint: this.config!.customEndpoint,
         model: this.config!.modelName,
         messages: [
           {
@@ -623,6 +629,7 @@ export class AIService {
         body: JSON.stringify({
           provider: config.provider,
           apiKey: config.apiKey,
+          customEndpoint: config.customEndpoint,
           model: config.modelName,
           messages: [
             {

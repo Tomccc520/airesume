@@ -27,6 +27,8 @@ export const resumeTemplates: TemplateStyle[] = [
     isPremium: false,
     layoutType: 'top-bottom',
     tags: ['ATS友好', '居中对齐', '投递首选'],
+    recommendedRoles: ['general', 'product', 'operations'],
+    recommendedExperienceLevels: ['campus', '1-3', '3-5'],
     colors: {
       primary: '#0f172a',
       secondary: '#475569',
@@ -65,6 +67,8 @@ export const resumeTemplates: TemplateStyle[] = [
     isPremium: false,
     layoutType: 'top-bottom',
     tags: ['表格', '信息密集', '传统行业'],
+    recommendedRoles: ['operations', 'general', 'product'],
+    recommendedExperienceLevels: ['1-3', '3-5', '5+'],
     colors: {
       primary: '#000000',
       secondary: '#666666',
@@ -96,23 +100,25 @@ export const resumeTemplates: TemplateStyle[] = [
   // 3. 现代时间轴 - 职业发展清晰
   {
     id: 'timeline-layout',
-    name: '现代时间轴',
-    nameEn: 'Modern Timeline',
-    description: '标准时间轴结构，突出工作经历与项目成果，适合大多数岗位投递',
-    descriptionEn: 'Standard timeline structure focused on work history and project outcomes',
+    name: '逆序时间线版',
+    nameEn: 'Reverse Chronological',
+    description: '主流招聘常用时间线版式，突出最近经历与岗位成长路径',
+    descriptionEn: 'Mainstream reverse-chronological format focused on recent experience',
     preview: '/templates/timeline-layout.svg',
     category: 'general',
     subCategory: 'modern',
     isPremium: false,
     layoutType: 'top-bottom',
-    tags: ['时间轴', '标准结构', '投递友好'],
+    tags: ['逆序时间线', '经历优先', '招聘常用'],
+    recommendedRoles: ['tech', 'product', 'operations', 'general'],
+    recommendedExperienceLevels: ['1-3', '3-5', '5+'],
     colors: {
-      primary: '#0f172a',
-      secondary: '#64748b',
-      accent: '#2563eb',
-      text: '#0f172a',
+      primary: '#111827',
+      secondary: '#4b5563',
+      accent: '#374151',
+      text: '#111827',
       background: '#ffffff',
-      timelineBg: '#d1d5db'
+      timelineBg: '#cbd5e1'
     },
     fonts: {
       heading: '"Inter", "PingFang SC", "Hiragino Sans GB", sans-serif',
@@ -145,6 +151,8 @@ export const resumeTemplates: TemplateStyle[] = [
     isPremium: false,
     layoutType: 'left-right',
     tags: ['双栏', '专业', '大气'],
+    recommendedRoles: ['tech', 'product', 'design'],
+    recommendedExperienceLevels: ['1-3', '3-5', '5+'],
     colors: {
       primary: '#0f172a',
       secondary: '#64748b',
@@ -185,6 +193,8 @@ export const resumeTemplates: TemplateStyle[] = [
     isPremium: false,
     layoutType: 'top-bottom',
     tags: ['分隔线', '层次清晰', '简约'],
+    recommendedRoles: ['general', 'operations', 'product'],
+    recommendedExperienceLevels: ['campus', '1-3', '3-5'],
     colors: {
       primary: '#000000',
       secondary: '#666666',
@@ -224,6 +234,8 @@ export const resumeTemplates: TemplateStyle[] = [
     isPremium: false,
     layoutType: 'top-bottom',
     tags: ['紧凑', '高密度', '经验丰富'],
+    recommendedRoles: ['tech', 'product', 'operations'],
+    recommendedExperienceLevels: ['3-5', '5+'],
     colors: {
       primary: '#000000',
       secondary: '#666666',
@@ -252,24 +264,26 @@ export const resumeTemplates: TemplateStyle[] = [
   // 7. 创意卡片 - 视觉突出
   {
     id: 'card-layout',
-    name: '创意卡片',
-    nameEn: 'Creative Card',
-    description: '标准卡片分区，信息清晰，适合互联网与通用岗位',
-    descriptionEn: 'Standard card sections with clear hierarchy for general applications',
+    name: '双栏专业版',
+    nameEn: 'Professional Two-Column',
+    description: '主流双栏简历，左侧经历项目、右侧技能教育，适合社招投递',
+    descriptionEn: 'Professional two-column layout with main experience and side skill panel',
     preview: '/templates/card-layout.svg',
     category: 'general',
     subCategory: 'creative',
     isPremium: false,
     layoutType: 'top-bottom',
-    tags: ['卡片分区', '信息清晰', '通用岗位'],
+    tags: ['双栏结构', '社招常用', '信息分区'],
+    recommendedRoles: ['tech', 'product', 'design', 'general'],
+    recommendedExperienceLevels: ['1-3', '3-5'],
     colors: {
-      primary: '#0f172a',
-      secondary: '#64748b',
-      accent: '#0f766e',
-      text: '#0f172a',
+      primary: '#111827',
+      secondary: '#4b5563',
+      accent: '#334155',
+      text: '#111827',
       background: '#ffffff',
       cardBg: '#f8fafc',
-      cardBorder: '#cbd5e1'
+      cardBorder: '#d1d5db'
     },
     fonts: {
       heading: '"Inter", "PingFang SC", "Hiragino Sans GB", sans-serif',
@@ -303,6 +317,8 @@ export const resumeTemplates: TemplateStyle[] = [
     isPremium: false,
     layoutType: 'top-bottom',
     tags: ['网格', '技能展示', '现代'],
+    recommendedRoles: ['design', 'tech', 'product'],
+    recommendedExperienceLevels: ['1-3', '3-5'],
     colors: {
       primary: '#000000',
       secondary: '#666666',
@@ -343,6 +359,8 @@ export const resumeTemplates: TemplateStyle[] = [
     isPremium: false,
     layoutType: 'left-right',
     tags: ['对称', '美观', '设计'],
+    recommendedRoles: ['design', 'product'],
+    recommendedExperienceLevels: ['1-3', '3-5'],
     colors: {
       primary: '#000000',
       secondary: '#666666',
@@ -381,6 +399,8 @@ export const resumeTemplates: TemplateStyle[] = [
     isPremium: false,
     layoutType: 'left-right',
     tags: ['时间轴', '创新', '侧边栏'],
+    recommendedRoles: ['tech', 'product', 'operations'],
+    recommendedExperienceLevels: ['3-5', '5+'],
     colors: {
       primary: '#000000',
       secondary: '#666666',
@@ -411,23 +431,25 @@ export const resumeTemplates: TemplateStyle[] = [
   // 11. 简历横幅 - 顶部突出
   {
     id: 'banner-layout',
-    name: '简历横幅',
-    nameEn: 'Banner Layout',
-    description: '顶部信息栏 + 标准正文分区，简洁专业，适合在线投递',
-    descriptionEn: 'Top info header with standard sections, clean and professional',
+    name: '单栏标准版',
+    nameEn: 'ATS Single-Column',
+    description: 'ATS 优先的单栏版式，章节顺序清晰，适合在线系统投递',
+    descriptionEn: 'ATS-first single-column layout for online application systems',
     preview: '/templates/banner-layout.svg',
     category: 'general',
     subCategory: 'modern',
     isPremium: false,
     layoutType: 'top-bottom',
-    tags: ['清晰头部', '标准结构', 'ATS友好'],
+    tags: ['单栏ATS', '在线投递', '基础通用'],
+    recommendedRoles: ['general', 'tech', 'product', 'operations'],
+    recommendedExperienceLevels: ['campus', '1-3', '3-5'],
     colors: {
-      primary: '#0f172a',
-      secondary: '#64748b',
-      accent: '#2563eb',
-      text: '#0f172a',
+      primary: '#111827',
+      secondary: '#4b5563',
+      accent: '#374151',
+      text: '#111827',
       background: '#ffffff',
-      bannerBg: '#f1f5f9'
+      bannerBg: '#ffffff'
     },
     fonts: {
       heading: '"Inter", "PingFang SC", "Hiragino Sans GB", sans-serif',
@@ -460,6 +482,8 @@ export const resumeTemplates: TemplateStyle[] = [
     isPremium: false,
     layoutType: 'top-bottom',
     tags: ['线条', '极简', '美学'],
+    recommendedRoles: ['general', 'design', 'product'],
+    recommendedExperienceLevels: ['campus', '1-3'],
     colors: {
       primary: '#000000',
       secondary: '#666666',
@@ -562,13 +586,12 @@ export const getPremiumTemplates = (): TemplateStyle[] => {
 export const popularTemplateIds = [
   'two-column-standard',
   'minimal-text',
-  'table-layout',
+  'banner-layout',
+  'card-layout',
   'timeline-layout',
+  'table-layout',
   'divider-layout',
   'compact-layout',
-  'card-layout',
-  'grid-layout',
-  'banner-layout',
   'line-minimal'
 ]
 

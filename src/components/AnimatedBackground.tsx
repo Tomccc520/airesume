@@ -81,6 +81,20 @@ export default function AnimatedBackground({
     }
   }, [colors, direction]);
 
+  // 性能优化：如果不需要动画，直接返回静态背景
+  if (!animate) {
+    return (
+      <div 
+        className={`absolute inset-0 overflow-hidden ${className}`}
+        style={{ 
+          opacity,
+          background: gradientStyle,
+          filter: blur > 0 ? `blur(${blur}px)` : undefined,
+        }}
+      />
+    );
+  }
+
   return (
     <div 
       className={`absolute inset-0 overflow-hidden ${className}`}
@@ -92,13 +106,14 @@ export default function AnimatedBackground({
         style={{
           background: gradientStyle,
           filter: blur > 0 ? `blur(${blur}px)` : undefined,
+          willChange: 'transform', // 提示浏览器优化
         }}
-        animate={animate ? {
+        animate={{
           // 使用 scale 和 rotate 创建动态效果
           // 避免使用 background-position，因为它不能被 GPU 加速
           scale: [1, 1.1, 1],
           rotate: [0, 5, 0],
-        } : undefined}
+        }}
         transition={{
           duration,
           repeat: Infinity,
@@ -106,35 +121,17 @@ export default function AnimatedBackground({
         }}
       />
 
-      {/* 第二层渐变（增加深度） */}
-      <motion.div
-        className="absolute inset-0"
-        style={{
-          background: gradientStyle,
-          opacity: 0.5,
-          filter: blur > 0 ? `blur(${blur * 1.5}px)` : undefined,
-        }}
-        animate={animate ? {
-          scale: [1.1, 1, 1.1],
-          rotate: [5, 0, 5],
-        } : undefined}
-        transition={{
-          duration: duration * 1.5,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-      />
-
-      {/* 光晕效果层 */}
+      {/* 第二层渐变（增加深度） - 性能优化：减少一层 */}
       <motion.div
         className="absolute inset-0"
         style={{
           background: `radial-gradient(circle at 50% 50%, ${colors[0]}40, transparent 70%)`,
+          willChange: 'transform, opacity',
         }}
-        animate={animate ? {
+        animate={{
           scale: [1, 1.2, 1],
           opacity: [0.3, 0.6, 0.3],
-        } : undefined}
+        }}
         transition={{
           duration: duration * 0.8,
           repeat: Infinity,

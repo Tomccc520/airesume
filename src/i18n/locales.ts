@@ -450,7 +450,11 @@ export const zh: Translations = {
     zoomIn: '放大',
     zoomOut: '缩小',
     download: '下载',
-    print: '打印'
+    print: '打印',
+    experience: '工作经历',
+    education: '教育经历',
+    skills: '专业技能',
+    projects: '项目经历'
   },
   home: {
     hero: {
@@ -1049,7 +1053,11 @@ export const en: Translations = {
     zoomIn: 'Zoom In',
     zoomOut: 'Zoom Out',
     download: 'Download',
-    print: 'Print'
+    print: 'Print',
+    experience: 'Experience',
+    education: 'Education',
+    skills: 'Skills',
+    projects: 'Projects'
   },
   home: {
     hero: {

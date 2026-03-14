@@ -2,12 +2,13 @@
  * @copyright Tomda (https://www.tomda.top)
  * @copyright UIED技术团队 (https://fsuied.com)
  * @author UIED技术团队
- * @createDate 2026.2.2
+ * @createDate 2026-03-14
  */
 
 'use client'
 
 import React from 'react'
+import Image from 'next/image'
 import { ResumeData } from '@/types/resume'
 import { StyleConfig } from '@/contexts/StyleContext'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -21,8 +22,8 @@ interface TemplateProps {
 }
 
 /**
- * 极简文本布局 - ATS友好
- * 纯文字排版，无装饰，适合投递大公司
+ * 极简文本布局
+ * 强化信息层级与留白节奏，兼顾 ATS 友好和视觉质感
  */
 export const MinimalTextLayout: React.FC<TemplateProps> = ({
   resumeData,
@@ -33,268 +34,239 @@ export const MinimalTextLayout: React.FC<TemplateProps> = ({
   const { colors, fontSize, spacing, fontFamily } = styleConfig
   const { locale, t } = useLanguage()
 
+  const fontFamilyStyle = fontFamily || '"Merriweather", "Times New Roman", Georgia, serif'
+  const pagePadding = styleConfig.layout?.padding || 44
+  const headingColor = colors.primary || '#0f172a'
+  const textColor = colors.text || '#0f172a'
+  const mutedColor = colors.secondary || '#475569'
+  const accentColor = colors.accent || '#b7791f'
+  const sectionGap = spacing?.section || 28
+
+  /**
+   * 格式化日期文本
+   * 统一中英文环境的时间展示
+   */
   const formatDateStr = (date?: string) => formatDate(date, locale)
 
-  // 字体样式
-  const fontFamilyStyle = fontFamily || '"Times New Roman", Georgia, serif'
-  
-  // 页面内边距
-  const pagePadding = styleConfig.layout?.padding || 40
+  /**
+   * 格式化时间区间
+   * 处理“当前在职”与普通结束时间两种场景
+   */
+  const formatPeriod = (startDate?: string, endDate?: string, isCurrent?: boolean) => {
+    return `${formatDateStr(startDate)} - ${isCurrent ? t.editor.experience.current : formatDateStr(endDate)}`
+  }
 
-  return (
-    <div 
-      className="w-full min-h-full bg-white"
-      style={{ 
-        fontFamily: fontFamilyStyle,
-        color: colors.text || '#000000',
-        padding: `${pagePadding}px`,
-        fontSize: `${fontSize?.content || 14}px`,
-        lineHeight: 1.6
-      }}
-    >
-      {/* 个人信息 - 居中优化版 */}
-      <div 
-        className="flex flex-col items-center text-center cursor-pointer"
-        onClick={() => onSectionClick?.('personal')}
-        style={{ 
-          marginBottom: `${spacing?.section || 28}px`,
-          paddingBottom: `${spacing?.section || 28}px`,
-          borderBottom: '1px solid #e5e5e5'
+  /**
+   * 章节标题渲染
+   * 保持标题样式一致，减少视觉噪音
+   */
+  const renderSectionTitle = (title: string) => (
+    <div className="flex items-center gap-3">
+      <div className="h-5 w-1.5 rounded-full" style={{ backgroundColor: accentColor }} />
+      <h2
+        className="font-bold uppercase tracking-[0.16em]"
+        style={{
+          fontSize: `${fontSize?.title || 15}px`,
+          color: headingColor
         }}
       >
-        {/* 头像 */}
+        {title}
+      </h2>
+    </div>
+  )
+
+  return (
+    <div
+      className="w-full min-h-full bg-white"
+      style={{
+        fontFamily: fontFamilyStyle,
+        color: textColor,
+        padding: `${pagePadding}px`,
+        fontSize: `${fontSize?.content || 14}px`,
+        lineHeight: 1.7
+      }}
+    >
+      <section
+        className="cursor-pointer rounded-2xl border border-slate-200/80 bg-slate-50/40 px-6 py-7 text-center"
+        onClick={() => onSectionClick?.('personal')}
+        style={{ marginBottom: `${sectionGap}px` }}
+      >
         {personalInfo.avatar && (
-          <img 
-            src={personalInfo.avatar} 
+          <Image
+            src={personalInfo.avatar}
             alt={personalInfo.name}
-            className={`${getAvatarClassName(styleConfig, 'w-28 h-28')} mb-4`}
+            width={96}
+            height={96}
+            unoptimized
+            className={`${getAvatarClassName(styleConfig, 'mx-auto mb-4 w-24 h-24')}`}
             style={{
-              ...getAvatarInlineStyle(personalInfo.avatarBorderRadius, styleConfig, 112),
-              border: '3px solid #f0f0f0',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+              ...getAvatarInlineStyle(personalInfo.avatarBorderRadius, styleConfig, 96),
+              border: `3px solid ${accentColor}`,
+              boxShadow: '0 8px 20px -14px rgba(15, 23, 42, 0.6)'
             }}
           />
         )}
-        
-        {/* 姓名 */}
-        <h1 
-          className="font-bold"
-          style={{ 
-            fontSize: `${fontSize?.name || 28}px`,
-            color: colors.primary || '#000000',
-            marginBottom: '6px',
-            letterSpacing: '0.5px'
+        <h1
+          className="font-bold tracking-[0.08em]"
+          style={{
+            fontSize: `${fontSize?.name || 30}px`,
+            color: headingColor,
+            marginBottom: '6px'
           }}
         >
           {personalInfo.name}
         </h1>
-        
-        {/* 职位 */}
-        <div 
-          style={{ 
-            fontSize: `${fontSize?.title || 16}px`,
-            color: colors.secondary || '#666666',
-            marginBottom: '8px'
+        <p
+          className="font-medium"
+          style={{
+            color: mutedColor,
+            fontSize: `${fontSize?.title || 16}px`
           }}
         >
           {personalInfo.title}
+        </p>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs" style={{ color: mutedColor }}>
+          {personalInfo.phone && <span className="rounded-full border border-slate-300 px-2.5 py-1">{personalInfo.phone}</span>}
+          {personalInfo.email && <span className="rounded-full border border-slate-300 px-2.5 py-1">{personalInfo.email}</span>}
+          {personalInfo.location && <span className="rounded-full border border-slate-300 px-2.5 py-1">{personalInfo.location}</span>}
+          {personalInfo.website && <span className="rounded-full border border-slate-300 px-2.5 py-1">{personalInfo.website}</span>}
         </div>
-        
-        {/* 联系方式 */}
-        <div 
-          style={{ 
-            fontSize: `${fontSize?.small || 12}px`,
-            color: colors.secondary || '#666666'
-          }}
-        >
-          {personalInfo.phone && <span>{personalInfo.phone}</span>}
-          {personalInfo.phone && personalInfo.email && <span> | </span>}
-          {personalInfo.email && <span>{personalInfo.email}</span>}
-          {personalInfo.location && <span> | {personalInfo.location}</span>}
-        </div>
-      </div>
+      </section>
 
-      {/* 个人简介 */}
       {personalInfo.summary && (
-        <div 
+        <section
           className="cursor-pointer"
           onClick={() => onSectionClick?.('personal')}
-          style={{ marginBottom: `${spacing?.section || 24}px` }}
+          style={{ marginBottom: `${sectionGap}px` }}
         >
-          <h2 
-            className="font-bold uppercase"
-            style={{ 
-              fontSize: `${fontSize?.title || 16}px`,
-              color: colors.primary || '#000000',
-              marginBottom: `${spacing?.item || 12}px`
-            }}
-          >
-            {t.editor.templatePreview.personalSummary}
-          </h2>
-          <p style={{ color: colors.text || '#000000' }}>
+          {renderSectionTitle(t.editor.templatePreview.personalSummary)}
+          <p className="mt-3 whitespace-pre-line leading-7" style={{ color: textColor }}>
             {personalInfo.summary}
           </p>
-        </div>
+        </section>
       )}
 
-      {/* 工作经历 */}
-      {experience && experience.length > 0 && (
-        <div 
+      {experience.length > 0 && (
+        <section
           className="cursor-pointer"
           onClick={() => onSectionClick?.('experience')}
-          style={{ marginBottom: `${spacing?.section || 24}px` }}
+          style={{ marginBottom: `${sectionGap}px` }}
         >
-          <h2 
-            className="font-bold uppercase"
-            style={{ 
-              fontSize: `${fontSize?.title || 16}px`,
-              color: colors.primary || '#000000',
-              marginBottom: `${spacing?.item || 12}px`
-            }}
-          >
-            {t.editor.experience.title}
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: `${spacing?.item || 12}px` }}>
-            {experience.map(exp => (
-              <div key={exp.id}>
-                <div className="flex justify-between items-baseline">
-                  <span className="font-bold" style={{ color: colors.text || '#000000' }}>
+          {renderSectionTitle(t.editor.experience.title)}
+          <div className="mt-4 space-y-4">
+            {experience.map((exp) => (
+              <article key={exp.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold" style={{ color: headingColor }}>
                     {exp.position}
-                  </span>
-                  <span style={{ fontSize: `${fontSize?.small || 12}px`, color: colors.secondary || '#666666' }}>
-                    {formatDateStr(exp.startDate)} - {exp.current ? t.editor.experience.current : formatDateStr(exp.endDate)}
+                  </h3>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs" style={{ color: mutedColor }}>
+                    {formatPeriod(exp.startDate, exp.endDate, exp.current)}
                   </span>
                 </div>
-                <div style={{ color: colors.secondary || '#666666', marginTop: '4px' }}>
+                <div className="mt-1 text-sm font-medium" style={{ color: accentColor }}>
                   {exp.company}
-                  {exp.location && ` | ${exp.location}`}
+                  {exp.location && <span style={{ color: mutedColor }}> · {exp.location}</span>}
                 </div>
-                {exp.description && exp.description.length > 0 && (
-                  <div style={{ marginTop: '8px' }}>
-                    {exp.description.map((desc, i) => (
-                      <div key={i} style={{ marginBottom: '4px', color: colors.text || '#000000' }}>
+                {exp.description.length > 0 && (
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {exp.description.map((desc, index) => (
+                      <li key={`${exp.id}-desc-${index}`} style={{ color: textColor }}>
                         {desc}
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 )}
-              </div>
+              </article>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* 教育背景 */}
-      {education && education.length > 0 && (
-        <div 
+      {education.length > 0 && (
+        <section
           className="cursor-pointer"
           onClick={() => onSectionClick?.('education')}
-          style={{ marginBottom: `${spacing?.section || 24}px` }}
+          style={{ marginBottom: `${sectionGap}px` }}
         >
-          <h2 
-            className="font-bold uppercase"
-            style={{ 
-              fontSize: `${fontSize?.title || 16}px`,
-              color: colors.primary || '#000000',
-              marginBottom: `${spacing?.item || 12}px`
-            }}
-          >
-            {t.editor.education.title}
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: `${spacing?.item || 12}px` }}>
-            {education.map(edu => (
-              <div key={edu.id}>
-                <div className="flex justify-between items-baseline">
-                  <span className="font-bold" style={{ color: colors.text || '#000000' }}>
+          {renderSectionTitle(t.editor.education.title)}
+          <div className="mt-4 space-y-3">
+            {education.map((edu) => (
+              <article key={edu.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold" style={{ color: headingColor }}>
                     {edu.school}
-                  </span>
-                  <span style={{ fontSize: `${fontSize?.small || 12}px`, color: colors.secondary || '#666666' }}>
+                  </h3>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs" style={{ color: mutedColor }}>
                     {formatDateStr(edu.startDate)} - {formatDateStr(edu.endDate)}
                   </span>
                 </div>
-                <div style={{ color: colors.secondary || '#666666', marginTop: '4px' }}>
-                  {edu.degree} | {edu.major}
-                  {edu.gpa && ` | GPA: ${edu.gpa}`}
+                <div className="mt-1 text-sm" style={{ color: mutedColor }}>
+                  {edu.degree} · {edu.major}
+                  {edu.gpa && <span> · GPA {edu.gpa}</span>}
                 </div>
-              </div>
+              </article>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* 项目经历 */}
-      {projects && projects.length > 0 && (
-        <div 
+      {projects.length > 0 && (
+        <section
           className="cursor-pointer"
           onClick={() => onSectionClick?.('projects')}
-          style={{ marginBottom: `${spacing?.section || 24}px` }}
+          style={{ marginBottom: `${sectionGap}px` }}
         >
-          <h2 
-            className="font-bold uppercase"
-            style={{ 
-              fontSize: `${fontSize?.title || 16}px`,
-              color: colors.primary || '#000000',
-              marginBottom: `${spacing?.item || 12}px`
-            }}
-          >
-            {t.editor.projects.title}
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: `${spacing?.item || 12}px` }}>
-            {projects.map(project => (
-              <div key={project.id}>
-                <div className="flex justify-between items-baseline">
-                  <span className="font-bold" style={{ color: colors.text || '#000000' }}>
+          {renderSectionTitle(t.editor.projects.title)}
+          <div className="mt-4 space-y-4">
+            {projects.map((project) => (
+              <article key={project.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold" style={{ color: headingColor }}>
                     {project.name}
-                  </span>
-                  <span style={{ fontSize: `${fontSize?.small || 12}px`, color: colors.secondary || '#666666' }}>
+                  </h3>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs" style={{ color: mutedColor }}>
                     {formatDateStr(project.startDate)} - {formatDateStr(project.endDate)}
                   </span>
                 </div>
-                <p style={{ color: colors.text || '#000000', marginTop: '4px' }}>
+                <p className="mt-2" style={{ color: textColor }}>
                   {project.description}
                 </p>
-                {project.highlights && project.highlights.length > 0 && (
-                  <div style={{ marginTop: '8px' }}>
-                    {project.highlights.map((h, i) => (
-                      <div key={i} style={{ marginBottom: '4px', color: colors.text || '#000000' }}>
-                        {h}
-                      </div>
+                {project.highlights.length > 0 && (
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {project.highlights.map((highlight, index) => (
+                      <li key={`${project.id}-highlight-${index}`} style={{ color: textColor }}>
+                        {highlight}
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 )}
-              </div>
+              </article>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* 技能 */}
-      {skills && skills.length > 0 && (
-        <div 
-          className="cursor-pointer"
-          onClick={() => onSectionClick?.('skills')}
-        >
-          <h2 
-            className="font-bold uppercase"
-            style={{ 
-              fontSize: `${fontSize?.title || 16}px`,
-              color: colors.primary || '#000000',
-              marginBottom: `${spacing?.item || 12}px`
-            }}
-          >
-            {t.editor.skills.title}
-          </h2>
-          <div style={{ color: colors.text || '#000000' }}>
-            {skills.map((skill, index) => (
-              <span key={skill.id}>
+      {skills.length > 0 && (
+        <section className="cursor-pointer" onClick={() => onSectionClick?.('skills')}>
+          {renderSectionTitle(t.editor.skills.title)}
+          <div className="mt-4 flex flex-wrap gap-2.5">
+            {skills.map((skill) => (
+              <span
+                key={skill.id}
+                className="rounded-full border px-3 py-1.5 text-sm"
+                style={{
+                  borderColor: `${accentColor}66`,
+                  color: headingColor,
+                  backgroundColor: '#ffffff'
+                }}
+              >
                 {skill.name}
-                {index < skills.length - 1 && ', '}
               </span>
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   )
 }
-

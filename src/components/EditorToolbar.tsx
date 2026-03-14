@@ -62,6 +62,8 @@ interface EditorToolbarProps {
   onToggleFullscreen: () => void
   /** 显示AI助手 */
   onShowAIAssistant: () => void
+  /** 显示AI配置弹窗 */
+  onShowAIConfig?: () => void
   /** 显示快捷键帮助 */
   onShowShortcutHelp: () => void
   /** 显示模板选择器 */
@@ -72,10 +74,7 @@ interface EditorToolbarProps {
   onExport: (format: 'pdf' | 'png' | 'jpg') => Promise<void>
   /** 手动保存功能 */
   onSave?: () => Promise<void>
-  /** 显示JD匹配器 */
-  onShowJDMatcher?: () => void
-  /** 显示AI分步生成器 */
-  onShowStepwiseGenerator?: () => void
+
 }
 
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -94,13 +93,12 @@ export default function EditorToolbar({
   isFullscreen,
   onToggleFullscreen,
   onShowAIAssistant,
+  onShowAIConfig,
   onShowShortcutHelp,
   onShowTemplateSelector,
   onShowExportDialog,
   onExport,
-  onSave,
-  onShowJDMatcher,
-  onShowStepwiseGenerator
+  onSave
 }: EditorToolbarProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
@@ -241,16 +239,6 @@ export default function EditorToolbar({
                 </Button>
             )}
 
-            {onShowStepwiseGenerator && (
-                <Button
-                onClick={onShowStepwiseGenerator}
-                  variant="ghost"
-                  size="sm"
-              >
-                  <Sparkles className="w-4 h-4" />
-                </Button>
-            )}
-
               <Button
               onClick={onShowAIAssistant}
                 variant="ghost"
@@ -296,7 +284,13 @@ export default function EditorToolbar({
 
               {/* 更多菜单 */}
               <Button
-                onClick={() => setShowAIConfig(true)}
+                onClick={() => {
+                  if (onShowAIConfig) {
+                    onShowAIConfig()
+                    return
+                  }
+                  setShowAIConfig(true)
+                }}
                 variant="ghost"
                 size="sm"
                 title={t.editor.toolbar.aiConfig}
@@ -318,7 +312,7 @@ export default function EditorToolbar({
 
       {/* AI配置模态框 */}
       <AIConfigModal
-        isOpen={showAIConfig}
+        isOpen={!!showAIConfig && !onShowAIConfig}
         onClose={() => setShowAIConfig(false)}
         onSave={handleAIConfigSave}
       />

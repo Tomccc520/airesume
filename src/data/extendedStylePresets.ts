@@ -6,7 +6,7 @@
  * @description 扩展的样式预设方案 - 按行业、风格、场景分类
  */
 
-import { StyleConfig } from '@/contexts/StyleContext'
+import { DeepPartial, StyleConfig } from '@/contexts/StyleContext'
 
 export interface ExtendedStylePreset {
   id: string
@@ -17,7 +17,7 @@ export interface ExtendedStylePreset {
   category: 'industry' | 'style' | 'scenario'
   subCategory: string
   preview: string
-  config: Partial<StyleConfig>
+  config: DeepPartial<StyleConfig>
   tags: string[]
   popularity: number
 }
@@ -551,4 +551,3 @@ export function getPresetById(id: string): ExtendedStylePreset | undefined {
   const allPresets = getAllExtendedPresets()
   return allPresets.find(preset => preset.id === id)
 }
-

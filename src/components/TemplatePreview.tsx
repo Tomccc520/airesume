@@ -103,13 +103,18 @@ const TemplatePreview = ({
         highlights: [t.editor.templatePreview.sampleData.projectHighlight1, t.editor.templatePreview.sampleData.projectHighlight2]
       }
     ]
-  }), [t, locale])
+  }), [t, template.components?.personalInfo?.defaultAvatar])
 
   const scale = fullSize ? 1 : 0.28
   
   // 根据模板类型选择渲染方式 - 使用 useMemo 优化，避免每次渲染重新计算
-  const layoutType = useMemo((): 'sidebar' | 'gradient' | 'classic' | 'minimal' | 'creative' | 'default' => {
+  const layoutType = useMemo((): 'sidebar' | 'gradient' | 'classic' | 'minimal' | 'creative' | 'marketBanner' | 'marketCard' | 'marketTimeline' | 'default' => {
     const id = template.id
+
+    // 招聘市场主流模板（优先精确匹配）
+    if (id === 'banner-layout') return 'marketBanner'
+    if (id === 'card-layout') return 'marketCard'
+    if (id === 'timeline-layout') return 'marketTimeline'
     
     // 根据模板ID精确匹配布局类型
     // 侧边栏布局
@@ -269,6 +274,149 @@ const TemplatePreview = ({
                 {skill.name}
               </span>
             ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  /**
+   * 市场化顶部信息模板预览
+   * 参考招聘平台常见单栏 ATS 版式：页眉 + 经历主区 + 技能文本行。
+   */
+  const renderMarketBannerLayout = () => (
+    <div className="w-full h-full p-3" style={{ color: '#111827' }}>
+      <div className="border-b pb-2" style={{ borderColor: '#cbd5e1' }}>
+        <div className="text-[11px] font-semibold tracking-[0.02em]">{sampleData.personalInfo.name}</div>
+        <div className="text-[7px] text-slate-600 mt-0.5">{sampleData.personalInfo.title}</div>
+        <div className="text-[5px] text-slate-500 mt-1">
+          {sampleData.personalInfo.phone} · {sampleData.personalInfo.email}
+        </div>
+      </div>
+
+      <div className="mt-2">
+        <div className="text-[7px] font-semibold pb-1 border-b" style={{ borderColor: '#dde4ed' }}>
+          {t.editor.experience.title}
+        </div>
+        <div className="mt-1.5 space-y-1.5 text-[6px]">
+          <div>
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-medium">{sampleData.experience[0].position}</span>
+              <span className="text-slate-500">{formatDateStr(sampleData.experience[0].startDate)}</span>
+            </div>
+            <div className="text-slate-600 mt-0.5">{sampleData.experience[0].company}</div>
+          </div>
+          <div>
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-medium">{sampleData.projects[0].name}</span>
+              <span className="text-slate-500">{formatDateStr(sampleData.projects[0].startDate)}</span>
+            </div>
+            <div className="text-slate-600 mt-0.5 line-clamp-1">{sampleData.projects[0].description}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-2">
+        <div className="text-[7px] font-semibold pb-1 border-b" style={{ borderColor: '#dde4ed' }}>
+          {t.editor.skills.title}
+        </div>
+        <div className="mt-1 text-[5px] text-slate-600 line-clamp-1">
+          {sampleData.skills.map((skill, index) => (
+            <span key={skill.id}>
+              {skill.name}
+              {index < sampleData.skills.length - 1 && <span> · </span>}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+
+  /**
+   * 市场化项目强化模板预览
+   * 参考主流双栏模板：左主栏放经历项目，右侧栏放技能教育。
+   */
+  const renderMarketCardLayout = () => (
+    <div className="w-full h-full p-3 text-[6px]" style={{ color: '#111827' }}>
+      <div className="border-b pb-2" style={{ borderColor: '#cbd5e1' }}>
+        <div className="text-[10px] font-semibold">{sampleData.personalInfo.name}</div>
+        <div className="text-[7px] text-slate-600">{sampleData.personalInfo.title}</div>
+      </div>
+
+      <div className="mt-2 grid grid-cols-[1.55fr,1fr] gap-2">
+        <div>
+          <div className="text-[7px] font-semibold pb-1 border-b" style={{ borderColor: '#dde4ed' }}>
+            {t.editor.experience.title}
+          </div>
+          <div className="mt-1.5">
+            <div className="font-medium">{sampleData.experience[0].position}</div>
+            <div className="text-slate-600">{sampleData.experience[0].company}</div>
+            <div className="text-slate-500 mt-0.5 line-clamp-1">{sampleData.experience[0].description[0]}</div>
+          </div>
+
+          <div className="text-[7px] font-semibold pb-1 border-b mt-2" style={{ borderColor: '#dde4ed' }}>
+            {t.editor.projects.title}
+          </div>
+          <div className="mt-1.5">
+            <div className="font-medium">{sampleData.projects[0].name}</div>
+            <div className="text-slate-500 line-clamp-2">{sampleData.projects[0].description}</div>
+          </div>
+        </div>
+
+        <div className="border-l pl-2" style={{ borderColor: '#dde4ed' }}>
+          <div className="text-[7px] font-semibold pb-1 border-b" style={{ borderColor: '#dde4ed' }}>
+            {t.editor.skills.title}
+          </div>
+          <div className="mt-1 text-[5px] text-slate-600 line-clamp-2">
+            {sampleData.skills.map((skill, index) => (
+              <span key={skill.id}>
+                {skill.name}
+                {index < sampleData.skills.length - 1 && <span> / </span>}
+              </span>
+            ))}
+          </div>
+
+          <div className="text-[7px] font-semibold pb-1 border-b mt-2" style={{ borderColor: '#dde4ed' }}>
+            {t.editor.education.title}
+          </div>
+          <div className="mt-1">
+            <div className="font-medium line-clamp-1">{sampleData.education[0].school}</div>
+            <div className="text-slate-600 line-clamp-1">{sampleData.education[0].major}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  /**
+   * 市场化时间轴模板预览
+   * 采用招聘常见逆序时间线：左日期、右侧纵向事件轨道。
+   */
+  const renderMarketTimelineLayout = () => (
+    <div className="w-full h-full p-3" style={{ color: '#111827' }}>
+      <div className="border-b pb-2" style={{ borderColor: '#cbd5e1' }}>
+        <div className="text-[10px] font-semibold">{sampleData.personalInfo.name}</div>
+        <div className="text-[7px] text-slate-600">{sampleData.personalInfo.title}</div>
+      </div>
+
+      <div className="mt-2 text-[7px] font-semibold pb-1 border-b" style={{ borderColor: '#dde4ed' }}>
+        {t.editor.experience.title}
+      </div>
+      <div className="mt-1.5 space-y-1.5">
+        <div className="grid grid-cols-[42px,1fr] gap-2 text-[6px]">
+          <div className="text-slate-500">{formatDateStr(sampleData.experience[0].startDate)}</div>
+          <div className="relative border-l pl-2" style={{ borderColor: '#cfd8e3' }}>
+            <span className="absolute left-0 top-1 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-slate-400" />
+            <div className="font-medium">{sampleData.experience[0].position}</div>
+            <div className="text-slate-600">{sampleData.experience[0].company}</div>
+          </div>
+        </div>
+        <div className="grid grid-cols-[42px,1fr] gap-2 text-[6px]">
+          <div className="text-slate-500">{formatDateStr(sampleData.education[0].startDate)}</div>
+          <div className="relative border-l pl-2" style={{ borderColor: '#cfd8e3' }}>
+            <span className="absolute left-0 top-1 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-slate-400" />
+            <div className="font-medium">{sampleData.education[0].school}</div>
+            <div className="text-slate-600">{sampleData.education[0].major}</div>
           </div>
         </div>
       </div>
@@ -480,6 +628,9 @@ const TemplatePreview = ({
       case 'classic': return renderClassicLayout()
       case 'minimal': return renderMinimalLayout()
       case 'creative': return renderCreativeLayout()
+      case 'marketBanner': return renderMarketBannerLayout()
+      case 'marketCard': return renderMarketCardLayout()
+      case 'marketTimeline': return renderMarketTimelineLayout()
       default: return renderDefaultLayout()
     }
   }
@@ -515,7 +666,7 @@ const TemplatePreview = ({
 
   return (
     <div 
-      className="overflow-hidden bg-white shadow-sm" 
+      className="overflow-hidden bg-white" 
       style={{ 
         aspectRatio: '3/4',
         transform: `scale(${scale})`,

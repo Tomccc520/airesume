@@ -69,8 +69,40 @@ export interface Project {
   technologies: string[]
   startDate: string
   endDate: string
+  date?: string
   url?: string
   highlights: string[]
+}
+
+/**
+ * 证书接口
+ */
+export interface Certification {
+  id: string
+  name: string
+  issuer: string
+  date: string
+  description?: string
+}
+
+/**
+ * 语言能力接口
+ */
+export interface LanguageSkill {
+  id: string
+  name: string
+  level: string
+}
+
+/**
+ * 奖项接口
+ */
+export interface Award {
+  id: string
+  title: string
+  issuer: string
+  date: string
+  description?: string
 }
 
 /**
@@ -82,6 +114,9 @@ export interface ResumeData {
   education: Education[]
   skills: Skill[]
   projects: Project[]
+  certifications?: Certification[]
+  languages?: LanguageSkill[]
+  awards?: Award[]
 }
 
 /**

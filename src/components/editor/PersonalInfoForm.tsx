@@ -23,6 +23,7 @@ interface PersonalInfoFormProps {
 
 export function PersonalInfoForm({ personalInfo, onChange, onAiOptimize }: PersonalInfoFormProps) {
   const { t } = useLanguage()
+  const personalInfoI18n = t.editor.personalInfo as Record<string, string | Record<string, string>>
 
   const updateField = (field: keyof PersonalInfo, value: string) => {
     onChange({
@@ -64,7 +65,7 @@ export function PersonalInfoForm({ personalInfo, onChange, onAiOptimize }: Perso
         {personalInfo.avatar && (
           <div className="mt-4 max-w-md mx-auto">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t.editor.personalInfo.avatarBorderRadius || '头像圆角'}
+              {(personalInfoI18n.avatarBorderRadius as string) || '头像圆角'}
             </label>
             <div className="flex items-center gap-3">
               <input

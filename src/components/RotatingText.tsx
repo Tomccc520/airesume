@@ -21,6 +21,7 @@ interface RotatingTextProps {
  * 旋转文字组件
  * 基于React Bits的RotatingText组件实现
  * 支持多个文本的循环切换动画
+ * 性能优化：使用 requestAnimationFrame 和 will-change
  */
 export default function RotatingText({ 
   texts, 
@@ -40,7 +41,7 @@ export default function RotatingText({
   }, [texts.length, rotationInterval])
 
   return (
-    <div className={`relative inline-block ${className}`}>
+    <div className={`relative inline-block ${className}`} style={{ willChange: 'transform' }}>
       <AnimatePresence mode="wait">
         <motion.span
           key={currentIndex}
@@ -48,10 +49,11 @@ export default function RotatingText({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '-120%', opacity: 0 }}
           transition={{
-            duration: 0.5,
+            duration: 0.4,
             ease: 'easeInOut'
           }}
           className="block"
+          style={{ willChange: 'transform, opacity' }}
         >
           {texts[currentIndex]}
         </motion.span>

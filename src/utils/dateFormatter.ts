@@ -14,7 +14,7 @@ import { Locale } from '@/types/i18n'
 export function formatDate(
   date: string | undefined,
   locale: Locale,
-  templateFormat?: 'YYYY-MM' | 'MM/YYYY' | 'YYYY年MM月' | 'YYYY'
+  templateFormat?: 'YYYY-MM' | 'MM/YYYY' | 'YYYY年MM月' | 'YYYY' | 'YYYY.MM' | 'MMM YYYY'
 ): string {
   if (!date) return ''
   
@@ -36,6 +36,13 @@ export function formatDate(
         return `${month}/${year}`
       case 'YYYY年MM月':
         return `${year}年${month}月`
+      case 'YYYY.MM':
+        return `${year}.${month}`
+      case 'MMM YYYY': {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        const monthIndex = Math.max(1, Math.min(12, Number(month))) - 1
+        return `${monthNames[monthIndex]} ${year}`
+      }
       case 'YYYY':
         return year
       case 'YYYY-MM':
@@ -68,7 +75,7 @@ export function formatDateRange(
   endDate: string | undefined,
   locale: Locale,
   isCurrent?: boolean,
-  templateFormat?: 'YYYY-MM' | 'MM/YYYY' | 'YYYY年MM月' | 'YYYY'
+  templateFormat?: 'YYYY-MM' | 'MM/YYYY' | 'YYYY年MM月' | 'YYYY' | 'YYYY.MM' | 'MMM YYYY'
 ): string {
   const formattedStart = formatDate(startDate, locale, templateFormat)
   

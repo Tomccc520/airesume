@@ -35,5 +35,19 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# documentation
-/docs/
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Storybook
+storybook-static/
+
+# Scripts
+*.log

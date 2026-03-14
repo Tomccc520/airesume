@@ -29,22 +29,15 @@ export const getAvatarBorderRadius = (
     return `${borderRadius}px`
   }
   
-  // 其次使用 styleConfig 中的圆角值
-  if (styleConfig?.avatar?.borderRadius !== undefined) {
-    const radius = styleConfig.avatar.borderRadius
-    if (radius >= 50) {
-      return '50%'
-    }
-    return `${radius}px`
-  }
-  
   // 如果没有自定义圆角，则根据 shape 判断
   const shape = styleConfig?.avatar?.shape || 'circle'
   if (shape === 'circle') {
     return '50%'  // 圆形
-  } else {
+  }
+  if (shape === 'rounded') {
     return '8px'  // 正方形默认8px圆角
   }
+  return '0px'
 }
 
 /**
@@ -114,4 +107,3 @@ export const getAvatarInlineStyle = (
     ...additionalStyles
   }
 }
-

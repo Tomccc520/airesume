@@ -9,6 +9,21 @@
  * 简历模板类型定义
  */
 
+/**
+ * 模板推荐岗位类型
+ */
+export type TemplateRecommendedRole =
+  | 'tech'
+  | 'product'
+  | 'operations'
+  | 'design'
+  | 'general'
+
+/**
+ * 模板推荐经验段位类型
+ */
+export type TemplateExperienceLevel = 'campus' | '1-3' | '3-5' | '5+'
+
 export interface TemplateStyle {
   /** 模板ID */
   id: string
@@ -32,6 +47,10 @@ export interface TemplateStyle {
   layoutType?: 'top-bottom' | 'left-right'
   /** 模板标签 - 用于快速识别模板特点 */
   tags?: string[]
+  /** 推荐岗位标签 */
+  recommendedRoles?: TemplateRecommendedRole[]
+  /** 推荐经验段位标签 */
+  recommendedExperienceLevels?: TemplateExperienceLevel[]
   /** 模板颜色主题 */
   colors: {
     primary: string

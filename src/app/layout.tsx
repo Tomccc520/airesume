@@ -5,7 +5,7 @@
  * @createDate 2025-09-22
  */
 
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import ThemeProvider from '@/components/ThemeProvider'
 import { ResumeProvider } from '@/contexts/ResumeContext'
@@ -17,7 +17,11 @@ export const metadata: Metadata = {
   description: 'UIED Resume 是一个现代化的在线简历编辑器，支持实时预览、多种模板和导出功能',
   keywords: 'UIED Resume, 简历编辑器, 在线简历, 简历制作, 简历模板',
   authors: [{ name: 'UIED技术团队' }],
-  viewport: 'width=device-width, initial-scale=1',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
 }
 
 /**

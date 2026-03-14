@@ -20,6 +20,7 @@ export interface StyleConfig {
     title: number
     content: number
     small: number
+    section?: number
   }
   // 颜色设置
   colors: {
@@ -67,7 +68,7 @@ export interface StyleConfig {
   }
   // 技能显示设置
   skills: {
-    displayStyle: 'progress' | 'tags' | 'list' | 'cards' | 'minimal' | 'grid' | 'circular' | 'radar'
+    displayStyle: 'progress' | 'tags' | 'list' | 'cards' | 'minimal' | 'grid' | 'circular' | 'radar' | 'star-rating' | 'badge' | 'wave-progress' | 'gradient-card'
     showLevel: boolean
     showCategory: boolean
     visible: boolean

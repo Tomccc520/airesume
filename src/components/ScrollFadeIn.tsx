@@ -104,6 +104,7 @@ export default function ScrollFadeIn({
         delay,
         ease: 'easeOut',
       }}
+      style={{ willChange: isInView ? 'transform, opacity' : 'auto' }}
     >
       {children}
     </motion.div>
@@ -193,6 +194,7 @@ export function StaggerFadeIn({
                   },
                 },
               }}
+              style={{ willChange: isInView ? 'transform, opacity' : 'auto' }}
             >
               {child}
             </motion.div>

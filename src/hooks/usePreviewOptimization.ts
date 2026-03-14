@@ -6,7 +6,7 @@
  * @description 优化的预览性能工具 - 使用 React 18 并发特性
  */
 
-import { useDeferredValue, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useDeferredValue, useMemo, useCallback, useRef, useEffect, useState } from 'react'
 import { ResumeData } from '@/types/resume'
 import { StyleConfig } from '@/contexts/StyleContext'
 
@@ -31,8 +31,10 @@ class PreviewCache {
   set(key: string, value: any): void {
     if (this.cache.size >= this.maxSize) {
       // 删除最旧的缓存项
-      const firstKey = this.cache.keys().next().value
-      this.cache.delete(firstKey)
+      const firstKey = this.cache.keys().next().value as string | undefined
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey)
+      }
     }
     this.cache.set(key, value)
   }
@@ -250,7 +252,7 @@ export function useVirtualization(
 /**
  * 批量更新 - 合并多个状态更新
  */
-export function useBatchUpdate<T>(initialValue: T) {
+export function useBatchUpdate<T extends Record<string, any>>(initialValue: T) {
   const [value, setValue] = useState<T>(initialValue)
   const pendingUpdates = useRef<Partial<T>[]>([])
   const updateTimer = useRef<NodeJS.Timeout>()
@@ -265,9 +267,9 @@ export function useBatchUpdate<T>(initialValue: T) {
     updateTimer.current = setTimeout(() => {
       if (pendingUpdates.current.length > 0) {
         setValue((prev) => {
-          const merged = { ...prev }
+          const merged = { ...prev } as T
           pendingUpdates.current.forEach((update) => {
-            Object.assign(merged, update)
+            Object.assign(merged as object, update)
           })
           return merged
         })
@@ -318,7 +320,4 @@ export function useSmartMemo<T>(
   
   return prevValue.current!
 }
-
-// 导入 useState
-import { useState } from 'react'
 

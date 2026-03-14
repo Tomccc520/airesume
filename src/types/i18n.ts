@@ -118,6 +118,7 @@ export interface Translations {
       location: string;
       website: string;
       summary: string;
+      avatarBorderRadius?: string;
       defaultAvatar: string;
       placeholders: {
         name: string;
@@ -451,6 +452,10 @@ export interface Translations {
     zoomOut: string;
     download: string;
     print: string;
+    experience: string;
+    education: string;
+    skills: string;
+    projects: string;
   };
   home: {
     hero: {

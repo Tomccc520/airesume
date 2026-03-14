@@ -14,6 +14,7 @@ import { StyleConfig } from '@/contexts/StyleContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { formatDate } from '@/utils/dateFormatter'
 import { getAvatarClassName, getAvatarInlineStyle } from '@/utils/avatarUtils'
+import { getUnifiedResumeMetrics } from './resumePrintMetrics'
 
 interface TemplateProps {
   resumeData: ResumeData
@@ -23,7 +24,7 @@ interface TemplateProps {
 
 /**
  * 横幅布局
- * 参考主流招聘平台模板：顶部信息清晰、章节标准化、视觉克制。
+ * 对齐主流招聘平台“单栏 ATS”版式：标准模块顺序、低装饰、高可读。
  */
 export const BannerLayout: React.FC<TemplateProps> = ({
   resumeData,
@@ -34,23 +35,16 @@ export const BannerLayout: React.FC<TemplateProps> = ({
   const { colors, fontSize, spacing, fontFamily } = styleConfig
   const { locale, t } = useLanguage()
 
-  const fontFamilyStyle = fontFamily || '"Inter", "PingFang SC", "Hiragino Sans GB", sans-serif'
+  const fontFamilyStyle = fontFamily || '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif'
   const pagePadding = styleConfig.layout?.padding || 32
-  const sectionGap = Math.min(Math.max(spacing?.section || 24, 22), 28)
+  const baseContentSize = fontSize?.content || 14
+  const metrics = getUnifiedResumeMetrics({ baseContentSize, sectionSpacing: spacing?.section })
+  const sectionGap = metrics.sectionGap
   const headingColor = colors.primary || '#1f2937'
   const textColor = colors.text || '#1f2937'
   const mutedColor = colors.secondary || '#6b7280'
-  const accentColor = colors.accent || '#2563eb'
-  const headerBackground = (colors as Record<string, string>).bannerBg || '#f8fafc'
-  const borderColor = '#e2e8f0'
-  const baseContentSize = fontSize?.content || 14
-  const bodyLineHeight = 1.62
-  const summaryLineHeight = 1.68
-  const nameSize = Math.round(baseContentSize * 2.2)
-  const roleSize = Math.round(baseContentSize * 1.28)
-  const sectionTitleSize = Math.round(baseContentSize * 1.02)
-  const itemTitleSize = Math.round(baseContentSize * 1.12)
-  const metaSize = Math.round(baseContentSize * 0.86)
+  const borderColor = '#d8dee7'
+  const isEnglish = locale === 'en'
 
   /**
    * 格式化日期文本
@@ -68,18 +62,29 @@ export const BannerLayout: React.FC<TemplateProps> = ({
 
   /**
    * 渲染章节标题
-   * 使用主流简历模板常见的“标题 + 分隔线”结构。
+   * 使用招聘模板常见的小标题样式，强调信息层级而非视觉装饰。
    */
   const renderSectionTitle = (title: string, helperText?: string) => (
-    <div className="mb-3 flex items-end justify-between border-b pb-2" style={{ borderColor }}>
+    <div
+      className="flex items-end justify-between border-b"
+      style={{
+        borderColor,
+        paddingBottom: `${metrics.sectionTitlePaddingBottom}px`,
+        marginBottom: `${metrics.sectionTitleMarginBottom}px`
+      }}
+    >
       <h2
-        className="text-sm font-semibold uppercase tracking-[0.14em]"
-        style={{ color: headingColor, fontSize: `${sectionTitleSize}px` }}
+        className={`text-sm font-semibold ${isEnglish ? 'uppercase tracking-[0.1em]' : ''}`}
+        style={{
+          color: headingColor,
+          fontSize: `${metrics.sectionTitleSize}px`,
+          fontWeight: metrics.sectionTitleWeight
+        }}
       >
         {title}
       </h2>
       {helperText && (
-        <span className="text-xs" style={{ color: mutedColor }}>
+        <span className="text-xs" style={{ color: mutedColor, fontWeight: metrics.metaWeight }}>
           {helperText}
         </span>
       )}
@@ -87,22 +92,32 @@ export const BannerLayout: React.FC<TemplateProps> = ({
   )
 
   /**
-   * 构建联系方式列表
-   * 统一联系方式渲染顺序，避免模板内重复判断。
+   * 生成联系方式摘要
+   * 采用“·”分隔的招聘常见展示形式。
    */
-  const getContactItems = () => {
-    return [personalInfo.phone, personalInfo.email, personalInfo.location, personalInfo.website].filter(
-      Boolean
-    ) as string[]
+  const getContactSummary = () => {
+    return [personalInfo.phone, personalInfo.email, personalInfo.location, personalInfo.website]
+      .filter(Boolean)
+      .join(' · ')
   }
 
   /**
-   * 生成联系方式摘要
-   * 使用主流简历常见的“·”分隔文本，避免标签化视觉噪音。
+   * 按分类聚合技能
+   * 将技能从“标签堆叠”改为“分类文本行”，更接近招聘平台导出风格。
    */
-  const getContactSummary = () => {
-    return getContactItems().join(' · ')
+  const groupSkillsByCategory = () => {
+    const fallbackCategory = locale === 'en' ? 'General' : '综合'
+    return skills.reduce<Record<string, typeof skills>>((groups, skill) => {
+      const category = skill.category || fallbackCategory
+      if (!groups[category]) {
+        groups[category] = []
+      }
+      groups[category].push(skill)
+      return groups
+    }, {})
   }
+
+  const skillGroups = groupSkillsByCategory()
 
   return (
     <div
@@ -111,41 +126,27 @@ export const BannerLayout: React.FC<TemplateProps> = ({
         fontFamily: fontFamilyStyle,
         color: textColor,
         fontSize: `${baseContentSize}px`,
-        lineHeight: bodyLineHeight,
+        lineHeight: metrics.bodyLineHeight,
         padding: `${pagePadding}px`,
         borderColor
       }}
     >
       <section
-        className="cursor-pointer rounded-lg border px-5 py-5"
+        className="cursor-pointer border-b pb-5"
         onClick={() => onSectionClick?.('personal')}
         style={{
           marginBottom: `${sectionGap}px`,
-          borderColor,
-          backgroundColor: headerBackground
+          borderColor
         }}
       >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          {personalInfo.avatar && (
-            <Image
-              src={personalInfo.avatar}
-              alt={personalInfo.name}
-              width={88}
-              height={88}
-              unoptimized
-              className={getAvatarClassName(styleConfig, 'h-[88px] w-[88px]')}
-              style={{
-                ...getAvatarInlineStyle(personalInfo.avatarBorderRadius, styleConfig, 88),
-                border: `2px solid ${accentColor}55`
-              }}
-            />
-          )}
+        <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <h1
-              className="font-semibold tracking-[0.01em]"
+              className="font-semibold tracking-[0.02em]"
               style={{
-                fontSize: `${nameSize}px`,
-                color: headingColor
+                fontSize: `${metrics.nameSize}px`,
+                color: headingColor,
+                fontWeight: metrics.nameWeight
               }}
             >
               {personalInfo.name}
@@ -153,21 +154,54 @@ export const BannerLayout: React.FC<TemplateProps> = ({
             <p
               className="mt-1 font-medium"
               style={{
-                fontSize: `${roleSize}px`,
-                color: mutedColor
+                fontSize: `${metrics.roleSize}px`,
+                color: mutedColor,
+                fontWeight: metrics.roleWeight
               }}
             >
               {personalInfo.title}
             </p>
-            {getContactSummary() && (
-              <p className="mt-2" style={{ color: mutedColor, fontSize: `${metaSize}px` }}>
+            {!!getContactSummary() && (
+              <p
+                style={{
+                  marginTop: `${metrics.bulletGap + 1}px`,
+                  color: mutedColor,
+                  fontSize: `${metrics.metaSize}px`,
+                  fontWeight: metrics.metaWeight
+                }}
+              >
                 {getContactSummary()}
               </p>
             )}
           </div>
+          {personalInfo.avatar && (
+            <Image
+              src={personalInfo.avatar}
+              alt={personalInfo.name}
+              width={metrics.headerAvatarSize}
+              height={metrics.headerAvatarSize}
+              unoptimized
+              className={getAvatarClassName(styleConfig, 'h-[72px] w-[72px]')}
+              style={{
+                ...getAvatarInlineStyle(
+                  personalInfo.avatarBorderRadius,
+                  styleConfig,
+                  metrics.headerAvatarSize
+                ),
+                border: `1px solid ${borderColor}`
+              }}
+            />
+          )}
         </div>
         {personalInfo.summary && (
-          <p className="mt-4 whitespace-pre-line" style={{ color: textColor, lineHeight: summaryLineHeight }}>
+          <p
+            className="whitespace-pre-line"
+            style={{
+              marginTop: `${metrics.entryGap - 3}px`,
+              color: textColor,
+              lineHeight: metrics.summaryLineHeight
+            }}
+          >
             {personalInfo.summary}
           </p>
         )}
@@ -183,29 +217,46 @@ export const BannerLayout: React.FC<TemplateProps> = ({
             t.editor.experience.title,
             locale === 'en' ? `${experience.length} records` : `${experience.length} 条记录`
           )}
-          <div className="space-y-4">
+          <div style={{ display: 'grid', rowGap: `${metrics.entryGap}px` }}>
             {experience.map((exp) => (
-              <article key={exp.id} className="border-b pb-4 last:border-b-0 last:pb-0" style={{ borderColor }}>
+              <article key={exp.id} className="pb-3 last:pb-0">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <h3
                     className="font-semibold"
                     style={{
-                      fontSize: `${itemTitleSize}px`,
-                      color: headingColor
+                      fontSize: `${metrics.itemTitleSize}px`,
+                      color: headingColor,
+                      fontWeight: metrics.itemTitleWeight
                     }}
                   >
                     {exp.position}
                   </h3>
-                  <span className="font-medium" style={{ color: mutedColor, fontSize: `${metaSize}px` }}>
+                  <span
+                    className="font-medium"
+                    style={{
+                      color: mutedColor,
+                      fontSize: `${metrics.metaSize}px`,
+                      fontWeight: metrics.metaWeight,
+                      minWidth: `${metrics.dateColumnWidth}px`,
+                      textAlign: 'right'
+                    }}
+                  >
                     {formatPeriod(exp.startDate, exp.endDate, exp.current)}
                   </span>
                 </div>
-                <p className="mt-1 text-sm font-medium" style={{ color: accentColor }}>
+                <p className="mt-1 text-sm font-medium" style={{ color: headingColor }}>
                   {exp.company}
                   {exp.location && <span style={{ color: mutedColor }}> · {exp.location}</span>}
                 </p>
                 {exp.description.length > 0 && (
-                  <ul className="mt-2 space-y-1.5 pl-4">
+                  <ul
+                    className="pl-4"
+                    style={{
+                      marginTop: `${metrics.bulletGap}px`,
+                      display: 'grid',
+                      rowGap: `${metrics.bulletGap}px`
+                    }}
+                  >
                     {exp.description.map((desc, index) => (
                       <li key={`${exp.id}-desc-${index}`} className="list-disc" style={{ color: textColor }}>
                         {desc}
@@ -229,26 +280,43 @@ export const BannerLayout: React.FC<TemplateProps> = ({
             t.editor.projects.title,
             locale === 'en' ? `${projects.length} projects` : `${projects.length} 个项目`
           )}
-          <div className="space-y-4">
+          <div style={{ display: 'grid', rowGap: `${metrics.entryGap}px` }}>
             {projects.map((project) => (
-              <article key={project.id} className="border-b pb-4 last:border-b-0 last:pb-0" style={{ borderColor }}>
+              <article key={project.id} className="pb-3 last:pb-0">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <h3
                     className="font-semibold"
                     style={{
-                      fontSize: `${itemTitleSize}px`,
-                      color: headingColor
+                      fontSize: `${metrics.itemTitleSize}px`,
+                      color: headingColor,
+                      fontWeight: metrics.itemTitleWeight
                     }}
                   >
                     {project.name}
                   </h3>
-                  <span className="font-medium" style={{ color: mutedColor, fontSize: `${metaSize}px` }}>
+                  <span
+                    className="font-medium"
+                    style={{
+                      color: mutedColor,
+                      fontSize: `${metrics.metaSize}px`,
+                      fontWeight: metrics.metaWeight,
+                      minWidth: `${metrics.dateColumnWidth}px`,
+                      textAlign: 'right'
+                    }}
+                  >
                     {formatDateStr(project.startDate)} - {formatDateStr(project.endDate)}
                   </span>
                 </div>
                 <p className="mt-1.5">{project.description}</p>
                 {project.highlights.length > 0 && (
-                  <ul className="mt-2 space-y-1.5 pl-4">
+                  <ul
+                    className="pl-4"
+                    style={{
+                      marginTop: `${metrics.bulletGap}px`,
+                      display: 'grid',
+                      rowGap: `${metrics.bulletGap}px`
+                    }}
+                  >
                     {project.highlights.map((highlight, index) => (
                       <li key={`${project.id}-highlight-${index}`} className="list-disc" style={{ color: textColor }}>
                         {highlight}
@@ -272,14 +340,23 @@ export const BannerLayout: React.FC<TemplateProps> = ({
             t.editor.education.title,
             locale === 'en' ? `${education.length} records` : `${education.length} 条记录`
           )}
-          <div className="space-y-3">
+          <div style={{ display: 'grid', rowGap: `${metrics.entryGap - 2}px` }}>
             {education.map((edu) => (
-              <article key={edu.id} className="border-b pb-3 last:border-b-0 last:pb-0" style={{ borderColor }}>
+              <article key={edu.id} className="pb-2.5 last:pb-0">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h3 className="font-semibold" style={{ color: headingColor }}>
+                  <h3 className="font-semibold" style={{ color: headingColor, fontWeight: metrics.itemTitleWeight }}>
                     {edu.school}
                   </h3>
-                  <span className="font-medium" style={{ color: mutedColor, fontSize: `${metaSize}px` }}>
+                  <span
+                    className="font-medium"
+                    style={{
+                      color: mutedColor,
+                      fontSize: `${metrics.metaSize}px`,
+                      fontWeight: metrics.metaWeight,
+                      minWidth: `${metrics.dateColumnWidth}px`,
+                      textAlign: 'right'
+                    }}
+                  >
                     {formatDateStr(edu.startDate)} - {formatDateStr(edu.endDate)}
                   </span>
                 </div>
@@ -299,19 +376,21 @@ export const BannerLayout: React.FC<TemplateProps> = ({
             t.editor.skills.title,
             locale === 'en' ? `${skills.length} skills` : `${skills.length} 项技能`
           )}
-          <div className="flex flex-wrap gap-2">
-            {skills.map((skill) => (
-              <span
-                key={skill.id}
-                className="rounded border px-2.5 py-1 text-sm"
-                style={{
-                  borderColor,
-                  color: headingColor,
-                  backgroundColor: '#f8fafc'
-                }}
-              >
-                {skill.name}
-              </span>
+          <div style={{ display: 'grid', rowGap: `${metrics.bulletGap}px` }}>
+            {Object.entries(skillGroups).map(([category, items]) => (
+              <article key={category} className="flex gap-2 text-sm">
+                <span className="min-w-[68px] font-semibold" style={{ color: headingColor }}>
+                  {category}
+                </span>
+                <p style={{ color: textColor }}>
+                  {items.map((skill, index) => (
+                    <span key={skill.id}>
+                      {skill.name}
+                      {index < items.length - 1 && <span style={{ color: mutedColor }}> / </span>}
+                    </span>
+                  ))}
+                </p>
+              </article>
             ))}
           </div>
         </section>

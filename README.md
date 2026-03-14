@@ -1,11 +1,42 @@
-# UIED Resume (在线简历编辑器)
+# AI Resume - 智能简历生成器
 
 [![Next.js](https://img.shields.io/badge/Next.js-14.0-black)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-18.0-blue)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.3-38bdf8)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 
-一个现代化、高颜值的在线简历制作工具，支持实时预览、AI 辅助写作、多模板切换和高清 PDF/图片导出。
+<div align="center">
+  <h3>🚀 现代化、高颜值的 AI 简历制作工具</h3>
+  <p>支持实时预览 · AI 辅助写作 · 多模板切换 · 高清导出</p>
+  
+  [在线体验](https://your-demo-url.com) · [功能演示](#-功能演示) · [快速开始](#-快速开始) · [贡献指南](./CONTRIBUTING.md)
+  
+  <p>
+    <strong>简体中文</strong> | 
+    <a href="./README_EN.md">English</a>
+  </p>
+</div>
+
+---
+
+## 📸 功能演示
+
+<div align="center">
+  <img src="./docs/screenshots/hero.png" alt="首页" width="800"/>
+  <p><i>精美的首页设计</i></p>
+</div>
+
+<div align="center">
+  <img src="./docs/screenshots/editor.png" alt="编辑器" width="800"/>
+  <p><i>强大的编辑器功能</i></p>
+</div>
+
+<div align="center">
+  <img src="./docs/screenshots/templates.png" alt="模板" width="800"/>
+  <p><i>多样化的简历模板</i></p>
+</div>
 
 ## ✨ 核心功能
 
@@ -87,8 +118,57 @@ src/
 
 ## 🤝 贡献指南
 
-欢迎提交 Issue 和 Pull Request！
+我们欢迎所有形式的贡献！请查看 [贡献指南](./CONTRIBUTING.md) 了解详情。
+
+### 贡献者
+
+感谢所有为这个项目做出贡献的开发者！
+
+<a href="https://github.com/Tomccc520/airesume/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Tomccc520/airesume" />
+</a>
+
+## 📚 文档
+
+- [开发者指南](./docs/DEVELOPER_GUIDE.md)
+- [组件文档](./docs/COMPONENTS.md)
+- [代码风格指南](./docs/STYLE_GUIDE.md)
+- [Storybook 组件库](http://localhost:6006) (开发环境)
+
+## 🗺️ 路线图
+
+- [x] 基础编辑器功能
+- [x] AI 辅助写作
+- [x] 多模板支持
+- [x] PDF/图片导出
+- [x] 国际化支持
+- [x] Storybook 组件文档
+- [ ] 简历版本管理
+- [ ] 职位匹配度分析
+- [ ] 更多 AI 模型支持 (Ollama, Claude 等)
+- [ ] 简历分享功能
+- [ ] 移动端适配
+
+## ⭐ Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Tomccc520/airesume&type=Date)](https://star-history.com/#Tomccc520/airesume&Date)
+
+## 📞 联系我们
+
+- 网站: [https://fsuied.com](https://fsuied.com)
+- 作者: [Tomda](https://www.tomda.top)
+- GitHub 仓库: [Tomccc520/airesume](https://github.com/Tomccc520/airesume)
+- Gitee 仓库: [tomdac/airesume](https://gitee.com/tomdac/airesume)
+- Issues: [GitHub Issues](https://github.com/Tomccc520/airesume/issues)
+- Discussions: [GitHub Discussions](https://github.com/Tomccc520/airesume/discussions)
 
 ## 📄 开源协议
 
 [MIT](./LICENSE) License © 2025 [UIED技术团队](https://fsuied.com)
+
+---
+
+<div align="center">
+  <p>如果这个项目对你有帮助，请给我们一个 ⭐️ Star！</p>
+  <p>Made with ❤️ by <a href="https://fsuied.com">UIED技术团队</a></p>
+</div>

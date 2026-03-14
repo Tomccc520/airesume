@@ -679,6 +679,39 @@ export default function EditorPage() {
     showSuccess('AI 配置已保存')
   }, [showSuccess])
 
+  /**
+   * 处理预览区章节点击
+   * 点击预览中的模块后，自动定位到对应编辑模块，并在小屏切换到编辑视图。
+   */
+  const handlePreviewSectionClick = useCallback((section: string) => {
+    const normalizedMap: Record<string, string> = {
+      personalInfo: 'personal',
+      skill: 'skills',
+      project: 'projects',
+      experiences: 'experience',
+      educations: 'education'
+    }
+    const normalizedSection = normalizedMap[section] || section
+    const validSections = new Set(['personal', 'experience', 'education', 'skills', 'projects'])
+    if (!validSections.has(normalizedSection)) {
+      return
+    }
+
+    setActiveSection(normalizedSection)
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('switchToEditor', {
+          detail: { section: normalizedSection }
+        })
+      )
+
+      if (window.innerWidth < 1280) {
+        setIsPreviewMode(false)
+      }
+    }
+  }, [])
+
   // 键盘快捷键配置 - 使用 useMemo 优化
   const shortcuts = useMemo(() => createEditorShortcuts({
     onSave: saveNow,
@@ -810,6 +843,7 @@ export default function EditorPage() {
                           className="resume-preview" 
                           currentTemplate={currentTemplate}
                           isExporting={isExporting}
+                          onSectionClick={handlePreviewSectionClick}
                         />
                       </div>
                     </PreviewPanel>
@@ -857,6 +891,7 @@ export default function EditorPage() {
                         className="resume-preview" 
                         currentTemplate={currentTemplate}
                         isExporting={isExporting}
+                        onSectionClick={handlePreviewSectionClick}
                       />
                     </div>
                   </PreviewPanel>

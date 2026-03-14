@@ -28,6 +28,7 @@ export function useAIAssistant({
       education: '教育经历',
       projects: '项目经历'
     }
+    type OptimizationSection = keyof typeof sectionNames
     
     const sectionName = sectionNames[type as keyof typeof sectionNames] || '内容'
     setSuggestionsTitle(`${sectionName}优化建议`)
@@ -37,7 +38,7 @@ export function useAIAssistant({
     
     // 模拟AI优化生成建议
     setTimeout(() => {
-      const optimizationSuggestions = {
+      const optimizationSuggestions: Record<OptimizationSection, AISuggestion[]> = {
         experience: [
           {
             id: 'exp-1',
@@ -128,15 +129,17 @@ export function useAIAssistant({
         ]
       }
       
-      // @ts-ignore
-      setCurrentSuggestions(optimizationSuggestions[type as keyof typeof optimizationSuggestions] || [])
+      const sectionType: OptimizationSection = type in optimizationSuggestions
+        ? (type as OptimizationSection)
+        : 'summary'
+      setCurrentSuggestions(optimizationSuggestions[sectionType])
       setSuggestionsLoading(false)
       showToast('优化建议已生成', 'success')
     }, 1500)
   }, [showToast])
 
   // 应用单个AI建议
-  const handleApplySuggestion = useCallback((suggestion: AISuggestion) => {
+  const handleApplySuggestion = useCallback((suggestion: AISuggestion, silent = false) => {
     // 根据建议ID和类型应用到对应字段
     switch (suggestion.id) {
       case 'exp-1': // 量化工作成果
@@ -198,18 +201,19 @@ export function useAIAssistant({
         break
       
       default:
-        // 通用处理：根据建议内容进行简单的文本优化
-        showToast(`已应用建议：${suggestion.category}`, 'success')
+        // 通用处理：默认仅提示，不改数据结构
         break
     }
     
-    showToast(`已应用建议：${suggestion.category}`, 'success')
+    if (!silent) {
+      showToast(`已应用建议：${suggestion.category}`, 'success')
+    }
   }, [resumeData, onUpdateResumeData, showToast])
 
   // 批量应用AI建议
   const handleApplyAllSuggestions = useCallback((suggestions: AISuggestion[]) => {
     suggestions.forEach(suggestion => {
-      handleApplySuggestion(suggestion)
+      handleApplySuggestion(suggestion, true)
     })
     showToast(`已应用 ${suggestions.length} 条建议`, 'success')
   }, [handleApplySuggestion, showToast])

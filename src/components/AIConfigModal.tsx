@@ -196,7 +196,8 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
    * 验证API配置
    */
   const validateConfig = async () => {
-    if (!config.apiKey.trim()) {
+    // 免费模型允许不填前端密钥（由服务端环境变量接管）
+    if (config.provider !== 'free' && !config.apiKey.trim()) {
       setValidationResult({
         isValid: false,
         message: t.editor.aiConfig.pleaseEnterApiKey

@@ -172,8 +172,8 @@ export class AISuggestionRanker {
    * 计算Jaccard相似度
    */
   private calculateJaccardSimilarity(set1: Set<string>, set2: Set<string>): number {
-    const intersection = new Set([...set1].filter(x => set2.has(x)))
-    const union = new Set([...set1, ...set2])
+    const intersection = new Set(Array.from(set1).filter(x => set2.has(x)))
+    const union = new Set([...Array.from(set1), ...Array.from(set2)])
     
     return union.size > 0 ? intersection.size / union.size : 0
   }
@@ -346,4 +346,3 @@ export class AISuggestionRanker {
 
 // 导出单例
 export const aiSuggestionRanker = new AISuggestionRanker()
-

@@ -8,8 +8,8 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { Check, Heart, Columns, FileText, Eye } from 'lucide-react'
-import { TemplateStyle } from '@/types/template'
+import { Check, Eye, Heart } from 'lucide-react'
+import { TemplateStyle, TemplateRecommendedRole, TemplateExperienceLevel } from '@/types/template'
 import TemplatePreview from '../TemplatePreview'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { isFavoriteTemplate, toggleFavoriteTemplate } from '@/utils/templateFavorites'
@@ -23,7 +23,7 @@ interface TemplateCardProps {
 
 /**
  * 模板卡片组件
- * 升级视觉层级与状态反馈，保持现有选择行为不变。
+ * 使用招聘工具风信息结构：缩略图 + 模板定位 + 一键使用。
  */
 export default function TemplateCard({
   template,
@@ -40,7 +40,7 @@ export default function TemplateCard({
 
   /**
    * 切换收藏状态
-   * 阻止冒泡，避免触发卡片选中逻辑。
+   * 阻止事件冒泡，避免触发模板选中。
    */
   const handleToggleFavorite = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
@@ -49,8 +49,8 @@ export default function TemplateCard({
   }
 
   /**
-   * 键盘触发卡片点击
-   * 保障可访问性下 Enter/Space 均可触发选中。
+   * 键盘触发卡片选中
+   * 保持 Enter/Space 可访问性。
    */
   const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -61,7 +61,7 @@ export default function TemplateCard({
 
   /**
    * 获取模板名称
-   * 根据当前语言返回中英文标题。
+   * 根据当前语言环境切换中英文文案。
    */
   const getTemplateName = () => {
     return locale === 'en' && template.nameEn ? template.nameEn : template.name
@@ -69,33 +69,124 @@ export default function TemplateCard({
 
   /**
    * 获取模板描述
-   * 根据当前语言返回中英文描述。
+   * 根据当前语言环境切换中英文文案。
    */
   const getTemplateDescription = () => {
     return locale === 'en' && template.descriptionEn ? template.descriptionEn : template.description
   }
 
   /**
-   * 获取布局标签
-   * 为单双栏模板提供不同视觉标签与图标。
+   * 获取推荐岗位列表
+   * 未配置时回退为“通用”。
    */
-  const getLayoutType = () => {
-    if (template.layoutType === 'left-right' || template.layout.columns.count === 2) {
-      return {
-        icon: Columns,
-        label: locale === 'en' ? 'Two Columns' : '双栏布局',
-        tone: 'bg-cyan-50 text-cyan-700 border-cyan-100'
-      }
+  const getRecommendedRoles = (): TemplateRecommendedRole[] => {
+    if (template.recommendedRoles && template.recommendedRoles.length > 0) {
+      return template.recommendedRoles
     }
-    return {
-      icon: FileText,
-      label: locale === 'en' ? 'Single Column' : '单栏布局',
-      tone: 'bg-slate-100 text-slate-700 border-slate-200'
-    }
+    return ['general']
   }
 
-  const layoutInfo = getLayoutType()
-  const LayoutIcon = layoutInfo.icon
+  /**
+   * 获取推荐经验段位列表
+   * 未配置时回退为“1-3年”。
+   */
+  const getRecommendedExperienceLevels = (): TemplateExperienceLevel[] => {
+    if (template.recommendedExperienceLevels && template.recommendedExperienceLevels.length > 0) {
+      return template.recommendedExperienceLevels
+    }
+    return ['1-3']
+  }
+
+  /**
+   * 获取岗位文案
+   * 统一岗位在中英文环境下的展示。
+   */
+  const getRoleLabel = (role: TemplateRecommendedRole) => {
+    if (locale === 'en') {
+      const roleMap: Record<TemplateRecommendedRole, string> = {
+        tech: 'Tech',
+        product: 'Product',
+        operations: 'Operations',
+        design: 'Design',
+        general: 'General'
+      }
+      return roleMap[role]
+    }
+    const roleMap: Record<TemplateRecommendedRole, string> = {
+      tech: '技术',
+      product: '产品',
+      operations: '运营',
+      design: '设计',
+      general: '通用'
+    }
+    return roleMap[role]
+  }
+
+  /**
+   * 获取经验段位文案
+   * 统一经验段位在中英文环境下的展示。
+   */
+  const getExperienceLabel = (level: TemplateExperienceLevel) => {
+    if (locale === 'en') {
+      const levelMap: Record<TemplateExperienceLevel, string> = {
+        campus: 'Campus',
+        '1-3': '1-3 Years',
+        '3-5': '3-5 Years',
+        '5+': '5+ Years'
+      }
+      return levelMap[level]
+    }
+    const levelMap: Record<TemplateExperienceLevel, string> = {
+      campus: '校招',
+      '1-3': '1-3年',
+      '3-5': '3-5年',
+      '5+': '5年+'
+    }
+    return levelMap[level]
+  }
+
+  /**
+   * 获取结构标签
+   * 输出单栏/双栏结构，帮助用户快速判断版式。
+   */
+  const getStructureLabel = () => {
+    const isTwoColumn = template.layout.columns.count === 2 || template.layoutType === 'left-right'
+    if (locale === 'en') {
+      return isTwoColumn ? 'Two-column' : 'Single-column'
+    }
+    return isTwoColumn ? '双栏' : '单栏'
+  }
+
+  /**
+   * 获取 ATS 标签
+   * 输出简化版本的 ATS 适配等级。
+   */
+  const getATSLabel = () => {
+    const isAtsFriendly =
+      template.layout.columns.count === 1 &&
+      !template.components.cardStyle &&
+      !template.components.tableStyle &&
+      template.components.listItem.bulletStyle !== 'timeline'
+
+    if (isAtsFriendly) {
+      return locale === 'en' ? 'ATS Friendly' : 'ATS 友好'
+    }
+    return locale === 'en' ? 'ATS Balanced' : 'ATS 均衡'
+  }
+
+  /**
+   * 获取岗位与经验摘要
+   * 用一行文本展示适配人群，避免过多标签堆叠。
+   */
+  const getScenarioSummary = () => {
+    const roleSummary = getRecommendedRoles().map((role) => getRoleLabel(role)).join('/')
+    const experienceSummary = getRecommendedExperienceLevels()
+      .map((level) => getExperienceLabel(level))
+      .join('/')
+    return locale === 'en'
+      ? `Best for ${roleSummary} · ${experienceSummary}`
+      : `适配 ${roleSummary} · ${experienceSummary}`
+  }
 
   return (
     <div
@@ -103,119 +194,76 @@ export default function TemplateCard({
       tabIndex={0}
       onKeyDown={handleCardKeyDown}
       onClick={onClick}
-      className={`group relative overflow-hidden rounded-2xl border bg-white transition-all duration-300 ${
-        isSelected ? 'translate-y-[-2px]' : 'hover:translate-y-[-2px]'
-      }`}
+      className="relative overflow-hidden rounded-md border bg-white"
       style={{
-        borderColor: isSelected ? '#0f766e' : '#e2e8f0',
-        boxShadow: isSelected
-          ? '0 18px 36px -24px rgba(15, 118, 110, 0.6)'
-          : '0 14px 30px -30px rgba(15, 23, 42, 0.72)'
+        borderColor: isSelected ? '#334155' : '#d6dee8'
       }}
       aria-label={`${locale === 'en' ? 'Choose template' : '选择模板'}: ${getTemplateName()}`}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-slate-900/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-
-      {isSelected && (
-        <div className="absolute right-3 top-3 z-20 rounded-full bg-emerald-500 p-1.5 text-white shadow-lg">
-          <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={handleToggleFavorite}
-        className={`absolute top-3 z-10 rounded-full border p-1.5 transition-all ${
-          isSelected ? 'right-11' : 'right-3'
-        } ${
-          isFavorite
-            ? 'border-rose-200 bg-rose-50 text-rose-500 opacity-100'
-            : 'border-white/70 bg-white/90 text-slate-400 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100'
-        } ${isFavorite ? '' : 'opacity-0'}`}
-        aria-label={locale === 'en' ? 'Toggle favorite template' : '切换收藏模板'}
-      >
-        <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
-      </button>
-
-      <div className="absolute left-3 top-3 z-10">
-        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${layoutInfo.tone}`}>
-          <LayoutIcon className="h-3 w-3" />
-          {layoutInfo.label}
-        </span>
-      </div>
-
-      <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-b from-slate-100 via-slate-50 to-white">
+      <div className="relative aspect-[3/4] overflow-hidden border-b" style={{ borderColor: '#e5e7eb' }}>
         <TemplatePreview template={template} />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-950/10 to-transparent" />
-      </div>
-
-      <div className="p-4">
-        <h3 className={`text-sm font-semibold ${isSelected ? 'text-emerald-700' : 'text-slate-900'}`}>
-          {getTemplateName()}
-        </h3>
-        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{getTemplateDescription()}</p>
-
-        {template.tags && template.tags.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {template.tags.slice(0, 3).map((tag, index) => (
-              <span
-                key={`${template.id}-tag-${index}`}
-                className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600"
-              >
-                {tag}
-              </span>
-            ))}
+        {isSelected && (
+          <div className="absolute right-2 top-2 rounded-full bg-slate-700 p-1 text-white">
+            <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
           </div>
         )}
+      </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <div className="flex gap-1">
-            {Object.values(template.colors)
-              .slice(0, 4)
-              .map((color, index) => (
-                <span
-                  key={`${template.id}-color-${index}`}
-                  className="h-4 w-4 rounded-full border border-slate-200"
-                  style={{ backgroundColor: color }}
-                  title={color}
-                />
-              ))}
+      <div className="p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold leading-5 text-slate-900">{getTemplateName()}</h3>
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{getTemplateDescription()}</p>
           </div>
-          <div className="flex items-center gap-2">
-            {onPreview && (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onPreview()
-                }}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
-              >
-                <Eye className="h-3.5 w-3.5" />
-                {locale === 'en' ? 'Preview' : '预览'}
-              </button>
-            )}
+          <button
+            type="button"
+            onClick={handleToggleFavorite}
+            className={`inline-flex h-7 w-7 items-center justify-center rounded border ${
+              isFavorite
+                ? 'border-rose-200 bg-rose-50 text-rose-500'
+                : 'border-slate-200 bg-white text-slate-400'
+            }`}
+            aria-label={locale === 'en' ? 'Toggle favorite template' : '切换收藏模板'}
+          >
+            <Heart className={`h-3.5 w-3.5 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
+        </div>
+
+        <div className="mt-2 space-y-1 text-[11px] text-slate-600">
+          <p>
+            {getStructureLabel()} · {getATSLabel()}
+          </p>
+          <p className="truncate">{getScenarioSummary()}</p>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between">
+          {onPreview ? (
             <button
               type="button"
               onClick={(event) => {
                 event.stopPropagation()
-                onClick()
+                onPreview()
               }}
-              className={`rounded-lg px-3 py-1 text-xs font-semibold transition-colors ${
-                isSelected
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-slate-900 text-white hover:bg-slate-700'
-              }`}
+              className="inline-flex items-center gap-1 text-xs font-medium text-slate-600"
             >
-              {isSelected
-                ? locale === 'en'
-                  ? 'Selected'
-                  : '已选'
-                : locale === 'en'
-                  ? 'Use'
-                  : '使用'}
+              <Eye className="h-3.5 w-3.5" />
+              {locale === 'en' ? 'Preview' : '预览'}
             </button>
-          </div>
+          ) : (
+            <span />
+          )}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onClick()
+            }}
+            className={`rounded px-3 py-1 text-xs font-semibold ${
+              isSelected ? 'bg-slate-700 text-white' : 'bg-slate-900 text-white'
+            }`}
+          >
+            {isSelected ? (locale === 'en' ? 'Selected' : '已选') : (locale === 'en' ? 'Use' : '使用')}
+          </button>
         </div>
       </div>
     </div>
