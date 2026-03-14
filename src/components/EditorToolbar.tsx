@@ -9,7 +9,6 @@
 'use client'
 
 import React, { useState } from 'react'
-import { motion } from 'framer-motion'
 import { 
   Save, 
   FolderOpen as LoadIcon, 
@@ -21,15 +20,10 @@ import {
   Minimize2, 
   Bot,
   Settings,
-  Trash2,
-  Sparkles,
-  Palette,
-  HelpCircle,
-  FileText
+  Palette
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ExportButton from './ExportButton'
-import LoadingSpinner from './LoadingSpinner'
 import SaveDialog from './SaveDialog'
 import AIConfigModal from './AIConfigModal'
 import { ResumeData } from '@/types/resume'
@@ -87,16 +81,16 @@ export default function EditorToolbar({
   onUpdate,
   isSaving,
   hasUnsavedChanges,
-  lastSavedAt,
+  lastSavedAt: _lastSavedAt,
   isPreviewMode,
   onTogglePreview,
   isFullscreen,
   onToggleFullscreen,
   onShowAIAssistant,
   onShowAIConfig,
-  onShowShortcutHelp,
+  onShowShortcutHelp: _onShowShortcutHelp,
   onShowTemplateSelector,
-  onShowExportDialog,
+  onShowExportDialog: _onShowExportDialog,
   onExport,
   onSave
 }: EditorToolbarProps) {
@@ -105,7 +99,7 @@ export default function EditorToolbar({
   const [showAIConfig, setShowAIConfig] = useState(false)
   // 直接清空，无需确认
   const { success, error: showError } = useToastContext()
-  const { t, locale } = useLanguage()
+  const { t } = useLanguage()
 
   /**
    * 处理AI配置保存
@@ -138,30 +132,6 @@ export default function EditorToolbar({
     } finally {
       setIsLoading(false)
     }
-  }
-
-  /**
-   * 处理清空内容
-   */
-  const handleClearContent = () => {
-    const emptyResumeData: ResumeData = {
-      personalInfo: {
-        name: '',
-        title: '',
-        email: '',
-        phone: '',
-        location: '',
-        website: '',
-        summary: ''
-      },
-      experience: [],
-      education: [],
-      skills: [],
-      projects: []
-    }
-    
-    onUpdate(emptyResumeData)
-    success(t.editor.messages.clearSuccess)
   }
 
   /**

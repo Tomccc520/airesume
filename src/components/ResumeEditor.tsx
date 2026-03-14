@@ -11,9 +11,9 @@
 
 'use client'
 
-import React, { useState, useCallback, useEffect, useMemo, memo } from 'react'
+import React, { useState, useCallback, useMemo, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, Briefcase, GraduationCap, Code, FolderOpen, Palette, Save, ChevronLeft, ChevronRight, Wand2, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { ResumeData, Experience, Skill, PersonalInfo, Education, Project } from '../types/resume'
 import { PersonalInfoForm } from './editor/PersonalInfoForm'
 import { ExperienceForm } from './editor/ExperienceForm'
@@ -22,14 +22,15 @@ import { SkillsForm } from './editor/SkillsForm'
 import { ProjectsForm } from './editor/ProjectsForm'
 import { useToastContext } from '@/components/Toast'
 import AIAssistant from './AIAssistant'
-import AISuggestionsModal, { AISuggestion } from './AISuggestionsModal'
-import { StyleSettingsPanel } from './editor/StyleSettingsPanel'
+import AISuggestionsModal from './AISuggestionsModal'
 import { EditorSidebar } from './editor/EditorSidebar'
 import { EditorHeader } from './editor/EditorHeader'
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts'
 import { useAIAssistant } from '@/hooks/useAIAssistant'
 import { navigationItems } from '@/data/navigation'
 import { useLanguage } from '@/contexts/LanguageContext'
+
+type AIAssistantType = 'summary' | 'experience' | 'skills' | 'education' | 'projects'
 
 interface ResumeEditorProps {
   resumeData: ResumeData
@@ -71,7 +72,7 @@ function ResumeEditorComponent({
   hideNavigation = false
 }: ResumeEditorProps) {
   const [showAiAssistant, setShowAiAssistant] = useState(false)
-  const [aiAssistantType, setAiAssistantType] = useState<'summary' | 'experience' | 'skills' | 'education' | 'projects'>('summary')
+  const [aiAssistantType, setAiAssistantType] = useState<AIAssistantType>('summary')
   const [showSectionModal, setShowSectionModal] = useState(false)
   
   const { success: showToast } = useToastContext()
@@ -128,9 +129,26 @@ function ResumeEditorComponent({
   })
 
   // 打开AI助手
-  const openAIAssistant = useCallback((type: 'summary' | 'experience' | 'skills' | 'education' | 'projects' = 'summary') => {
+  const openAIAssistant = useCallback((type: AIAssistantType = 'summary') => {
     setAiAssistantType(type)
     setShowAiAssistant(true)
+  }, [])
+
+  /**
+   * 规范化 AI 助手分区类型
+   * 将外部 section 字符串收敛到助手支持的固定枚举，避免 any 转换。
+   */
+  const normalizeAssistantType = useCallback((section: string): AIAssistantType => {
+    if (
+      section === 'summary' ||
+      section === 'experience' ||
+      section === 'skills' ||
+      section === 'education' ||
+      section === 'projects'
+    ) {
+      return section
+    }
+    return 'summary'
   }, [])
 
   // 保存功能
@@ -247,7 +265,7 @@ function ResumeEditorComponent({
             } else {
               showToast(t.editor.messages.parseSkillsFailed, 'warning')
             }
-          } catch (error) {
+          } catch (_error) {
             showToast(t.editor.messages.skillsContentError, 'error')
           }
           break
@@ -319,7 +337,7 @@ function ResumeEditorComponent({
     }
     
     setShowAiAssistant(false)
-  }, [aiAssistantType, resumeData, onUpdateResumeData, showToast])
+  }, [aiAssistantType, resumeData, onUpdateResumeData, showToast, t])
 
   // 获取当前导航项索引 - 使用 useMemo 缓存
   const currentIndex = useMemo(() => 
@@ -446,7 +464,7 @@ function ResumeEditorComponent({
       {/* 标题栏 - 三栏模式下隐藏 */}
       {!hideNavigation && (
         <EditorHeader 
-          onOpenAIAssistant={() => openAIAssistant(activeSection as any)}
+          onOpenAIAssistant={() => openAIAssistant(normalizeAssistantType(activeSection))}
           onSave={handleSave}
         />
       )}

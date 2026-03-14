@@ -20,12 +20,7 @@ import {
   Clock,
   Star,
   TrendingUp,
-  Code,
-  Cpu,
   Layout,
-  Image as ImageIcon,
-  FileJson,
-  Globe,
   ChevronDown,
   ChevronRight,
   Bug,
@@ -164,7 +159,7 @@ const stats = [
 ]
 
 export default function UpdatesPage() {
-  const { t, locale } = useLanguage()
+  const { locale } = useLanguage()
   const [expandedVersion, setExpandedVersion] = useState<string | null>(updateLogs[0].version)
 
   const getTypeColor = (type: UpdateLog['type']) => {
