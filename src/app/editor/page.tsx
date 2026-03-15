@@ -11,7 +11,7 @@
 
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
@@ -131,6 +131,7 @@ export default function EditorPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const totalPages = 1
   const searchParams = useSearchParams()
+  const routeParamsAppliedRef = useRef(false)
   
   const { t } = useLanguage()
 
@@ -427,20 +428,33 @@ export default function EditorPage() {
    * 支持通过 URL 参数快速定位编辑模块，并打开 AI/模板面板。
    */
   useEffect(() => {
+    // 仅首次进入页面时应用一次路由参数，避免后续交互被重复覆盖
+    if (routeParamsAppliedRef.current) {
+      return
+    }
+
     const focus = searchParams.get('focus')
     const panel = searchParams.get('panel')
     const validSections = new Set(['personal', 'experience', 'education', 'skills', 'projects'])
+    let applied = false
 
     if (focus && validSections.has(focus)) {
       setActiveSection(focus)
+      applied = true
     }
 
     if (panel === 'template') {
       setShowTemplateSelector(true)
+      applied = true
     }
 
     if (panel === 'ai') {
       setShowUnifiedAI(true)
+      applied = true
+    }
+
+    if (applied) {
+      routeParamsAppliedRef.current = true
     }
   }, [searchParams])
   
