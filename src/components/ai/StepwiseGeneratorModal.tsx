@@ -9,7 +9,7 @@
  * @description AI 分步生成主模态框
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { X, Sparkles } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { ResumeData } from '@/types/resume'
@@ -59,40 +59,35 @@ export function StepwiseGeneratorModal({
     }
   }, [isOpen])
 
-  const callbacks: StepCallbacks = {
-    onStepStart: (step) => {
+  /**
+   * 生成回调集合
+   * 使用 useMemo 固定回调引用，避免 Hook 依赖抖动导致的重复告警。
+   */
+  const callbacks = useMemo<StepCallbacks>(() => ({
+    onStepStart: (_step) => {
       setStreamingContent('')
       setSession(serviceRef.current.getSession())
     },
-    onStepProgress: (step, content) => {
+    onStepProgress: (_step, content) => {
       setStreamingContent(content)
     },
     onStepComplete: (step) => {
       setSession(serviceRef.current.getSession())
       setEditedContent(step.content || '')
     },
-    onStepError: (step, error) => {
+    onStepError: (_step, _error) => {
       setSession(serviceRef.current.getSession())
     },
-    onSessionComplete: (session) => {
-      setSession(session)
-      if (session.mode === 'quick') {
+    onSessionComplete: (sessionData) => {
+      setSession(sessionData)
+      if (sessionData.mode === 'quick') {
         setPhase('finalReview')
       }
     },
-    onModeChange: (mode) => {
+    onModeChange: (_mode) => {
       setSession(serviceRef.current.getSession())
     }
-  }
-
-  const handleStartGeneration = useCallback(async () => {
-    if (!session) return
-    try {
-      await serviceRef.current.startGeneration(callbacks)
-    } catch (error) {
-      console.error('Generation error:', error)
-    }
-  }, [session])
+  }), [])
 
   const handleSelectMode = useCallback((mode: GenerationMode) => {
     const newSession = serviceRef.current.initSession(userInfo, mode)
@@ -102,7 +97,7 @@ export function StepwiseGeneratorModal({
     setTimeout(() => {
       serviceRef.current.startGeneration(callbacks)
     }, 100)
-  }, [userInfo])
+  }, [userInfo, callbacks])
 
   const handleConfirm = useCallback(() => {
     serviceRef.current.confirmStep(editedContent || undefined)
@@ -110,14 +105,14 @@ export function StepwiseGeneratorModal({
     setStreamingContent('')
     // Continue generation
     serviceRef.current.startGeneration(callbacks)
-  }, [editedContent])
+  }, [editedContent, callbacks])
 
   const handleSkip = useCallback(() => {
     serviceRef.current.skipStep()
     setSession(serviceRef.current.getSession())
     setStreamingContent('')
     serviceRef.current.startGeneration(callbacks)
-  }, [])
+  }, [callbacks])
 
   const handleRegenerate = useCallback(async (stepIndex?: number) => {
     await serviceRef.current.regenerateStep(stepIndex)
@@ -135,7 +130,7 @@ export function StepwiseGeneratorModal({
     setTimeout(() => {
       serviceRef.current.startGeneration(callbacks)
     }, 100)
-  }, [session])
+  }, [session, callbacks])
 
   // AI 优化单个步骤
   const handleOptimizeStep = useCallback(async (stepIndex: number, prompt: string) => {
@@ -152,7 +147,7 @@ export function StepwiseGeneratorModal({
     serviceRef.current.resumeGeneration()
     setSession(serviceRef.current.getSession())
     serviceRef.current.startGeneration(callbacks)
-  }, [])
+  }, [callbacks])
 
   const handleSwitchToQuick = useCallback(() => {
     serviceRef.current.switchToQuickMode()
