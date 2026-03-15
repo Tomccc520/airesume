@@ -9,7 +9,7 @@
 
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
@@ -35,6 +35,7 @@ interface UnifiedAIPanelProps {
   isOpen: boolean
   onClose: () => void
   resumeData: ResumeData
+  preferredSection?: OptimizeSection | null
   onOpenAIConfig: () => void
   onApplySuggestion: (content: string, section: string) => void
   onApplyJDSuggestions: (suggestions: JDSuggestion[]) => void
@@ -130,6 +131,7 @@ export default function UnifiedAIPanel({
   isOpen,
   onClose,
   resumeData,
+  preferredSection = null,
   onOpenAIConfig,
   onApplySuggestion,
   onApplyJDSuggestions,
@@ -153,6 +155,20 @@ export default function UnifiedAIPanel({
     experienceLevel: 'mid' as 'junior' | 'mid' | 'senior'
   })
   const [generateApplied, setGenerateApplied] = useState(false)
+
+  /**
+   * 根据外部入口预选优化模块
+   * 让编辑器内“按模块打开 AI”时直接对齐当前编辑上下文。
+   */
+  useEffect(() => {
+    if (!isOpen || !preferredSection) {
+      return
+    }
+    setActiveMode('optimize')
+    setOptimizeResult(null)
+    setSelectedSection(preferredSection)
+    setErrorMessage('')
+  }, [isOpen, preferredSection])
 
   /**
    * 统一触发 AI 配置入口
@@ -502,7 +518,7 @@ export default function UnifiedAIPanel({
                           whileHover={{ y: -2 }}
                           whileTap={{ scale: 0.98 }}
                           className={`group p-5 rounded-xl text-left transition-all border ${
-                            selectedSection === section.id && isProcessing
+                            selectedSection === section.id
                               ? 'border-blue-300 bg-blue-50'
                               : 'border-gray-200 bg-white hover:border-blue-200 hover:bg-blue-50/50'
                           } disabled:cursor-not-allowed`}

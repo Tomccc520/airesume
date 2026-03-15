@@ -51,6 +51,8 @@ import { LoadingOverlay } from '@/components/feedback/LoadingOverlay'
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { useEditorExportFlow } from '@/hooks/useEditorExportFlow'
 
+type AISection = 'summary' | 'experience' | 'skills' | 'education' | 'projects'
+
 // 懒加载非关键组件 - 优化初始加载性能 (Requirements: 1.5)
 const ResumeEditor = dynamic(() => import('@/components/ResumeEditor'), {
   loading: () => <EditorSkeleton />,
@@ -91,6 +93,7 @@ export default function EditorPage() {
   }, [])
 
   const [showUnifiedAI, setShowUnifiedAI] = useState(false)
+  const [preferredAISection, setPreferredAISection] = useState<AISection | null>(null)
   const [showAIConfig, setShowAIConfig] = useState(false)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -712,14 +715,44 @@ export default function EditorPage() {
     }
   }, [])
 
+  /**
+   * 规范化编辑模块到 AI 模块
+   * 确保来自编辑器、预览区或快捷入口的 section 都能映射到统一 AI 模式。
+   */
+  const normalizeAISection = useCallback((section: string): AISection => {
+    const normalizedMap: Record<string, AISection> = {
+      personal: 'summary',
+      personalInfo: 'summary',
+      summary: 'summary',
+      experience: 'experience',
+      experiences: 'experience',
+      skills: 'skills',
+      skill: 'skills',
+      education: 'education',
+      educations: 'education',
+      projects: 'projects',
+      project: 'projects'
+    }
+    return normalizedMap[section] || 'summary'
+  }, [])
+
+  /**
+   * 打开统一 AI 面板
+   * 支持按当前编辑模块预定位，减少重复点击和路径跳转。
+   */
+  const openUnifiedAIPanel = useCallback((section?: AISection) => {
+    setPreferredAISection(section ?? null)
+    setShowUnifiedAI(true)
+  }, [])
+
   // 键盘快捷键配置 - 使用 useMemo 优化
   const shortcuts = useMemo(() => createEditorShortcuts({
     onSave: saveNow,
     onExport: () => setShowExportDialog(true),
     onTogglePreview: () => setIsPreviewMode(prev => !prev),
     onToggleFullscreen: () => setIsFullscreen(prev => !prev),
-    onOpenAI: () => setShowUnifiedAI(true),
-  }), [saveNow])
+    onOpenAI: () => openUnifiedAIPanel(normalizeAISection(activeSection)),
+  }), [saveNow, openUnifiedAIPanel, normalizeAISection, activeSection])
 
   // 添加滑动手势支持
   const { ...swipeHandlers } = useHorizontalSwipe(
@@ -763,7 +796,7 @@ export default function EditorPage() {
               onTogglePreview={() => setIsPreviewMode(!isPreviewMode)}
               isFullscreen={isFullscreen}
               onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
-              onShowAIAssistant={() => setShowUnifiedAI(true)}
+              onShowAIAssistant={() => openUnifiedAIPanel(normalizeAISection(activeSection))}
               onShowAIConfig={() => setShowAIConfig(true)}
               onShowShortcutHelp={() => setShowShortcutHelp(true)}
               onShowTemplateSelector={() => setShowTemplateSelector(true)}
@@ -819,6 +852,7 @@ export default function EditorPage() {
                       activeSection={activeSection}
                       onSectionChange={setActiveSection}
                       onShowTemplateSelector={() => setShowTemplateSelector(true)}
+                      onShowAIAssistant={(type) => openUnifiedAIPanel(type)}
                       hideNavigation={true}
                     />
                   }
@@ -864,6 +898,7 @@ export default function EditorPage() {
                       activeSection={activeSection}
                       onSectionChange={setActiveSection}
                       onShowTemplateSelector={() => setShowTemplateSelector(true)}
+                      onShowAIAssistant={(type) => openUnifiedAIPanel(type)}
                     />
                   </div>
                 </div>
@@ -905,8 +940,12 @@ export default function EditorPage() {
         {showUnifiedAI && (
           <UnifiedAIPanel
             isOpen={showUnifiedAI}
-            onClose={() => setShowUnifiedAI(false)}
+            onClose={() => {
+              setShowUnifiedAI(false)
+              setPreferredAISection(null)
+            }}
             resumeData={resumeData}
+            preferredSection={preferredAISection}
             onOpenAIConfig={() => setShowAIConfig(true)}
             onApplySuggestion={handleApplyAISuggestion}
             onApplyJDSuggestions={handleApplyAllJDSuggestions}

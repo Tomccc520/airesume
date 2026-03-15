@@ -9,7 +9,7 @@
 
 'use client'
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Palette, Type, Maximize2, Download, Loader2, AlertCircle } from 'lucide-react'
 import { useStyle } from '@/contexts/StyleContext'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -36,7 +36,7 @@ type WindowWithLocalFonts = Window & {
  */
 export function StyleSettingsPanel() {
   const { styleConfig, updateStyleConfig } = useStyle()
-  const { t, locale } = useLanguage()
+  const { locale } = useLanguage()
   const [activeTab, setActiveTab] = useState<'colors' | 'typography' | 'spacing'>('colors')
   
   // 本地字体相关状态
@@ -99,9 +99,9 @@ export function StyleSettingsPanel() {
       
       setLocalFonts(localFontList)
       setIsLoadingFonts(false)
-    } catch (error: any) {
+    } catch (error: unknown) {
       setIsLoadingFonts(false)
-      if (error.name === 'NotAllowedError') {
+      if (error instanceof Error && error.name === 'NotAllowedError') {
         setFontError(locale === 'zh' ? '请授权访问本地字体' : 'Please grant permission to access local fonts')
       } else {
         setFontError(locale === 'zh' ? '检测本地字体失败' : 'Failed to detect local fonts')

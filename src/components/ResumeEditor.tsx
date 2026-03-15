@@ -21,12 +21,9 @@ import { EducationForm } from './editor/EducationForm'
 import { SkillsForm } from './editor/SkillsForm'
 import { ProjectsForm } from './editor/ProjectsForm'
 import { useToastContext } from '@/components/Toast'
-import AIAssistant from './AIAssistant'
-import AISuggestionsModal from './AISuggestionsModal'
 import { EditorSidebar } from './editor/EditorSidebar'
 import { EditorHeader } from './editor/EditorHeader'
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts'
-import { useAIAssistant } from '@/hooks/useAIAssistant'
 import { navigationItems } from '@/data/navigation'
 import { useLanguage } from '@/contexts/LanguageContext'
 
@@ -38,6 +35,8 @@ interface ResumeEditorProps {
   activeSection: string
   onSectionChange: (section: string) => void
   onShowTemplateSelector?: () => void
+  /** 统一 AI 面板入口 */
+  onShowAIAssistant?: (type: AIAssistantType) => void
   /** Hide internal navigation sidebar (for three-column layout) */
   hideNavigation?: boolean
 }
@@ -69,10 +68,9 @@ function ResumeEditorComponent({
   activeSection,
   onSectionChange,
   onShowTemplateSelector,
+  onShowAIAssistant,
   hideNavigation = false
 }: ResumeEditorProps) {
-  const [showAiAssistant, setShowAiAssistant] = useState(false)
-  const [aiAssistantType, setAiAssistantType] = useState<AIAssistantType>('summary')
   const [showSectionModal, setShowSectionModal] = useState(false)
   
   const { success: showToast } = useToastContext()
@@ -113,26 +111,13 @@ function ResumeEditorComponent({
     }
   }), [t])
 
-  const {
-    suggestionsTitle,
-    suggestionsLoading,
-    currentSuggestions,
-    showSuggestionsModal,
-    setShowSuggestionsModal,
-    handleAIOptimize,
-    handleApplySuggestion,
-    handleApplyAllSuggestions
-  } = useAIAssistant({
-    resumeData,
-    onUpdateResumeData,
-    showToast
-  })
-
-  // 打开AI助手
+  /**
+   * 打开统一 AI 助手
+   * 由父组件控制统一 AI 面板，避免编辑器内存在多套 AI 入口。
+   */
   const openAIAssistant = useCallback((type: AIAssistantType = 'summary') => {
-    setAiAssistantType(type)
-    setShowAiAssistant(true)
-  }, [])
+    onShowAIAssistant?.(type)
+  }, [onShowAIAssistant])
 
   /**
    * 规范化 AI 助手分区类型
@@ -178,166 +163,6 @@ function ResumeEditorComponent({
       window.removeEventListener('switchToEditor', handleSwitchToEditor as EventListener)
     }
   }, [onSectionChange])
-
-  // 获取当前内容
-  const getCurrentContent = useCallback(() => {
-    switch (aiAssistantType) {
-      case 'summary':
-        return resumeData.personalInfo.summary || ''
-      case 'experience':
-        return resumeData.experience.map(exp => `${exp.company} - ${exp.position}\n${exp.description.join('\n')}`).join('\n\n')
-      case 'skills':
-        return resumeData.skills.map(skill => `${skill.name} (${skill.level}%)`).join(', ')
-      case 'education':
-        return resumeData.education.map(edu => `${edu.school} - ${edu.degree} ${edu.major}`).join('\n')
-      case 'projects':
-        return resumeData.projects.map(proj => `${proj.name}\n${proj.description}\n技术栈: ${proj.technologies.join(', ')}`).join('\n\n')
-      default:
-        return ''
-    }
-  }, [aiAssistantType, resumeData])
-
-  // 应用AI建议
-  const handleAIApply = useCallback((content: string) => {
-    try {
-      switch (aiAssistantType) {
-        case 'summary':
-          onUpdateResumeData({
-            ...resumeData,
-            personalInfo: {
-              ...resumeData.personalInfo,
-              summary: content
-            }
-          })
-          showToast(t.editor.messages.summaryUpdated, 'success')
-          break
-        
-        case 'experience':
-          // 解析工作经历内容并更新到第一个工作经历项
-          if (resumeData.experience.length > 0) {
-            const updatedExperience = [...resumeData.experience]
-            // 将AI建议的内容应用到第一个工作经历的描述中
-            const lines = content.split('\n').filter(line => line.trim())
-            updatedExperience[0] = {
-              ...updatedExperience[0],
-              description: lines
-            }
-            onUpdateResumeData({
-              ...resumeData,
-              experience: updatedExperience
-            })
-            showToast(t.editor.messages.experienceUpdated, 'success')
-          } else {
-            showToast(t.editor.messages.addExperienceFirst, 'warning')
-          }
-          break
-        
-        case 'skills':
-          // 解析技能内容并更新
-          try {
-            const skillLines = content.split('\n').filter(line => line.trim())
-            const newSkills: Skill[] = skillLines.map((line, index) => {
-              // 尝试解析 "技能名称 (百分比%)" 格式
-              const match = line.match(/^(.+?)\s*\((\d+)%?\)$/)
-              if (match) {
-                return {
-                  id: `skill-${Date.now()}-${index}`,
-                  name: match[1].trim(),
-                  level: parseInt(match[2]),
-                  category: '技术技能'
-                }
-              }
-              // 如果没有百分比，默认设置为80%
-              return {
-                id: `skill-${Date.now()}-${index}`,
-                name: line.trim(),
-                level: 80,
-                category: '技术技能'
-              }
-            }).filter(skill => skill.name)
-            
-            if (newSkills.length > 0) {
-              onUpdateResumeData({
-                ...resumeData,
-                skills: newSkills
-              })
-              showToast(t.editor.messages.skillsUpdated, 'success')
-            } else {
-              showToast(t.editor.messages.parseSkillsFailed, 'warning')
-            }
-          } catch (_error) {
-            showToast(t.editor.messages.skillsContentError, 'error')
-          }
-          break
-        
-        case 'education':
-          // 解析教育经历内容并更新到第一个教育经历项
-          if (resumeData.education.length > 0) {
-            const lines = content.split('\n').filter(line => line.trim())
-            const updatedEducation = [...resumeData.education]
-            
-            // 尝试解析第一行作为学校和专业信息
-            if (lines.length > 0) {
-              const firstLine = lines[0]
-              const parts = firstLine.split(' - ')
-              if (parts.length >= 2) {
-                updatedEducation[0] = {
-                  ...updatedEducation[0],
-                  school: parts[0].trim(),
-                  degree: parts[1].trim(),
-                  major: parts[2]?.trim() || updatedEducation[0].major
-                }
-              }
-            }
-            
-            onUpdateResumeData({
-              ...resumeData,
-              education: updatedEducation
-            })
-            showToast(t.editor.messages.educationUpdated, 'success')
-          } else {
-            showToast(t.editor.messages.addEducationFirst, 'warning')
-          }
-          break
-        
-        case 'projects':
-          // 解析项目经历内容并更新到第一个项目
-          if (resumeData.projects.length > 0) {
-            const sections = content.split('\n\n')
-            const updatedProjects = [...resumeData.projects]
-            
-            if (sections.length > 0) {
-              const projectLines = sections[0].split('\n').filter(line => line.trim())
-              if (projectLines.length > 0) {
-                updatedProjects[0] = {
-                  ...updatedProjects[0],
-                  name: projectLines[0].trim(),
-                  description: projectLines.slice(1).join('\n').trim() || updatedProjects[0].description,
-                  technologies: updatedProjects[0].technologies // 保持原有技术栈
-                }
-              }
-            }
-            
-            onUpdateResumeData({
-              ...resumeData,
-              projects: updatedProjects
-            })
-            showToast(t.editor.messages.projectsUpdated, 'success')
-          } else {
-            showToast(t.editor.messages.addProjectsFirst, 'warning')
-          }
-          break
-        
-        default:
-          showToast(t.editor.messages.unknownError, 'warning')
-      }
-    } catch (error) {
-      console.error('应用AI建议时出错:', error)
-      showToast(t.editor.messages.applyError, 'error')
-    }
-    
-    setShowAiAssistant(false)
-  }, [aiAssistantType, resumeData, onUpdateResumeData, showToast, t])
 
   // 获取当前导航项索引 - 使用 useMemo 缓存
   const currentIndex = useMemo(() => 
@@ -387,7 +212,7 @@ function ResumeEditorComponent({
           <PersonalInfoForm 
             personalInfo={resumeData.personalInfo} 
             onChange={handlePersonalInfoChange}
-            onAiOptimize={() => handleAIOptimize('summary')}
+            onAiOptimize={() => openAIAssistant('summary')}
           />
         )
       case 'experience':
@@ -423,7 +248,7 @@ function ResumeEditorComponent({
           <PersonalInfoForm 
             personalInfo={resumeData.personalInfo} 
             onChange={handlePersonalInfoChange}
-            onAiOptimize={() => handleAIOptimize('summary')}
+            onAiOptimize={() => openAIAssistant('summary')}
           />
         )
     }
@@ -439,7 +264,7 @@ function ResumeEditorComponent({
     handleEducationChange,
     handleSkillsChange,
     handleProjectsChange,
-    handleAIOptimize
+    openAIAssistant
   ])
 
   // 渲染当前活动部分（带动画）
@@ -539,29 +364,6 @@ function ResumeEditorComponent({
           </div>
         </div>
       </div>
-
-      {/* AI助手组件 */}
-      <AnimatePresence>
-        {showAiAssistant && (
-          <AIAssistant
-            type={aiAssistantType}
-            currentContent={getCurrentContent()}
-            onClose={() => setShowAiAssistant(false)}
-            onApply={handleAIApply}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* AI建议弹窗 */}
-      <AISuggestionsModal
-        isOpen={showSuggestionsModal}
-        onClose={() => setShowSuggestionsModal(false)}
-        suggestions={currentSuggestions}
-        title={suggestionsTitle}
-        loading={suggestionsLoading}
-        onApplySuggestion={handleApplySuggestion}
-        onApplyAll={handleApplyAllSuggestions}
-      />
 
       {/* 移动端分区编辑弹窗 */}
       <AnimatePresence>
