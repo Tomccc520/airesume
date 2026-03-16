@@ -218,6 +218,7 @@ export function usePersistedStyleHistory(
   config: HistoryConfig = {}
 ) {
   const history = useStyleHistory(initialState, config)
+  const { setState, getAllHistory, state } = history
   
   // 从 localStorage 加载历史记录
   useEffect(() => {
@@ -229,13 +230,13 @@ export function usePersistedStyleHistory(
         const parsed = JSON.parse(stored)
         // 这里可以恢复历史记录，但为了简化，我们只恢复当前状态
         if (parsed.present) {
-          history.setState(parsed.present)
+          setState(parsed.present)
         }
       }
     } catch (error) {
       console.error('Failed to load history from localStorage:', error)
     }
-  }, [key])
+  }, [key, setState])
   
   // 保存历史记录到 localStorage
   useEffect(() => {
@@ -243,15 +244,15 @@ export function usePersistedStyleHistory(
     
     try {
       const toSave = {
-        past: history.getAllHistory().slice(-10), // 只保存最近10条
-        present: history.state,
+        past: getAllHistory().slice(-10), // 只保存最近10条
+        present: state,
         future: []
       }
       localStorage.setItem(key, JSON.stringify(toSave))
     } catch (error) {
       console.error('Failed to save history to localStorage:', error)
     }
-  }, [history.state, key])
+  }, [getAllHistory, key, state])
   
   return history
 }
@@ -378,4 +379,3 @@ export function useHistorySnapshots() {
     renameSnapshot
   }
 }
-

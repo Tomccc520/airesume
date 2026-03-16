@@ -55,7 +55,6 @@ export function saveResumeToFile(resumeData: ResumeData, filename?: string): voi
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
     
-    console.log('简历数据已保存到本地文件:', finalFilename)
   } catch (error) {
     console.error('保存简历失败:', error)
     throw new Error('保存简历失败，请重试')

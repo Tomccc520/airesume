@@ -202,34 +202,47 @@ export const getValidationSummary = (results: Record<string, ValidationResult>) 
 /**
  * 打印验证报告
  */
-export const printValidationReport = (results: Record<string, ValidationResult>) => {
+export const printValidationReport = (
+  results: Record<string, ValidationResult>,
+  writer?: (line: string) => void
+) => {
   const summary = getValidationSummary(results)
+  const lines: string[] = []
   
-  console.log('\n========== 模板验证报告 ==========')
-  console.log(`总模板数: ${summary.totalTemplates}`)
-  console.log(`有效模板: ${summary.validTemplates}`)
-  console.log(`无效模板: ${summary.invalidTemplates}`)
-  console.log(`总错误数: ${summary.totalErrors}`)
-  console.log(`总警告数: ${summary.totalWarnings}`)
-  console.log(`验证通过率: ${summary.validationRate}`)
-  console.log('==================================\n')
+  lines.push('')
+  lines.push('========== 模板验证报告 ==========')
+  lines.push(`总模板数: ${summary.totalTemplates}`)
+  lines.push(`有效模板: ${summary.validTemplates}`)
+  lines.push(`无效模板: ${summary.invalidTemplates}`)
+  lines.push(`总错误数: ${summary.totalErrors}`)
+  lines.push(`总警告数: ${summary.totalWarnings}`)
+  lines.push(`验证通过率: ${summary.validationRate}`)
+  lines.push('==================================')
+  lines.push('')
   
   // 打印详细错误和警告
   Object.entries(results).forEach(([templateId, result]) => {
     if (!result.isValid || result.warnings.length > 0) {
-      console.log(`\n模板: ${templateId}`)
+      lines.push('')
+      lines.push(`模板: ${templateId}`)
       
       if (result.errors.length > 0) {
-        console.log('  错误:')
-        result.errors.forEach(error => console.log(`    - ${error}`))
+        lines.push('  错误:')
+        result.errors.forEach(error => lines.push(`    - ${error}`))
       }
       
       if (result.warnings.length > 0) {
-        console.log('  警告:')
-        result.warnings.forEach(warning => console.log(`    - ${warning}`))
+        lines.push('  警告:')
+        result.warnings.forEach(warning => lines.push(`    - ${warning}`))
       }
     }
   })
+
+  if (writer) {
+    lines.forEach((line) => writer(line))
+  }
+
+  return lines.join('\n')
 }
 
 /**
@@ -294,4 +307,3 @@ export const autoFixTemplate = (template: TemplateStyle): TemplateStyle => {
   
   return fixed
 }
-

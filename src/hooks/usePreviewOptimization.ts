@@ -200,14 +200,21 @@ export function usePerformanceMonitor(componentName: string) {
     
     lastRenderTime.current = now
     
-    // 开发环境下输出性能信息
+    // 开发环境下发送性能调试事件，便于外部工具监听
     if (process.env.NODE_ENV === 'development' && renderCount.current % 10 === 0) {
       const avgRenderTime = renderTimes.current.reduce((a, b) => a + b, 0) / renderTimes.current.length
-      console.log(`[Performance] ${componentName}:`, {
-        renderCount: renderCount.current,
-        avgRenderTime: `${avgRenderTime.toFixed(2)}ms`,
-        lastRenderTime: `${renderTime}ms`
-      })
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('preview-performance-debug', {
+            detail: {
+              componentName,
+              renderCount: renderCount.current,
+              avgRenderTime,
+              lastRenderTime: renderTime
+            }
+          })
+        )
+      }
     }
   })
   
@@ -320,4 +327,3 @@ export function useSmartMemo<T>(
   
   return prevValue.current!
 }
-

@@ -285,9 +285,9 @@ export class PerformanceMonitor {
 
     const metrics = this.getMetrics();
 
-    // 开发环境可以在控制台查看性能数据
+    // 开发环境可通过自定义事件接收性能数据
     if (this.options.enableConsoleLog) {
-      console.table(metrics);
+      this.emitDebugEvent('report', { metrics });
     }
 
     // 如果配置了上报端点，发送数据到服务器
@@ -379,8 +379,30 @@ export class PerformanceMonitor {
    */
   private log(metric: string, value: number): void {
     if (this.options.enableConsoleLog) {
-      console.log(`[性能监控] ${metric}: ${value.toFixed(2)}ms`);
+      this.emitDebugEvent('metric', { metric, value });
     }
+  }
+
+  /**
+   * 发送调试事件
+   * 通过浏览器事件输出调试信息，避免运行时代码直接使用 console。
+   */
+  private emitDebugEvent(
+    type: 'report' | 'metric',
+    payload: Record<string, unknown>
+  ): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('performance-monitor-debug', {
+        detail: {
+          type,
+          ...payload,
+        },
+      })
+    );
   }
 }
 

@@ -28,7 +28,6 @@ export default function TemplateStyleSync({ currentTemplate }: TemplateStyleSync
     // 避免重复应用相同的模板
     if (currentTemplate.id === lastTemplateIdRef.current) return
     
-    console.log('Syncing template styles:', currentTemplate.name)
     lastTemplateIdRef.current = currentTemplate.id
     
     // 辅助函数：将CSS尺寸字符串转换为像素值

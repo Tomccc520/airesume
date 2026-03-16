@@ -38,14 +38,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 在开发环境打印日志
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📊 Performance Metrics Received:');
-      console.log('URL:', data.url);
-      console.log('Timestamp:', new Date(data.timestamp).toISOString());
-      console.log('Metrics:', data.metrics);
-    }
-
     // 这里可以将数据存储到数据库或发送到分析服务
     // 例如：
     // - 存储到 MongoDB/PostgreSQL
