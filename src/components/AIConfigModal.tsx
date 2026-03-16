@@ -11,6 +11,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, Settings, Key, Globe, AlertCircle, CheckCircle, ExternalLink, Sparkles } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { Locale, Translations } from '@/types/i18n'
 
 /**
  * AI配置模态框组件
@@ -55,7 +56,7 @@ const defaultConfig: AIConfig = {
 /**
  * 预设的AI提供商配置
  */
-const getAiProviders = (t: any, locale: string) => [
+const getAiProviders = (t: Translations, locale: Locale) => [
   {
     id: 'free' as const,
     name: t.editor.aiConfig.free,

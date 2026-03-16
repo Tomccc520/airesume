@@ -18,7 +18,6 @@ import { ClassicElegant } from './templates/ClassicElegant'
 import { MinimalClean } from './templates/MinimalClean'
 import { ModernMinimalist } from './templates/ModernMinimalist'
 import { CreativeDesigner } from './templates/CreativeDesigner'
-import { ProfessionalExecutive } from './templates/ProfessionalExecutive'
 import { TopBottomLayout } from './templates/TopBottomLayout'
 import { MinimalTextLayout } from './templates/MinimalTextLayout'
 import { TableLayout } from './templates/TableLayout'
@@ -34,7 +33,6 @@ interface ResumePreviewProps {
   className?: string
   currentTemplate?: TemplateStyle
   isExporting?: boolean
-  scale?: number
   onSectionClick?: (section: string) => void
 }
 
@@ -51,7 +49,6 @@ const ResumePreview = ({
   className = '',
   currentTemplate,
   isExporting = false,
-  scale = 1,
   onSectionClick
 }: ResumePreviewProps) => {
   const outerRef = useRef<HTMLDivElement>(null)
@@ -61,9 +58,6 @@ const ResumePreview = ({
   useEffect(() => {
     setIsMounted(true)
   }, [])
-
-  // 导出配置优化
-  const exportScale = isExporting ? 2 : 1 // 导出时提高分辨率
 
   const { styleConfig } = useStyle()
   
@@ -200,7 +194,7 @@ const ResumePreview = ({
   const pageCount = Math.ceil(contentHeight / A4_HEIGHT)
 
   // 容器样式 - 不添加 padding，让模板组件自己控制内边距
-  const getContainerStyle = () => {
+  const getContainerStyle = (): React.CSSProperties => {
     // 计算行高：spacing.line 存储的是像素值，需要转换为相对值
     // 如果 spacing.line 是 22px，fontSize.content 是 14px，则 lineHeight = 22/14 ≈ 1.57
     const lineHeightValue = Math.max(1.4, mergedStyleConfig.spacing.line / mergedStyleConfig.fontSize.content)
@@ -525,7 +519,7 @@ const ResumePreview = ({
       ref={outerRef} 
       id="resume-preview" 
       className={`resume-preview ${className}`} 
-      style={getContainerStyle() as any}
+      style={getContainerStyle()}
       initial={false}
       animate={{ 
         opacity: 1

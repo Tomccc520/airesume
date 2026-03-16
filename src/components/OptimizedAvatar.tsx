@@ -43,7 +43,6 @@ export default function OptimizedAvatar({
 
   // 检测图片类型
   const isDataUrl = src.startsWith('data:')
-  const isExternalUrl = src.startsWith('http://') || src.startsWith('https://')
 
   // 获取边框半径
   const getBorderRadius = () => {

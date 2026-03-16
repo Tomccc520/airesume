@@ -47,7 +47,6 @@ export default function LazyImage({
 
   // 检测图片类型
   const isDataUrl = src.startsWith('data:')
-  const isExternalUrl = src.startsWith('http://') || src.startsWith('https://')
 
   // 如果图片加载失败，显示占位符
   if (imageError) {

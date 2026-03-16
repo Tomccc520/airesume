@@ -12,7 +12,6 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { AlertCircle, Eye, EyeOff, Sparkles } from 'lucide-react'
 import { validateField, FieldValidation } from '../utils/validation'
 
