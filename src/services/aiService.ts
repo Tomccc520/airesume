@@ -12,6 +12,7 @@
  */
 
 import { AIConfig } from '@/components/AIConfigModal'
+import { getAIProviderLabel } from '@/domain/ai/aiStatusPresentation'
 
 const AI_CONFIG_STORAGE_KEY = 'ai-config'
 const AI_CONFIG_VALIDATION_STORAGE_KEY = 'ai-config-validation'
@@ -86,30 +87,11 @@ export interface AIConfigGuidance {
 }
 
 /**
- * 获取服务商展示名称
- * 当前端本地请求 `/api/ai` 失败时，仍然可以在错误提示里指出是哪类服务商配置。
- */
-function getAIProviderLabel(provider: AIConfig['provider']): string {
-  switch (provider) {
-    case 'free':
-      return '免费模型'
-    case 'siliconflow':
-      return 'SiliconFlow'
-    case 'deepseek':
-      return 'DeepSeek'
-    case 'custom':
-      return '自定义接口'
-    default:
-      return 'AI服务'
-  }
-}
-
-/**
  * 构建本地验证接口失败提示
  * 当浏览器连 `/api/ai` 都失败时，明确指出是本地开发服务或站点连接异常。
  */
 function buildLocalValidationErrorMessage(config: AIConfig, error: unknown): string {
-  const providerLabel = getAIProviderLabel(config.provider)
+  const providerLabel = getAIProviderLabel(config.provider, 'zh')
   const detail = error instanceof Error ? error.message : '未知错误'
 
   if (detail.toLowerCase().includes('failed to fetch')) {
@@ -131,7 +113,7 @@ function buildLocalValidationDiagnostics(config: AIConfig, error: unknown): AIVa
 
   return {
     provider: config.provider,
-    providerLabel: getAIProviderLabel(config.provider),
+    providerLabel: getAIProviderLabel(config.provider, 'zh'),
     targetHost: '/api/ai',
     category: isTimeout ? 'timeout' : isFetchFailure ? 'network' : 'unknown',
     detail,

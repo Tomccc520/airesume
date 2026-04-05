@@ -9,11 +9,19 @@
 
 import React, { useCallback, useMemo, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { Palette, Settings2, ChevronDown, LucideIcon } from 'lucide-react'
+import { Bot, ChevronDown, LucideIcon, Palette, Settings2, Sparkles } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { navigationItems } from '@/data/navigation'
 import { StyleSettingsPanel } from './StyleSettingsPanel'
 import { ResumeSectionId, SectionCompleteness } from '@/utils/resumeCompleteness'
+import {
+  getAIWorkbenchAction,
+  getAIWorkbenchActionLabel,
+  getAIWorkbenchBadgeLabel,
+  getAIWorkbenchStatusKey,
+  getAIWorkbenchToneMeta
+} from '@/domain/ai/aiStatusPresentation'
+import { useAIConfigStatus } from '@/hooks/useAIConfigStatus'
 
 /**
  * Navigation item structure
@@ -35,6 +43,10 @@ interface SectionNavigationProps {
   onSectionChange: (section: string) => void
   /** Callback to show template selector */
   onShowTemplateSelector?: () => void
+  /** 打开 AI 助手 */
+  onShowAIAssistant?: () => void
+  /** 打开 AI 配置 */
+  onShowAIConfig?: () => void
   /** 模块完成度 */
   sectionCompleteness?: Partial<Record<ResumeSectionId, SectionCompleteness>>
   /** 跳转到下一个待完善模块 */
@@ -58,12 +70,15 @@ export function SectionNavigation({
   activeSection,
   onSectionChange,
   onShowTemplateSelector,
+  onShowAIAssistant,
+  onShowAIConfig,
   sectionCompleteness,
   onJumpToNextIncomplete,
   className = ''
 }: SectionNavigationProps) {
   const { t, locale } = useLanguage()
   const [showStyleSettings, setShowStyleSettings] = useState(false) // 样式设置折叠状态
+  const aiConfigStatus = useAIConfigStatus()
 
   // Get translated navigation items with enhanced descriptions
   const translatedItems: NavigationItem[] = navigationItems.map(item => {
@@ -125,6 +140,64 @@ export function SectionNavigation({
       incompleteCount: sectionList.filter((item) => !item.completed).length
     }
   }, [sectionCompleteness, translatedItems])
+
+  /**
+   * 获取侧栏里的 AI 工作台摘要
+   * 统一模板入口、AI 卡片和导出前提示所使用的状态语义。
+   */
+  const aiSidebarMeta = useMemo(() => {
+    const statusKey = getAIWorkbenchStatusKey(aiConfigStatus)
+    const { toneClass } = getAIWorkbenchToneMeta(statusKey)
+    const badgeLabel = getAIWorkbenchBadgeLabel(statusKey, locale)
+    const actionLabel = getAIWorkbenchActionLabel(statusKey, locale)
+    const action = getAIWorkbenchAction(statusKey)
+
+    if (statusKey === 'ready') {
+      return {
+        toneClass,
+        badgeLabel,
+        templateHint: locale === 'zh' ? '模板已就绪，可继续配合 AI 打磨后导出。' : 'Templates are ready to pair with AI before export.',
+        title: locale === 'zh' ? 'AI 工作台已可直接使用' : 'AI workspace is ready',
+        description: locale === 'zh' ? '当前已经验证通过，可直接继续智能优化或从零生成。' : 'Validation passed. Continue with optimize or start-fresh directly.',
+        actionLabel,
+        action
+      }
+    }
+
+    if (statusKey === 'needsValidation') {
+      return {
+        toneClass,
+        badgeLabel,
+        templateHint: locale === 'zh' ? '模板可先切换，完成验证后再继续智能优化。' : 'Templates can be switched now. Validate AI before optimization.',
+        title: locale === 'zh' ? 'AI 工作台待验证' : 'AI workspace needs validation',
+        description: locale === 'zh' ? '当前配置已补齐，建议先打开 AI 助手完成一次验证。' : 'The setup is filled in. Open AI once to complete validation.',
+        actionLabel,
+        action
+      }
+    }
+
+    if (statusKey === 'needsConfig') {
+      return {
+        toneClass,
+        badgeLabel,
+        templateHint: locale === 'zh' ? '模板可先选择，补齐 AI 配置后再继续智能优化。' : 'Choose templates first, then finish AI setup for optimization.',
+        title: locale === 'zh' ? 'AI 工作台待配置' : 'AI workspace needs setup',
+        description: locale === 'zh' ? '当前还缺少配置项，继续补齐后即可解锁智能优化与生成。' : 'Some settings are still missing before optimize and generate are unlocked.',
+        actionLabel,
+        action
+      }
+    }
+
+    return {
+      toneClass,
+      badgeLabel,
+      templateHint: locale === 'zh' ? '模板和样式可继续调整，AI 功能当前处于停用状态。' : 'Templates and styles still work while AI stays disabled.',
+      title: locale === 'zh' ? 'AI 工作台已停用' : 'AI workspace is disabled',
+      description: locale === 'zh' ? '当前 AI 已停用，打开配置即可重新启用。' : 'AI is disabled. Open configuration to enable it again.',
+      actionLabel,
+      action
+    }
+  }, [aiConfigStatus, locale])
 
   // Handle section click - scroll to section in editor
   const handleSectionClick = useCallback((sectionId: string) => {
@@ -223,12 +296,53 @@ export function SectionNavigation({
               <Palette className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-semibold">{t.editor.template}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="text-sm font-semibold">{t.editor.template}</div>
+                <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${aiSidebarMeta.toneClass}`}>
+                  {aiSidebarMeta.badgeLabel}
+                </span>
+              </div>
               <div className="text-xs text-gray-500 transition-colors group-hover:text-gray-700">
-                {locale === 'zh' ? '选择专业模板' : 'Choose template'}
+                {aiSidebarMeta.templateHint}
               </div>
             </div>
           </button>
+        )}
+
+        {(onShowAIAssistant || onShowAIConfig) && (
+          <div className={`rounded-xl border px-2.5 py-2.5 ${aiSidebarMeta.toneClass}`}>
+            <div className="flex items-start gap-2.5">
+              <div className="flex-shrink-0 rounded-lg bg-white/70 p-2 text-current">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-sm font-semibold">{aiSidebarMeta.title}</div>
+                  <span className="rounded-full border border-current/15 bg-white/70 px-2 py-0.5 text-[11px] font-medium text-current">
+                    {aiSidebarMeta.badgeLabel}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs leading-5 opacity-85">
+                  {aiSidebarMeta.description}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (aiSidebarMeta.action === 'assistant' && onShowAIAssistant) {
+                      onShowAIAssistant()
+                      return
+                    }
+
+                    onShowAIConfig?.()
+                  }}
+                  className="mt-2 inline-flex items-center gap-1 rounded-lg border border-current/15 bg-white/80 px-3 py-1.5 text-[11px] font-medium text-current transition-colors hover:bg-white"
+                >
+                  <Bot className="h-3.5 w-3.5" />
+                  <span>{aiSidebarMeta.actionLabel}</span>
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Style Settings Toggle Button */}

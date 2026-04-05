@@ -8,7 +8,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { 
   Save, 
   FolderOpen as LoadIcon, 
@@ -32,6 +32,12 @@ import { loadResumeFromFile } from '@/utils/fileOperations'
 import { useToastContext } from './Toast'
 import { navigationItems } from '@/data/navigation'
 import { useLanguage } from '@/contexts/LanguageContext'
+import {
+  getAIWorkbenchBadgeLabel,
+  getAIWorkbenchStatusKey,
+  getAIWorkbenchToneMeta
+} from '@/domain/ai/aiStatusPresentation'
+import { useAIConfigStatus } from '@/hooks/useAIConfigStatus'
 // 移除清空确认对话框，直接清空
 
 type EditorEntryScenario = 'campus' | 'engineering' | 'product' | 'general'
@@ -120,6 +126,7 @@ export default function EditorToolbar({
   const [isLoading, setIsLoading] = useState(false)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [showAIConfig, setShowAIConfig] = useState(false)
+  const aiConfigStatus = useAIConfigStatus()
   // 直接清空，无需确认
   const { success, error: showError } = useToastContext()
   const { t, locale } = useLanguage()
@@ -184,11 +191,67 @@ export default function EditorToolbar({
    * 获取工具栏按钮样式
    * 让编辑器顶部操作区与首页头部共用同一套胶囊按钮规范。
    */
-  const getToolbarButtonClass = (isActive = false) => {
+  const getToolbarButtonClass = useCallback((isActive = false) => {
     return isActive
       ? 'app-shell-toolbar-button app-shell-toolbar-button-active h-9 px-3.5'
       : 'app-shell-toolbar-button h-9 px-3.5'
-  }
+  }, [])
+
+  /**
+   * 获取工具栏里的 AI 状态摘要
+   * 统一顶部状态徽标、AI 助手按钮和 AI 配置按钮的文案与颜色。
+   */
+  const aiToolbarMeta = useMemo(() => {
+    const statusKey = getAIWorkbenchStatusKey(aiConfigStatus)
+    const { toneClass } = getAIWorkbenchToneMeta(statusKey)
+    const chipLabel = getAIWorkbenchBadgeLabel(statusKey, isZh ? 'zh' : 'en')
+
+    if (statusKey === 'ready') {
+      return {
+        chipToneClass: toneClass,
+        chipLabel,
+        assistantButtonClass: 'app-shell-toolbar-button h-9 px-3.5 border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
+        assistantTitle: isZh ? 'AI 已验证通过，打开助手继续优化或生成。' : 'AI is validated. Open the assistant to optimize or generate.',
+        configButtonClass: 'app-shell-toolbar-button h-9 px-3.5 border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
+        configLabel: isZh ? 'AI 已可用' : 'AI Ready',
+        configTitle: isZh ? '当前 AI 已验证通过，点击可继续调整配置。' : 'AI is validated. Open configuration to review or adjust settings.'
+      }
+    }
+
+    if (statusKey === 'needsValidation') {
+      return {
+        chipToneClass: toneClass,
+        chipLabel,
+        assistantButtonClass: 'app-shell-toolbar-button h-9 px-3.5 border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100',
+        assistantTitle: isZh ? 'AI 配置已补齐，建议打开助手完成验证。' : 'AI setup is filled in. Open the assistant to validate it.',
+        configButtonClass: 'app-shell-toolbar-button h-9 px-3.5 border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100',
+        configLabel: isZh ? '验证 AI 配置' : 'Validate AI',
+        configTitle: isZh ? '当前配置已保存，但还需要完成一次验证。' : 'The current setup is saved, but still needs one successful validation.'
+      }
+    }
+
+    if (statusKey === 'needsConfig') {
+      return {
+        chipToneClass: toneClass,
+        chipLabel,
+        assistantButtonClass: 'app-shell-toolbar-button h-9 px-3.5 border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100',
+        assistantTitle: isZh ? 'AI 入口已准备好，打开后会引导你先完成配置。' : 'The AI entry is ready and will guide you through setup first.',
+        configButtonClass: 'app-shell-toolbar-button h-9 px-3.5 border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100',
+        configLabel: isZh ? '完成 AI 配置' : 'Finish AI Setup',
+        configTitle: isZh ? '当前还缺少 AI 配置，点击继续完成。' : 'AI still needs configuration. Click to continue setup.'
+      }
+    }
+
+    return {
+      chipToneClass: toneClass,
+      chipLabel,
+      assistantButtonClass: getToolbarButtonClass(),
+      assistantTitle: isZh ? 'AI 当前已停用，打开助手可重新启用和配置。' : 'AI is disabled. Open the assistant to enable or configure it again.',
+      configButtonClass: getToolbarButtonClass(),
+      configLabel: isZh ? '启用 AI' : 'Enable AI',
+      configTitle: isZh ? '当前 AI 已停用，点击可重新启用。' : 'AI is currently disabled. Click to enable it again.'
+    }
+  }, [aiConfigStatus, getToolbarButtonClass, isZh])
 
   /**
    * 获取投递场景文案
@@ -271,6 +334,10 @@ export default function EditorToolbar({
                   <div className={`app-shell-status-chip ${saveStatusMeta.toneClass}`}>
                     {saveStatusMeta.icon}
                     <span>{saveStatusMeta.label}</span>
+                  </div>
+                  <div className={`app-shell-status-chip ${aiToolbarMeta.chipToneClass}`}>
+                    <Bot className="h-3.5 w-3.5" />
+                    <span>{aiToolbarMeta.chipLabel}</span>
                   </div>
                 </div>
                 <p className="mt-1 text-xs text-slate-500">{toolbarHint}</p>
@@ -394,8 +461,8 @@ export default function EditorToolbar({
                 onClick={onShowAIAssistant}
                 variant="ghost"
                 size="sm"
-                className={getToolbarButtonClass()}
-                title={t.editor.toolbar.aiAssistant}
+                className={aiToolbarMeta.assistantButtonClass}
+                title={aiToolbarMeta.assistantTitle}
               >
                 <Bot className="w-4 h-4" />
                 <span className="hidden 2xl:inline">{t.editor.toolbar.aiAssistant}</span>
@@ -455,11 +522,11 @@ export default function EditorToolbar({
                 }}
                 variant="ghost"
                 size="sm"
-                className={getToolbarButtonClass()}
-                title={t.editor.toolbar.aiConfig}
+                className={aiToolbarMeta.configButtonClass}
+                title={aiToolbarMeta.configTitle}
               >
                 <Settings className="w-4 h-4" />
-                <span className="hidden 2xl:inline">{t.editor.toolbar.aiConfig}</span>
+                <span className="hidden 2xl:inline">{aiToolbarMeta.configLabel}</span>
               </Button>
               </div>
             </div>

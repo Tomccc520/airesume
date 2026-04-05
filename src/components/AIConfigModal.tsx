@@ -33,6 +33,13 @@ import {
   getAIConfigPrecheckStatusLabel,
   normalizeCustomEndpointInput
 } from '@/domain/ai/configPrecheck'
+import {
+  getAIValidationCategoryLabel,
+  getAIModelSummary,
+  getAIProviderLabel,
+  getAIWorkbenchTitle,
+  getAIWorkbenchToneMeta
+} from '@/domain/ai/aiStatusPresentation'
 
 /**
  * AI配置模态框组件
@@ -222,19 +229,6 @@ const isModelFree = (modelName: string): boolean => {
 }
 
 /**
- * 压缩模型名称展示
- * 优先显示模型路径的最后一段，避免状态摘要区域过长。
- */
-const getCompactModelName = (modelName: string): string => {
-  if (!modelName) {
-    return ''
-  }
-
-  const segments = modelName.split('/')
-  return segments[segments.length - 1] || modelName
-}
-
-/**
  * 获取提供商类型标签
  * 用统一短标签描述当前服务商的接入方式和成本属性。
  */
@@ -267,66 +261,42 @@ const getConfigStatusMeta = (
   locale: Locale
 ) => {
   const hasApiKey = config.provider === 'free' || Boolean(config.apiKey.trim())
-  const isConfigured = config.enabled && hasApiKey
-  const modelLabel = config.modelName ? getCompactModelName(config.modelName) : (locale === 'zh' ? '未选择模型' : 'No model selected')
+  const statusKey = !config.enabled ? 'disabled' : (config.enabled && hasApiKey ? 'ready' : 'needsConfig')
+  const { toneClass } = getAIWorkbenchToneMeta(statusKey)
+  const modelLabel = getAIModelSummary(config.modelName, locale)
 
   if (!config.enabled) {
     return {
-      title: locale === 'zh' ? 'AI 已停用' : 'AI Disabled',
+      title: getAIWorkbenchTitle(statusKey, locale),
       description: locale === 'zh'
         ? '当前不会调用 AI 服务，可随时重新启用。'
         : 'AI requests are currently disabled. You can re-enable them anytime.',
-      toneClass: 'border-slate-200 bg-slate-100 text-slate-700',
+      toneClass,
       providerSummary: locale === 'zh' ? '未启用' : 'Disabled',
       modelSummary: modelLabel
     }
   }
 
-  if (isConfigured) {
+  if (statusKey === 'ready') {
     return {
-      title: locale === 'zh' ? 'AI 已就绪' : 'AI Ready',
+      title: getAIWorkbenchTitle(statusKey, locale),
       description: locale === 'zh'
         ? `当前使用 ${providerName}，可以直接返回编辑器继续生成和优化。`
         : `${providerName} is ready. You can continue generating and optimizing from the editor.`,
-      toneClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      toneClass,
       providerSummary: providerName,
       modelSummary: modelLabel
     }
   }
 
   return {
-    title: locale === 'zh' ? 'AI 待补全' : 'AI Needs Setup',
+    title: getAIWorkbenchTitle(statusKey, locale),
     description: locale === 'zh'
       ? '已选择服务商，但还需要补充关键连接信息后才能调用。'
       : 'A provider is selected, but required connection details are still missing.',
-    toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+    toneClass,
     providerSummary: providerName,
     modelSummary: modelLabel
-  }
-}
-
-/**
- * 获取验证错误分类标题
- * 将代理层返回的错误类别映射成更易理解的展示标题。
- */
-const getValidationCategoryLabel = (category?: string, locale?: Locale): string => {
-  const isZh = locale === 'zh'
-
-  switch (category) {
-    case 'timeout':
-      return isZh ? '连接超时' : 'Timeout'
-    case 'ssl':
-      return isZh ? '证书验证失败' : 'SSL Error'
-    case 'dns':
-      return isZh ? '域名解析失败' : 'DNS Error'
-    case 'refused':
-      return isZh ? '连接被拒绝' : 'Connection Refused'
-    case 'reset':
-      return isZh ? '连接被重置' : 'Connection Reset'
-    case 'network':
-      return isZh ? '网络错误' : 'Network Error'
-    default:
-      return isZh ? '未知错误' : 'Unknown Error'
   }
 }
 
@@ -633,7 +603,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
 
   const aiProviders = getAiProviders(t, locale)
   const selectedProvider = aiProviders.find(p => p.id === config.provider)
-  const selectedProviderName = selectedProvider?.name || (locale === 'zh' ? '未选择服务商' : 'No provider selected')
+  const selectedProviderName = selectedProvider?.name || getAIProviderLabel(config.provider, locale)
   const statusMeta = getConfigStatusMeta(config, selectedProviderName, locale)
   const isFreeProvider = config.provider === 'free'
   const shouldDisableValidation = isValidating || (!isFreeProvider && !config.apiKey.trim())
@@ -1027,7 +997,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                           </span>
                           {configGuidance.category && (
                             <span className="rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-medium text-amber-700">
-                              {getValidationCategoryLabel(configGuidance.category, locale)}
+                              {getAIValidationCategoryLabel(configGuidance.category, locale)}
                             </span>
                           )}
                         </div>
@@ -1338,7 +1308,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                                 错误类型
                               </p>
                               <p className="mt-1 text-sm font-medium text-slate-900">
-                                {getValidationCategoryLabel(validationResult.diagnostics.category, locale)}
+                                {getAIValidationCategoryLabel(validationResult.diagnostics.category, locale)}
                               </p>
                             </div>
                           </div>

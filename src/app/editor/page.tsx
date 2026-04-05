@@ -29,7 +29,7 @@ import { useHorizontalSwipe } from '@/hooks/useSwipeGesture'
 import { ResumeData, Experience } from '@/types/resume'
 import { TemplateStyle } from '@/types/template'
 import { getDefaultTemplate, getTemplateById } from '@/data/templates'
-import { Download, Palette, Save, Sparkles, X } from 'lucide-react'
+import { Bot, Download, Palette, Save, Settings, Sparkles, X } from 'lucide-react'
 import { 
   EditorSkeleton, 
   AIAssistantSkeleton, 
@@ -63,6 +63,14 @@ import {
   normalizePreviewSectionToEditor,
   normalizeSectionToAISection
 } from '@/domain/editor/resumeAIActions'
+import {
+  getAIWorkbenchAction,
+  getAIWorkbenchActionLabel,
+  getAIWorkbenchBadgeLabel,
+  getAIWorkbenchStatusKey,
+  getAIWorkbenchToneMeta
+} from '@/domain/ai/aiStatusPresentation'
+import { useAIConfigStatus } from '@/hooks/useAIConfigStatus'
 
 type EditorEntryScenario = 'campus' | 'engineering' | 'product' | 'general'
 type EditorRoutePanel = 'template' | 'ai'
@@ -387,8 +395,60 @@ export default function EditorPage() {
   const lastAppliedRouteSignatureRef = useRef<string | null>(null)
   
   const { t, locale } = useLanguage()
+  const isZh = locale === 'zh'
+  const mobileAIConfigStatus = useAIConfigStatus()
 
   const { success: showSuccess, error: showError, info: showInfo } = useToastContext()
+
+  /**
+   * 获取移动端顶部 AI 状态摘要
+   * 保持移动端切换条与桌面工具栏使用同一套状态语义，但压缩成更适合小屏的显示密度。
+   */
+  const mobileAIStatusMeta = useMemo(() => {
+    const statusKey = getAIWorkbenchStatusKey(mobileAIConfigStatus)
+    const { toneClass } = getAIWorkbenchToneMeta(statusKey)
+    const action = getAIWorkbenchAction(statusKey)
+    const label = getAIWorkbenchBadgeLabel(statusKey, isZh ? 'zh' : 'en')
+    const actionLabel = getAIWorkbenchActionLabel(statusKey, isZh ? 'zh' : 'en')
+
+    if (statusKey === 'ready') {
+      return {
+        toneClass,
+        label,
+        description: isZh ? '已验证通过，可直接继续优化或生成。' : 'Validated and ready for optimize or generate.',
+        actionLabel,
+        action
+      }
+    }
+
+    if (statusKey === 'needsValidation') {
+      return {
+        toneClass,
+        label,
+        description: isZh ? '配置已补齐，建议打开 AI 助手完成验证。' : 'Setup is filled in. Open AI to validate it.',
+        actionLabel,
+        action
+      }
+    }
+
+    if (statusKey === 'needsConfig') {
+      return {
+        toneClass,
+        label,
+        description: isZh ? '当前还缺少配置项，继续补齐后即可使用。' : 'Some required settings are still missing.',
+        actionLabel,
+        action
+      }
+    }
+
+    return {
+      toneClass,
+      label,
+      description: isZh ? '打开配置即可重新启用 AI。' : 'Open configuration to enable AI again.',
+      actionLabel,
+      action
+    }
+  }, [mobileAIConfigStatus, isZh])
   // 简历数据状态
   const [resumeData, setResumeData] = useState<ResumeData>({
     personalInfo: {
@@ -1092,6 +1152,36 @@ export default function EditorPage() {
                       {t.common.preview}
                     </button>
                   </div>
+                  <div className={`mt-1.5 flex items-center justify-between gap-2 rounded-xl border px-3 py-2 ${mobileAIStatusMeta.toneClass}`}>
+                    <div className="min-w-0 flex items-start gap-2">
+                      <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-semibold">
+                          {mobileAIStatusMeta.label}
+                        </p>
+                        <p className="mt-0.5 truncate text-[11px] opacity-80">
+                          {mobileAIStatusMeta.description}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (mobileAIStatusMeta.action === 'assistant') {
+                          openUnifiedAIPanel(normalizeAISection(activeSection))
+                          return
+                        }
+
+                        setShowAIConfig(true)
+                      }}
+                      className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-xl border border-current/15 bg-white/80 px-3 text-[11px] font-medium text-current transition-colors hover:bg-white"
+                    >
+                      {mobileAIStatusMeta.action === 'assistant'
+                        ? <Bot className="h-3.5 w-3.5" />
+                        : <Settings className="h-3.5 w-3.5" />}
+                      <span>{mobileAIStatusMeta.actionLabel}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1104,6 +1194,8 @@ export default function EditorPage() {
                       activeSection={activeSection}
                       onSectionChange={setActiveSection}
                       onShowTemplateSelector={() => setShowTemplateSelector(true)}
+                      onShowAIAssistant={() => openUnifiedAIPanel(normalizeAISection(activeSection))}
+                      onShowAIConfig={() => setShowAIConfig(true)}
                       sectionCompleteness={sectionCompletenessMap}
                       onJumpToNextIncomplete={jumpToNextIncompleteSection}
                     />
@@ -1306,6 +1398,14 @@ export default function EditorPage() {
               setResumeData(data)
             }}
             onClose={() => setShowTemplateSelector(false)}
+            onShowAIAssistant={() => {
+              setShowTemplateSelector(false)
+              openUnifiedAIPanel(normalizeAISection(activeSection))
+            }}
+            onShowAIConfig={() => {
+              setShowTemplateSelector(false)
+              setShowAIConfig(true)
+            }}
           />
         )}
         
@@ -1318,6 +1418,14 @@ export default function EditorPage() {
             resumeName={resumeData.personalInfo.name}
             onOptionsChange={(opts) => {
               setExportOptions(opts)
+            }}
+            onShowAIAssistant={() => {
+              setShowExportDialog(false)
+              openUnifiedAIPanel(normalizeAISection(activeSection))
+            }}
+            onShowAIConfig={() => {
+              setShowExportDialog(false)
+              setShowAIConfig(true)
             }}
           />
         )}

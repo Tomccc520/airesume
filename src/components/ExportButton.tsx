@@ -16,11 +16,17 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, FileText, Loader2, CheckCircle, AlertCircle, Image, Camera, Lightbulb } from 'lucide-react'
+import { Download, FileText, Loader2, CheckCircle, AlertCircle, Image, Camera, Lightbulb, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { exportResumeFile } from '@/services/resumeExportService'
 import { cn } from '@/lib/utils'
+import {
+  getAIWorkbenchBadgeLabel,
+  getAIWorkbenchStatusKey,
+  getAIWorkbenchToneMeta
+} from '@/domain/ai/aiStatusPresentation'
+import { useAIConfigStatus } from '@/hooks/useAIConfigStatus'
 
 interface ExportButtonProps {
   className?: string
@@ -77,6 +83,7 @@ export default function ExportButton({
   const [isOpen, setIsOpen] = useState(false)
   const [isExporting, setIsExporting] = useState<'pdf' | 'png' | 'jpg' | null>(null)
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null)
+  const aiConfigStatus = useAIConfigStatus()
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /**
@@ -220,6 +227,56 @@ export default function ExportButton({
       : 'The current template and content will be exported directly in the chosen format.'
   }
 
+  /**
+   * 获取导出面板里的 AI 状态提示
+   * 告诉用户当前是否适合先做智能优化，再继续导出。
+   */
+  const getExportAIHint = () => {
+    const statusKey = getAIWorkbenchStatusKey(aiConfigStatus)
+    const { toneClass } = getAIWorkbenchToneMeta(statusKey)
+    const badgeLabel = getAIWorkbenchBadgeLabel(statusKey, locale)
+
+    if (statusKey === 'ready') {
+      return {
+        toneClass,
+        badgeLabel,
+        summary: locale === 'zh'
+          ? '导出前如果还想再提炼表述，可以先回到 AI 助手做一次智能优化。'
+          : 'If you want one last polish before export, run a smart optimize pass first.'
+      }
+    }
+
+    if (statusKey === 'needsValidation') {
+      return {
+        toneClass,
+        badgeLabel,
+        summary: locale === 'zh'
+          ? '当前也可以直接导出；如果要继续用 AI 打磨内容，建议先完成一次验证。'
+          : 'You can export now; complete one validation first if you still want to use AI polishing.'
+      }
+    }
+
+    if (statusKey === 'needsConfig') {
+      return {
+        toneClass,
+        badgeLabel,
+        summary: locale === 'zh'
+          ? '当前导出不受影响；如果要先做智能优化，再补齐 AI 配置即可。'
+          : 'Export is unaffected. Finish AI setup first if you want optimization before export.'
+      }
+    }
+
+    return {
+      toneClass,
+      badgeLabel,
+      summary: locale === 'zh'
+        ? '当前可直接导出，AI 状态不会影响导出结果。'
+        : 'Export is available directly and is not blocked by the current AI status.'
+    }
+  }
+
+  const exportAIHint = getExportAIHint()
+
   return (
     <div className={`relative ${className}`}>
       {/* 主按钮 - 调整为更小的尺寸 */}
@@ -262,6 +319,22 @@ export default function ExportButton({
                   <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
                     {locale === 'zh' ? '当前模板导出' : 'Current Template'}
                   </span>
+                </div>
+                <div className={`mt-3 flex items-start gap-2 rounded-lg border px-3 py-2 ${exportAIHint.toneClass}`}>
+                  <Bot className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.08em]">
+                        {locale === 'zh' ? '导出前 AI 状态' : 'AI Before Export'}
+                      </p>
+                      <span className="rounded-full border border-current/15 bg-white/70 px-2 py-0.5 text-[11px] font-medium text-current">
+                        {exportAIHint.badgeLabel}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 opacity-85">
+                      {exportAIHint.summary}
+                    </p>
+                  </div>
                 </div>
               </div>
 

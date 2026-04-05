@@ -45,6 +45,15 @@ import {
   getPrimaryAIConfigPrecheckItem,
   normalizeCustomEndpointInput
 } from '@/domain/ai/configPrecheck'
+import {
+  getAIValidationCategoryLabel,
+  getAIModelSummary,
+  getAIProviderSummary,
+  getAIWorkbenchFooterLabel,
+  getAIWorkbenchStatusKey,
+  getAIWorkbenchTitle,
+  getAIWorkbenchToneMeta
+} from '@/domain/ai/aiStatusPresentation'
 import { aiSuggestionRanker } from '@/services/aiSuggestionRanker'
 import { aiQualityChecker, QualityScore } from '@/services/aiQualityChecker'
 import { jdMatcherService, JDSuggestion } from '@/services/jdMatcher'
@@ -152,112 +161,69 @@ function getScoreClass(score: number): string {
 }
 
 /**
- * 获取 AI 提供商显示名称
- * 将内部 provider 标识转换成更适合界面展示的短名称。
- */
-function getProviderLabel(provider: AIConfigStatus['provider'], locale: 'zh' | 'en'): string {
-  const providerLabelMap: Record<NonNullable<AIConfigStatus['provider']>, string> = {
-    free: locale === 'zh' ? '免费模型' : 'Free Model',
-    siliconflow: 'SiliconFlow',
-    deepseek: 'DeepSeek',
-    custom: locale === 'zh' ? '自定义接口' : 'Custom API'
-  }
-
-  if (!provider) {
-    return locale === 'zh' ? '未配置' : 'Not Configured'
-  }
-
-  return providerLabelMap[provider]
-}
-
-/**
- * 压缩模型名称展示
- * 优先显示模型的最后一段，避免头部状态栏过长。
- */
-function getCompactModelName(modelName: string | null): string {
-  if (!modelName) {
-    return ''
-  }
-
-  const segments = modelName.split('/')
-  return segments[segments.length - 1] || modelName
-}
-
-/**
  * 获取 AI 状态摘要
  * 统一 AI 面板头部、底部和配置引导区的状态文案与摘要信息。
  */
 function getAIStatusMeta(aiConfigStatus: AIConfigStatus, locale: 'zh' | 'en') {
-  const providerSummary = getProviderLabel(aiConfigStatus.provider, locale)
-  const modelSummary = aiConfigStatus.modelName
-    ? getCompactModelName(aiConfigStatus.modelName)
-    : (locale === 'zh' ? '未选择模型' : 'No model selected')
+  const statusKey = getAIWorkbenchStatusKey(aiConfigStatus)
+  const { toneClass } = getAIWorkbenchToneMeta(statusKey)
+  const providerSummary = getAIProviderSummary(aiConfigStatus, locale)
+  const modelSummary = aiConfigStatus.needsApiKey && !aiConfigStatus.hasApiKey
+    ? (locale === 'zh' ? '待补充密钥' : 'API key required')
+    : getAIModelSummary(aiConfigStatus.modelName, locale)
 
-  if (aiConfigStatus.isConfigured) {
-    return {
-      title: locale === 'zh' ? 'AI 已就绪' : 'AI Ready',
+  if (statusKey === 'ready') {
+      return {
+      title: getAIWorkbenchTitle(statusKey, locale),
       description: locale === 'zh'
         ? `${providerSummary} 已连接，可直接继续智能优化、职位匹配与从零生成。`
         : `${providerSummary} is connected. You can continue with optimize, match, and generate.`,
-      toneClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      toneClass,
       providerSummary,
       modelSummary,
       actionLabel: locale === 'zh' ? '重新配置' : 'Reconfigure',
-      footerLabel: locale === 'zh' ? 'AI 服务就绪' : 'AI service ready'
+      footerLabel: getAIWorkbenchFooterLabel(statusKey, locale)
     }
   }
 
-  if (aiConfigStatus.isEnabled) {
+  if (statusKey === 'needsValidation') {
     return {
-      title: locale === 'zh' ? 'AI 待配置' : 'AI Needs Setup',
+      title: getAIWorkbenchTitle(statusKey, locale),
+      description: locale === 'zh'
+        ? '配置项已补齐，但还需要完成一次验证后再继续智能优化和从零生成。'
+        : 'The setup is complete, but one validation run is still required before optimize and generate.',
+      toneClass,
+      providerSummary,
+      modelSummary,
+      actionLabel: locale === 'zh' ? '去验证配置' : 'Validate Config',
+      footerLabel: getAIWorkbenchFooterLabel(statusKey, locale)
+    }
+  }
+
+  if (statusKey === 'needsConfig') {
+    return {
+      title: getAIWorkbenchTitle(statusKey, locale),
       description: locale === 'zh'
         ? 'JD 匹配仍可直接使用；智能优化和从零生成需要先补齐配置。'
         : 'JD match is available. Optimize and generate still need configuration.',
-      toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+      toneClass,
       providerSummary,
-      modelSummary: aiConfigStatus.needsApiKey && !aiConfigStatus.hasApiKey
-        ? (locale === 'zh' ? '待补充密钥' : 'API key required')
-        : modelSummary,
+      modelSummary,
       actionLabel: locale === 'zh' ? '打开配置' : 'Open Config',
-      footerLabel: locale === 'zh' ? 'AI 待配置' : 'AI needs setup'
+      footerLabel: getAIWorkbenchFooterLabel(statusKey, locale)
     }
   }
 
   return {
-    title: locale === 'zh' ? 'AI 已停用' : 'AI Disabled',
+    title: getAIWorkbenchTitle(statusKey, locale),
     description: locale === 'zh'
       ? '可通过配置入口重新启用；当前仍可先使用职位匹配功能。'
       : 'You can re-enable it from configuration. JD match is still available.',
-    toneClass: 'border-slate-200 bg-slate-100 text-slate-700',
+    toneClass,
     providerSummary: locale === 'zh' ? '未启用' : 'Disabled',
     modelSummary,
     actionLabel: locale === 'zh' ? '前往配置' : 'Open Config',
-    footerLabel: locale === 'zh' ? 'AI 已停用' : 'AI disabled'
-  }
-}
-
-/**
- * 获取验证错误分类标题
- * 将最近一次验证的错误类别转成统一的工作台展示文案。
- */
-function getValidationCategoryLabel(category?: string, locale?: 'zh' | 'en'): string {
-  const isZh = locale === 'zh'
-
-  switch (category) {
-    case 'timeout':
-      return isZh ? '连接超时' : 'Timeout'
-    case 'ssl':
-      return isZh ? '证书验证失败' : 'SSL Error'
-    case 'dns':
-      return isZh ? '域名解析失败' : 'DNS Error'
-    case 'refused':
-      return isZh ? '连接被拒绝' : 'Connection Refused'
-    case 'reset':
-      return isZh ? '连接被重置' : 'Connection Reset'
-    case 'network':
-      return isZh ? '网络错误' : 'Network Error'
-    default:
-      return isZh ? '未知错误' : 'Unknown Error'
+    footerLabel: getAIWorkbenchFooterLabel(statusKey, locale)
   }
 }
 
@@ -1687,7 +1653,7 @@ export default function UnifiedAIPanel({
                             {locale === 'zh' ? '错误类型' : 'Error Type'}
                           </p>
                           <p className="mt-1 text-sm font-medium text-slate-800">
-                            {getValidationCategoryLabel(latestValidationIssue.diagnostics?.category, locale)}
+                            {getAIValidationCategoryLabel(latestValidationIssue.diagnostics?.category, locale)}
                           </p>
                         </div>
                         <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
@@ -1733,7 +1699,7 @@ export default function UnifiedAIPanel({
                             {locale === 'zh' ? '错误类型' : 'Error Type'}
                           </p>
                           <p className="mt-1 text-sm font-medium text-slate-800">
-                            {getValidationCategoryLabel(historicalValidationIssue.diagnostics?.category, locale)}
+                            {getAIValidationCategoryLabel(historicalValidationIssue.diagnostics?.category, locale)}
                           </p>
                         </div>
                         <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
@@ -1774,8 +1740,8 @@ export default function UnifiedAIPanel({
                       {latestValidationIssue && (
                         <p className="mt-2 text-xs leading-5 text-rose-600">
                           {locale === 'zh'
-                            ? `最近验证：${getValidationCategoryLabel(latestValidationIssue.diagnostics?.category, locale)} / ${latestValidationIssue.diagnostics?.targetHost || '/api/ai'}`
-                            : `Latest validation: ${getValidationCategoryLabel(latestValidationIssue.diagnostics?.category, locale)} / ${latestValidationIssue.diagnostics?.targetHost || '/api/ai'}`}
+                            ? `最近验证：${getAIValidationCategoryLabel(latestValidationIssue.diagnostics?.category, locale)} / ${latestValidationIssue.diagnostics?.targetHost || '/api/ai'}`
+                            : `Latest validation: ${getAIValidationCategoryLabel(latestValidationIssue.diagnostics?.category, locale)} / ${latestValidationIssue.diagnostics?.targetHost || '/api/ai'}`}
                         </p>
                       )}
                     </div>
