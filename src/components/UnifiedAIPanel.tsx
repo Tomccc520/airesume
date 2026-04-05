@@ -676,6 +676,7 @@ export default function UnifiedAIPanel({
     () => getAIModeGuide(activeMode, locale, aiConfigStatus.isConfigured),
     [activeMode, aiConfigStatus.isConfigured, locale]
   )
+  const showFreshModeReadyGuide = hasFreshConfigValidationSuccess && aiConfigStatus.isConfigured
 
   /**
    * 刷新 AI 配置状态
@@ -1681,6 +1682,36 @@ export default function UnifiedAIPanel({
               >
                 {!optimizeResult ? (
                   <div className="max-w-3xl mx-auto">
+                    {showFreshModeReadyGuide && (
+                      <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50/90 p-4 text-emerald-800">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <CheckCircle className="h-4 w-4 text-emerald-600" />
+                              <p className="text-sm font-semibold">
+                                {locale === 'zh' ? '智能优化已可直接使用' : 'Smart optimize is ready'}
+                              </p>
+                              <span className="rounded-full border border-emerald-200 bg-white/80 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                                {aiStatusMeta.providerSummary} · {aiStatusMeta.modelSummary}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-sm leading-6 text-emerald-700">
+                              {locale === 'zh'
+                                ? '直接点下面任一模块就能开始生成候选版本。建议先从“工作经历”或“项目经验”开始，收益最高。'
+                                : 'You can start generating variants right away. Experience and projects usually deliver the biggest gain first.'}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <span className="rounded-full border border-emerald-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                              {locale === 'zh' ? '已解锁候选生成' : 'Variants unlocked'}
+                            </span>
+                            <span className="rounded-full border border-emerald-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                              {locale === 'zh' ? '可直接应用到简历' : 'Apply directly'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
                       <div className="rounded-xl border border-slate-200 bg-white p-4">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
@@ -2330,6 +2361,36 @@ export default function UnifiedAIPanel({
                 className="p-6"
               >
                 <div className="max-w-2xl mx-auto space-y-4">
+                  {showFreshModeReadyGuide && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 p-4 text-emerald-800">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-emerald-600" />
+                            <p className="text-sm font-semibold">
+                              {locale === 'zh' ? '从零生成已可直接使用' : 'Start-fresh is ready'}
+                            </p>
+                            <span className="rounded-full border border-emerald-200 bg-white/80 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                              {aiStatusMeta.providerSummary} · {aiStatusMeta.modelSummary}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-emerald-700">
+                            {locale === 'zh'
+                              ? '当前 AI 配置已经通过验证。补齐目标职位后，就可以直接生成第一版完整简历。'
+                              : 'The current AI setup is validated. Fill in the target role and generate the first full resume draft right away.'}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="rounded-full border border-emerald-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                            {locale === 'zh' ? '已解锁完整生成' : 'Draft generation unlocked'}
+                          </span>
+                          <span className="rounded-full border border-emerald-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                            {locale === 'zh' ? '保留当前输入' : 'Current inputs kept'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid gap-3 lg:grid-cols-[minmax(0,1.12fr)_minmax(220px,0.88fr)]">
                     <div className="rounded-xl border border-slate-200 bg-white p-4">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
