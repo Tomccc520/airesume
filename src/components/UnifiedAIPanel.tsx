@@ -1752,6 +1752,16 @@ export default function UnifiedAIPanel({
                             ? '如果还没完成 AI 配置，也可以先用 JD 匹配查看岗位关键词和缺口。'
                             : 'If AI is not configured yet, you can still use JD match to review keywords and gaps.'}
                         </p>
+                        {showFreshModeReadyGuide && (
+                          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-emerald-600">
+                              {locale === 'zh' ? '当前主操作' : 'Primary CTA'}
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-emerald-800">
+                              {locale === 'zh' ? '可直接点击下方模块开始生成候选版本。' : 'Click any section below to generate variants now.'}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                     
@@ -1843,6 +1853,39 @@ export default function UnifiedAIPanel({
                                   {locale === 'zh' ? '点击后会先引导到 AI 配置。' : 'Clicking will guide you to AI setup first.'}
                                 </p>
                               )}
+                            </div>
+                            <div className={`mt-3 flex items-center justify-between rounded-lg border px-3 py-2 ${
+                              !aiConfigStatus.isConfigured
+                                ? 'border-slate-200 bg-slate-50 text-slate-600'
+                                : section.hasContent
+                                  ? 'border-emerald-200 bg-emerald-50/80 text-emerald-700'
+                                  : 'border-amber-200 bg-amber-50 text-amber-700'
+                            }`}>
+                              <div>
+                                <p className="text-[11px] font-medium uppercase tracking-[0.08em] opacity-70">
+                                  {locale === 'zh' ? '当前操作' : 'Action'}
+                                </p>
+                                <p className="mt-1 text-sm font-medium">
+                                  {!aiConfigStatus.isConfigured
+                                    ? (locale === 'zh' ? '先完成 AI 配置' : 'Complete AI setup first')
+                                    : section.hasContent
+                                      ? (locale === 'zh' ? '立即开始生成候选版本' : 'Generate variants now')
+                                      : (locale === 'zh' ? '先补原始内容再开始' : 'Add source content first')}
+                                </p>
+                              </div>
+                              <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+                                !aiConfigStatus.isConfigured
+                                  ? 'border-slate-200 bg-white text-slate-600'
+                                  : section.hasContent
+                                    ? 'border-emerald-200 bg-white/80 text-emerald-700'
+                                    : 'border-amber-200 bg-white/70 text-amber-700'
+                              }`}>
+                                {!aiConfigStatus.isConfigured
+                                  ? (locale === 'zh' ? '待配置' : 'Setup')
+                                  : section.hasContent
+                                    ? (locale === 'zh' ? '已可用' : 'Ready')
+                                    : (locale === 'zh' ? '待补内容' : 'Need content')}
+                              </span>
                             </div>
                           </div>
                         </button>
@@ -2519,7 +2562,28 @@ export default function UnifiedAIPanel({
                         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                           {locale === 'zh'
                             ? '从零生成需要先配置 AI。配置完成后会保留你已填写的目标职位和经验段位。'
-                            : 'Start-fresh generation needs AI configuration first. Your current inputs will be kept.'}
+                          : 'Start-fresh generation needs AI configuration first. Your current inputs will be kept.'}
+                        </div>
+                      )}
+                      {showFreshModeReadyGuide && aiConfigStatus.isConfigured && (
+                        <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-emerald-600">
+                                {locale === 'zh' ? '当前主操作' : 'Primary CTA'}
+                              </p>
+                              <p className="mt-1 text-sm font-medium text-emerald-800">
+                                {userInfo.targetPosition.trim()
+                                  ? (locale === 'zh' ? '目标职位已填写，可以直接生成第一版完整简历。' : 'Target role is ready. You can generate the first full draft now.')
+                                  : (locale === 'zh' ? '补齐目标职位后，主按钮会直接进入完整生成。' : 'Fill the target role and the primary button will generate the full draft directly.')}
+                              </p>
+                            </div>
+                            <span className="rounded-full border border-emerald-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                              {userInfo.targetPosition.trim()
+                                ? (locale === 'zh' ? '已可用' : 'Ready')
+                                : (locale === 'zh' ? '待补目标职位' : 'Need target role')}
+                            </span>
+                          </div>
                         </div>
                       )}
                       <button
@@ -2529,7 +2593,13 @@ export default function UnifiedAIPanel({
                         className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
                       >
                         {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                        <span>{locale === 'zh' ? '开始生成完整简历' : 'Generate Resume'}</span>
+                        <span>
+                          {!aiConfigStatus.isConfigured
+                            ? (locale === 'zh' ? '先配置 AI 后生成' : 'Configure AI First')
+                            : showFreshModeReadyGuide
+                              ? (locale === 'zh' ? '立即开始生成完整简历' : 'Generate Full Resume Now')
+                              : (locale === 'zh' ? '开始生成完整简历' : 'Generate Resume')}
+                        </span>
                         <ArrowRight className="h-4 w-4" />
                       </button>
                     </>
