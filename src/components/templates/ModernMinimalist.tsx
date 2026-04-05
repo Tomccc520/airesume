@@ -10,7 +10,7 @@
 
 'use client'
 
-import React, { useMemo } from 'react'
+import React from 'react'
 import { ResumeData } from '@/types/resume'
 import { StyleConfig } from '@/contexts/StyleContext'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -30,10 +30,10 @@ interface TemplateProps {
 export const ModernMinimalist: React.FC<TemplateProps> = ({
   resumeData,
   styleConfig,
-  onSectionClick
+  onSectionClick: _onSectionClick
 }) => {
   const { personalInfo, experience, education, projects, skills } = resumeData
-  const { colors, fontSize, spacing, layout, skills: skillsConfig, fontFamily } = styleConfig
+  const { colors, fontSize, spacing, layout, skills: _skillsConfig, fontFamily } = styleConfig
   const { locale, t } = useLanguage()
 
   const formatDateStr = (date?: string) => formatDate(date, locale)
@@ -45,7 +45,6 @@ export const ModernMinimalist: React.FC<TemplateProps> = ({
   const contentFontSize = fontSize?.content || 14
   const smallFontSize = fontSize?.small || 12
   const sectionSpacing = spacing?.section || 40
-  const itemSpacing = spacing?.item || 20
   const lineHeight = spacing?.line ? Math.max(1.5, spacing.line / contentFontSize) : 1.6
   const pagePadding = layout?.padding || 48
 
@@ -363,4 +362,3 @@ export const ModernMinimalist: React.FC<TemplateProps> = ({
 }
 
 export default ModernMinimalist
-

@@ -6,6 +6,7 @@
  */
 
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 import React from 'react'
 import { ResumeData } from '@/types/resume'
@@ -29,7 +30,7 @@ export const GridLayout: React.FC<TemplateProps> = ({
   styleConfig,
   onSectionClick
 }) => {
-  const { personalInfo, experience, education, projects, skills } = resumeData
+  const { personalInfo, experience, education, skills } = resumeData
   const { colors, fontSize, spacing, fontFamily } = styleConfig
   const { locale, t } = useLanguage()
 

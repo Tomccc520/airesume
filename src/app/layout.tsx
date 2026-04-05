@@ -17,6 +17,11 @@ export const metadata: Metadata = {
   description: 'UIED Resume 是一个现代化的在线简历编辑器，支持实时预览、多种模板和导出功能',
   keywords: 'UIED Resume, 简历编辑器, 在线简历, 简历制作, 简历模板',
   authors: [{ name: 'UIED技术团队' }],
+  icons: {
+    icon: [{ url: '/avatars/img1.png', type: 'image/png' }],
+    shortcut: ['/avatars/img1.png'],
+    apple: ['/avatars/img1.png'],
+  },
 }
 
 export const viewport: Viewport = {

@@ -6,7 +6,7 @@
  * @createDate 2025-9-22
  */
 
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Copy, FolderOpen, MoveDown, MoveUp } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import { Project } from '@/types/resume'
@@ -22,9 +22,14 @@ import { formatLineItems, formatTagItems, parseLineItems, parseTagItems } from '
 interface ProjectsFormProps {
   projects: Project[]
   onChange: (data: Project[]) => void
+  showSectionHeader?: boolean
 }
 
-export function ProjectsForm({ projects, onChange }: ProjectsFormProps) {
+export function ProjectsForm({
+  projects,
+  onChange,
+  showSectionHeader = true
+}: ProjectsFormProps) {
   const { t, locale } = useLanguage()
   const isZh = locale === 'zh'
   const {
@@ -37,6 +42,74 @@ export function ProjectsForm({ projects, onChange }: ProjectsFormProps) {
     items: projects,
     onChange
   })
+
+  /**
+   * 项目描述快捷片段
+   * 强调“业务目标 + 技术方案 + 结果”结构，提升投递可读性。
+   */
+  const projectDescriptionSnippets = useMemo(() => {
+    if (isZh) {
+      return [
+        {
+          label: '业务闭环模板',
+          content: '面向核心业务流程搭建统一平台，完成从需求梳理到上线复盘的全链路交付，显著提升团队协作效率。'
+        },
+        {
+          label: '技术改造模板',
+          content: '主导旧系统现代化改造，引入标准化工程体系与自动化流程，稳定性和迭代效率同步提升。'
+        }
+      ]
+    }
+
+    return [
+      {
+        label: 'Business delivery',
+        content: 'Built an end-to-end platform for key workflows and delivered from requirement alignment to launch review with measurable execution gains.'
+      },
+      {
+        label: 'Technical revamp',
+        content: 'Led legacy modernization with standardized engineering workflows and automation, improving both stability and delivery speed.'
+      }
+    ]
+  }, [isZh])
+
+  /**
+   * 项目亮点快捷片段
+   * 提供可直接替换数字和指标的成果句式。
+   */
+  const projectHighlightSnippets = useMemo(() => {
+    if (isZh) {
+      return [
+        {
+          label: '性能成果句式',
+          content: '将关键页面渲染耗时从 2.8s 降至 1.4s，首屏性能指标提升 45%。'
+        },
+        {
+          label: '效率成果句式',
+          content: '沉淀标准化组件与流程，使功能交付周期缩短约 30%。'
+        },
+        {
+          label: '业务成果句式',
+          content: '上线后 2 个月内核心转化率提升 11%，并保持稳定增长。'
+        }
+      ]
+    }
+
+    return [
+      {
+        label: 'Performance impact',
+        content: 'Reduced key page render time from 2.8s to 1.4s, improving first-screen performance metrics by 45%.'
+      },
+      {
+        label: 'Efficiency impact',
+        content: 'Standardized reusable components and workflows, shortening feature delivery cycle by around 30%.'
+      },
+      {
+        label: 'Business impact',
+        content: 'Improved core conversion rate by 11% within two months after launch with sustained growth.'
+      }
+    ]
+  }, [isZh])
 
   /**
    * 添加项目
@@ -57,13 +130,15 @@ export function ProjectsForm({ projects, onChange }: ProjectsFormProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <SectionHeader 
-        title={t.editor.projects.title}
-        description={t.editor.projects.description}
-        count={projects.length}
-        icon={<FolderOpen className="w-5 h-5" />}
-      />
+    <div className={showSectionHeader ? 'space-y-6' : 'space-y-5'}>
+      {showSectionHeader && (
+        <SectionHeader 
+          title={t.editor.projects.title}
+          description={t.editor.projects.description}
+          count={projects.length}
+          icon={<FolderOpen className="w-5 h-5" />}
+        />
+      )}
 
       <div className="space-y-4">
         <AnimatePresence mode="popLayout">
@@ -126,6 +201,9 @@ export function ProjectsForm({ projects, onChange }: ProjectsFormProps) {
                   maxRows={10}
                   showToolbar={true}
                   enableAI={false}
+                  recommendedLength={{ min: 70, max: 220 }}
+                  snippets={projectDescriptionSnippets}
+                  enableQualityCheck={true}
                 />
 
                 <FormFieldGroup>
@@ -169,6 +247,9 @@ export function ProjectsForm({ projects, onChange }: ProjectsFormProps) {
                   maxRows={10}
                   showToolbar={true}
                   enableAI={false}
+                  recommendedLength={{ min: 60, max: 260 }}
+                  snippets={projectHighlightSnippets}
+                  enableQualityCheck={true}
                 />
               </div>
             </EditableCard>

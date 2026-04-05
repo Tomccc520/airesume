@@ -39,7 +39,6 @@ describe('Property 2: Preview A4 Aspect Ratio', () => {
   // Feature: resume-editor-optimization, Property 2: Preview A4 Aspect Ratio
   // **Validates: Requirements 2.1**
 
-  const EXPECTED_ASPECT_RATIO = A4_HEIGHT_MM / A4_WIDTH_MM; // 1.414...
   const TOLERANCE = 0.01; // 1% tolerance
 
   /**

@@ -57,6 +57,7 @@ export interface Skill {
   name: string
   level: number  // 改为数字类型，表示百分比 0-100
   category: string
+  categoryLocked?: boolean // 是否锁定技能分类，锁定后智能重整不会自动改动
   color?: string // 技能标签颜色
 }
 

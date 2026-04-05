@@ -11,7 +11,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 export interface AnimationPreferences {
   /** 是否应该减少动画 */
@@ -26,6 +26,23 @@ export interface AnimationPreferences {
   supportsGPUAcceleration: boolean
 }
 
+interface NavigatorConnectionLike {
+  effectiveType?: string
+}
+
+interface NavigatorWithPerformanceHints extends Navigator {
+  deviceMemory?: number
+  connection?: NavigatorConnectionLike
+}
+
+interface AnimationVariantLike {
+  transition?: {
+    duration?: number
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
 /**
  * 检测设备是否为低端设备
  * 基于硬件并发数、内存和连接类型判断
@@ -33,16 +50,18 @@ export interface AnimationPreferences {
 function detectLowEndDevice(): boolean {
   if (typeof window === 'undefined') return false
 
+  const navigatorWithHints = navigator as NavigatorWithPerformanceHints
+
   // 检查硬件并发数（CPU 核心数）
-  const hardwareConcurrency = navigator.hardwareConcurrency || 4
+  const hardwareConcurrency = navigatorWithHints.hardwareConcurrency || 4
   const isLowCPU = hardwareConcurrency <= 2
 
   // 检查设备内存（如果可用）
-  const deviceMemory = (navigator as any).deviceMemory || 4
+  const deviceMemory = navigatorWithHints.deviceMemory || 4
   const isLowMemory = deviceMemory <= 2
 
   // 检查网络连接类型（如果可用）
-  const connection = (navigator as any).connection
+  const connection = navigatorWithHints.connection
   const isSlowConnection = connection?.effectiveType === '2g' || connection?.effectiveType === 'slow-2g'
 
   // 检查是否是移动设备
@@ -208,8 +227,8 @@ export const optimizedTransforms = {
 export function createOptimizedVariants(
   preferences: AnimationPreferences,
   variants: {
-    hidden: Record<string, any>
-    visible: Record<string, any>
+    hidden: AnimationVariantLike
+    visible: AnimationVariantLike
   }
 ) {
   const { shouldReduceMotion, durationMultiplier } = preferences

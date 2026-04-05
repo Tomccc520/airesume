@@ -21,6 +21,7 @@ export interface ResumeData {
     phone?: string
     location?: string
     website?: string
+    contactQRCode?: string
     summary?: string
     avatar?: string
   }

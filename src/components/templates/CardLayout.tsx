@@ -20,6 +20,7 @@ import { createContactQRCodeImageUrl, resolveContactQRCodePayload } from '@/util
 interface TemplateProps {
   resumeData: ResumeData
   styleConfig: StyleConfig
+  templateId?: string
   onSectionClick?: (section: string) => void
 }
 
@@ -30,23 +31,26 @@ interface TemplateProps {
 export const CardLayout: React.FC<TemplateProps> = ({
   resumeData,
   styleConfig,
+  templateId,
   onSectionClick
 }) => {
   const { personalInfo, experience, education, projects, skills } = resumeData
   const { colors, fontSize, spacing, fontFamily } = styleConfig
   const { locale, t } = useLanguage()
+  const isExecutiveCard = templateId === 'card-layout-executive'
 
   const fontFamilyStyle = fontFamily || '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif'
-  const pagePadding = Math.max(styleConfig.layout?.padding || 32, 30)
+  const pagePadding = Math.max(styleConfig.layout?.padding || (isExecutiveCard ? 34 : 32), isExecutiveCard ? 32 : 30)
   const baseContentSize = fontSize?.content || 14
   const metrics = getMarketResumeMetrics({ baseContentSize, sectionSpacing: spacing?.section })
-  const sectionGap = metrics.sectionGap
+  const sectionGap = isExecutiveCard ? Math.max(metrics.sectionGap - 1, 17) : metrics.sectionGap
+  const dateColumnWidth = isExecutiveCard ? Math.max(metrics.dateColumnWidth + 10, 130) : metrics.dateColumnWidth
+  const bodyLineHeight = isExecutiveCard ? 1.52 : metrics.bodyLineHeight
   const headingColor = colors.primary || '#0f172a'
   const textColor = colors.text || '#111827'
   const mutedColor = colors.secondary || '#64748b'
-  const borderColor = '#d7dee8'
-  const rowDividerColor = '#e7edf4'
-  const sidePanelBgColor = '#f8fafc'
+  const borderColor = '#d3dbe6'
+  const rowDividerColor = '#e4ebf3'
   const isEnglish = locale === 'en'
   const contactQRCodePayload = resolveContactQRCodePayload(personalInfo)
   const contactQRCodeUrl = contactQRCodePayload ? createContactQRCodeImageUrl(contactQRCodePayload, 176) : null
@@ -78,19 +82,16 @@ export const CardLayout: React.FC<TemplateProps> = ({
         marginBottom: `${metrics.sectionTitleMarginBottom}px`
       }}
     >
-      <div className="inline-flex items-center gap-2">
-        <span className="h-3 w-[2px] rounded-full" style={{ backgroundColor: headingColor }} />
-        <h2
-          className={`text-sm font-semibold ${isEnglish ? 'uppercase tracking-[0.1em]' : ''}`}
-          style={{
-            color: headingColor,
-            fontSize: `${metrics.sectionTitleSize}px`,
-            fontWeight: metrics.sectionTitleWeight
-          }}
-        >
-          {title}
-        </h2>
-      </div>
+      <h2
+        className={`text-sm font-semibold ${isEnglish ? 'uppercase tracking-[0.1em]' : ''}`}
+        style={{
+          color: headingColor,
+          fontSize: `${metrics.sectionTitleSize}px`,
+          fontWeight: metrics.sectionTitleWeight
+        }}
+      >
+        {title}
+      </h2>
       {helperText && (
         <span className="text-xs" style={{ color: mutedColor, fontWeight: metrics.metaWeight }}>
           {helperText}
@@ -131,6 +132,7 @@ export const CardLayout: React.FC<TemplateProps> = ({
   const skillGroups = groupSkillsByCategory()
   const contactSummary = getContactSummary()
   const skillGroupEntries = Object.entries(skillGroups)
+  const layoutColumns = isExecutiveCard ? 'grid-cols-[1.58fr,1fr]' : 'grid-cols-[1.66fr,1fr]'
 
   return (
     <div
@@ -139,7 +141,7 @@ export const CardLayout: React.FC<TemplateProps> = ({
         fontFamily: fontFamilyStyle,
         color: textColor,
         fontSize: `${baseContentSize}px`,
-        lineHeight: metrics.bodyLineHeight,
+        lineHeight: bodyLineHeight,
         padding: `${pagePadding}px`,
         borderColor
       }}
@@ -226,11 +228,10 @@ export const CardLayout: React.FC<TemplateProps> = ({
         </div>
         {personalInfo.summary && (
           <div
-            className="whitespace-pre-line rounded-sm border-l-[3px] px-3 py-2"
+            className="whitespace-pre-line border-t pt-2"
             style={{
-              marginTop: `${metrics.entryGap - 3}px`,
+              marginTop: `${metrics.entryGap - 2}px`,
               lineHeight: metrics.summaryLineHeight,
-              backgroundColor: sidePanelBgColor,
               borderColor: rowDividerColor
             }}
           >
@@ -239,7 +240,7 @@ export const CardLayout: React.FC<TemplateProps> = ({
         )}
       </section>
 
-      <div className="grid grid-cols-[1.66fr,1fr]" style={{ columnGap: `${Math.max(sectionGap - 1, metrics.entryGap + 10)}px` }}>
+      <div className={`grid ${layoutColumns}`} style={{ columnGap: `${Math.max(sectionGap - 1, metrics.entryGap + 10)}px` }}>
         <div>
           {experience.length > 0 && (
             <section
@@ -277,7 +278,7 @@ export const CardLayout: React.FC<TemplateProps> = ({
                           color: mutedColor,
                           fontSize: `${metrics.metaSize}px`,
                           fontWeight: metrics.metaWeight,
-                          minWidth: `${metrics.dateColumnWidth}px`,
+                          minWidth: `${dateColumnWidth}px`,
                           textAlign: 'right'
                         }}
                       >
@@ -295,7 +296,7 @@ export const CardLayout: React.FC<TemplateProps> = ({
                           marginTop: `${metrics.bulletGap}px`,
                           display: 'grid',
                           rowGap: `${metrics.bulletGap}px`,
-                          lineHeight: metrics.bodyLineHeight
+                          lineHeight: bodyLineHeight
                         }}
                       >
                         {exp.description.map((desc, index) => (
@@ -347,7 +348,7 @@ export const CardLayout: React.FC<TemplateProps> = ({
                           color: mutedColor,
                           fontSize: `${metrics.metaSize}px`,
                           fontWeight: metrics.metaWeight,
-                          minWidth: `${metrics.dateColumnWidth}px`,
+                          minWidth: `${dateColumnWidth}px`,
                           textAlign: 'right'
                         }}
                       >
@@ -362,7 +363,7 @@ export const CardLayout: React.FC<TemplateProps> = ({
                           marginTop: `${metrics.bulletGap}px`,
                           display: 'grid',
                           rowGap: `${metrics.bulletGap}px`,
-                          lineHeight: metrics.bodyLineHeight
+                          lineHeight: bodyLineHeight
                         }}
                       >
                         {project.highlights.map((highlight, index) => (
@@ -379,13 +380,17 @@ export const CardLayout: React.FC<TemplateProps> = ({
           )}
         </div>
 
-        <aside
-          className="rounded-md border px-4 py-4"
-          style={{
-            borderColor: rowDividerColor,
-            backgroundColor: sidePanelBgColor
-          }}
-        >
+        <aside className="border-l pl-5" style={{ borderColor: rowDividerColor }}>
+          {isExecutiveCard && (
+            <section className="mb-4 border-b pb-3" style={{ borderColor: rowDividerColor }}>
+              <h3 className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: mutedColor }}>
+                {locale === 'en' ? 'Profile' : '简历概览'}
+              </h3>
+              <p className="mt-1.5 text-sm" style={{ color: textColor, lineHeight: bodyLineHeight }}>
+                {contactSummary || (locale === 'en' ? 'No contact information' : '未填写联系方式')}
+              </p>
+            </section>
+          )}
           {skills.length > 0 && (
             <section
               className="cursor-pointer"
@@ -402,7 +407,7 @@ export const CardLayout: React.FC<TemplateProps> = ({
                     <h3 className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: mutedColor }}>
                       {category}
                     </h3>
-                    <p className="mt-1 text-sm" style={{ color: textColor, lineHeight: metrics.bodyLineHeight }}>
+                    <p className="mt-1 text-sm" style={{ color: textColor, lineHeight: bodyLineHeight }}>
                       {items.map((skill, index) => (
                         <span key={skill.id}>
                           {skill.name}

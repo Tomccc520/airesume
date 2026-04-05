@@ -2,7 +2,7 @@
  * @copyright Tomda (https://www.tomda.top)
  * @copyright UIED技术团队 (https://fsuied.com)
  * @author UIED技术团队
- * @createDate 2026-03-14
+ * @createDate 2026-03-26
  */
 
 'use client'
@@ -14,6 +14,8 @@ import { StyleConfig } from '@/contexts/StyleContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { formatDate } from '@/utils/dateFormatter'
 import { getAvatarClassName, getAvatarInlineStyle } from '@/utils/avatarUtils'
+import { getUnifiedResumeMetrics } from './resumePrintMetrics'
+import { createContactQRCodeImageUrl, resolveContactQRCodePayload } from '@/utils/contactQRCode'
 
 interface TemplateProps {
   resumeData: ResumeData
@@ -22,8 +24,8 @@ interface TemplateProps {
 }
 
 /**
- * 极简文本布局
- * 强化信息层级与留白节奏，兼顾 ATS 友好和视觉质感
+ * 经典单栏模板
+ * 对齐招聘平台常见 ATS 单栏：低装饰、强层级、便于导出 PDF。
  */
 export const MinimalTextLayout: React.FC<TemplateProps> = ({
   resumeData,
@@ -34,117 +36,200 @@ export const MinimalTextLayout: React.FC<TemplateProps> = ({
   const { colors, fontSize, spacing, fontFamily } = styleConfig
   const { locale, t } = useLanguage()
 
-  const fontFamilyStyle = fontFamily || '"Merriweather", "Times New Roman", Georgia, serif'
-  const pagePadding = styleConfig.layout?.padding || 44
-  const headingColor = colors.primary || '#0f172a'
-  const textColor = colors.text || '#0f172a'
-  const mutedColor = colors.secondary || '#475569'
-  const accentColor = colors.accent || '#b7791f'
-  const sectionGap = spacing?.section || 28
+  const fontFamilyStyle = fontFamily || '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif'
+  const pagePadding = styleConfig.layout?.padding || 34
+  const baseContentSize = fontSize?.content || 14
+  const metrics = getUnifiedResumeMetrics({ baseContentSize, sectionSpacing: spacing?.section })
+  const sectionGap = metrics.sectionGap
+  const headingColor = colors.primary || '#1f2937'
+  const textColor = colors.text || '#1f2937'
+  const mutedColor = colors.secondary || '#6b7280'
+  const borderColor = '#d8dee7'
+  const isEnglish = locale === 'en'
+  const contactQRCodePayload = resolveContactQRCodePayload(personalInfo)
+  const contactQRCodeUrl = contactQRCodePayload ? createContactQRCodeImageUrl(contactQRCodePayload, 176) : null
 
   /**
    * 格式化日期文本
-   * 统一中英文环境的时间展示
+   * 在中英文模式下统一年月显示格式。
    */
   const formatDateStr = (date?: string) => formatDate(date, locale)
 
   /**
    * 格式化时间区间
-   * 处理“当前在职”与普通结束时间两种场景
+   * 同时处理“当前在职”和普通结束时间。
    */
   const formatPeriod = (startDate?: string, endDate?: string, isCurrent?: boolean) => {
     return `${formatDateStr(startDate)} - ${isCurrent ? t.editor.experience.current : formatDateStr(endDate)}`
   }
 
   /**
-   * 章节标题渲染
-   * 保持标题样式一致，减少视觉噪音
+   * 渲染章节标题
+   * 使用招聘模板常见的小标题 + 底线形式。
    */
-  const renderSectionTitle = (title: string) => (
-    <div className="flex items-center gap-3">
-      <div className="h-5 w-1.5 rounded-full" style={{ backgroundColor: accentColor }} />
+  const renderSectionTitle = (title: string, helperText?: string) => (
+    <div
+      className="flex items-end justify-between border-b"
+      style={{
+        borderColor,
+        paddingBottom: `${metrics.sectionTitlePaddingBottom}px`,
+        marginBottom: `${metrics.sectionTitleMarginBottom}px`
+      }}
+    >
       <h2
-        className="font-bold uppercase tracking-[0.16em]"
+        className={`text-sm font-semibold ${isEnglish ? 'uppercase tracking-[0.1em]' : ''}`}
         style={{
-          fontSize: `${fontSize?.title || 15}px`,
-          color: headingColor
+          color: headingColor,
+          fontSize: `${metrics.sectionTitleSize}px`,
+          fontWeight: metrics.sectionTitleWeight
         }}
       >
         {title}
       </h2>
+      {helperText && (
+        <span className="text-xs" style={{ color: mutedColor, fontWeight: metrics.metaWeight }}>
+          {helperText}
+        </span>
+      )}
     </div>
   )
 
+  /**
+   * 构建联系信息摘要
+   * 通过“·”连接，保持页眉信息密度与可读性平衡。
+   */
+  const getContactSummary = () => {
+    const websiteLabel = personalInfo.website
+      ? personalInfo.website.replace(/^https?:\/\//i, '').replace(/\/$/, '')
+      : ''
+    return [personalInfo.phone, personalInfo.email, personalInfo.location, websiteLabel]
+      .filter(Boolean)
+      .join(' · ')
+  }
+
+  /**
+   * 按类别聚合技能
+   * 将技能标签改为分类文本行，符合招聘平台导出观感。
+   */
+  const groupSkillsByCategory = () => {
+    const fallbackCategory = locale === 'en' ? 'General' : '综合'
+    return skills.reduce<Record<string, typeof skills>>((groups, skill) => {
+      const category = skill.category || fallbackCategory
+      if (!groups[category]) {
+        groups[category] = []
+      }
+      groups[category].push(skill)
+      return groups
+    }, {})
+  }
+
+  const skillGroups = groupSkillsByCategory()
+
   return (
     <div
-      className="w-full min-h-full bg-white"
+      className="w-full min-h-full border bg-white"
       style={{
         fontFamily: fontFamilyStyle,
         color: textColor,
+        fontSize: `${baseContentSize}px`,
+        lineHeight: metrics.bodyLineHeight,
         padding: `${pagePadding}px`,
-        fontSize: `${fontSize?.content || 14}px`,
-        lineHeight: 1.7
+        borderColor
       }}
     >
       <section
-        className="cursor-pointer rounded-2xl border border-slate-200/80 bg-slate-50/40 px-6 py-7 text-center"
+        className="cursor-pointer border-b pb-5"
         onClick={() => onSectionClick?.('personal')}
-        style={{ marginBottom: `${sectionGap}px` }}
+        style={{
+          marginBottom: `${sectionGap}px`,
+          borderColor
+        }}
       >
-        {personalInfo.avatar && (
-          <Image
-            src={personalInfo.avatar}
-            alt={personalInfo.name}
-            width={96}
-            height={96}
-            unoptimized
-            className={`${getAvatarClassName(styleConfig, 'mx-auto mb-4 w-24 h-24')}`}
-            style={{
-              ...getAvatarInlineStyle(personalInfo.avatarBorderRadius, styleConfig, 96),
-              border: `3px solid ${accentColor}`,
-              boxShadow: '0 8px 20px -14px rgba(15, 23, 42, 0.6)'
-            }}
-          />
-        )}
-        <h1
-          className="font-bold tracking-[0.08em]"
-          style={{
-            fontSize: `${fontSize?.name || 30}px`,
-            color: headingColor,
-            marginBottom: '6px'
-          }}
-        >
-          {personalInfo.name}
-        </h1>
-        <p
-          className="font-medium"
-          style={{
-            color: mutedColor,
-            fontSize: `${fontSize?.title || 16}px`
-          }}
-        >
-          {personalInfo.title}
-        </p>
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs" style={{ color: mutedColor }}>
-          {personalInfo.phone && <span className="rounded-full border border-slate-300 px-2.5 py-1">{personalInfo.phone}</span>}
-          {personalInfo.email && <span className="rounded-full border border-slate-300 px-2.5 py-1">{personalInfo.email}</span>}
-          {personalInfo.location && <span className="rounded-full border border-slate-300 px-2.5 py-1">{personalInfo.location}</span>}
-          {personalInfo.website && <span className="rounded-full border border-slate-300 px-2.5 py-1">{personalInfo.website}</span>}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <h1
+              className="font-semibold tracking-[0.02em]"
+              style={{
+                fontSize: `${metrics.nameSize}px`,
+                color: headingColor,
+                fontWeight: metrics.nameWeight
+              }}
+            >
+              {personalInfo.name}
+            </h1>
+            <p
+              className="mt-1 font-medium"
+              style={{
+                fontSize: `${metrics.roleSize}px`,
+                color: mutedColor,
+                fontWeight: metrics.roleWeight
+              }}
+            >
+              {personalInfo.title}
+            </p>
+            {!!getContactSummary() && (
+              <p
+                style={{
+                  marginTop: `${metrics.bulletGap + 1}px`,
+                  color: mutedColor,
+                  fontSize: `${metrics.metaSize}px`,
+                  fontWeight: metrics.metaWeight
+                }}
+              >
+                {getContactSummary()}
+              </p>
+            )}
+          </div>
+          {(personalInfo.avatar || contactQRCodeUrl) && (
+            <div className="flex flex-col items-end gap-2">
+              {personalInfo.avatar && (
+                <Image
+                  src={personalInfo.avatar}
+                  alt={personalInfo.name}
+                  width={metrics.headerAvatarSize}
+                  height={metrics.headerAvatarSize}
+                  unoptimized
+                  className={getAvatarClassName(styleConfig, 'h-[72px] w-[72px]')}
+                  style={{
+                    ...getAvatarInlineStyle(
+                      personalInfo.avatarBorderRadius,
+                      styleConfig,
+                      metrics.headerAvatarSize
+                    ),
+                    border: `1px solid ${borderColor}`
+                  }}
+                />
+              )}
+              {contactQRCodeUrl && (
+                <div className="rounded border bg-white p-1.5 text-center" style={{ borderColor }}>
+                  <Image
+                    src={contactQRCodeUrl}
+                    alt={isEnglish ? 'Contact QR Code' : '联系方式二维码'}
+                    width={68}
+                    height={68}
+                    unoptimized
+                    className="h-[68px] w-[68px]"
+                  />
+                  <p className="mt-1 text-[10px]" style={{ color: mutedColor }}>
+                    {isEnglish ? 'Contact QR' : '联系二维码'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      </section>
-
-      {personalInfo.summary && (
-        <section
-          className="cursor-pointer"
-          onClick={() => onSectionClick?.('personal')}
-          style={{ marginBottom: `${sectionGap}px` }}
-        >
-          {renderSectionTitle(t.editor.templatePreview.personalSummary)}
-          <p className="mt-3 whitespace-pre-line leading-7" style={{ color: textColor }}>
+        {personalInfo.summary && (
+          <p
+            className="whitespace-pre-line"
+            style={{
+              marginTop: `${metrics.entryGap - 3}px`,
+              lineHeight: metrics.summaryLineHeight
+            }}
+          >
             {personalInfo.summary}
           </p>
-        </section>
-      )}
+        )}
+      </section>
 
       {experience.length > 0 && (
         <section
@@ -152,27 +237,113 @@ export const MinimalTextLayout: React.FC<TemplateProps> = ({
           onClick={() => onSectionClick?.('experience')}
           style={{ marginBottom: `${sectionGap}px` }}
         >
-          {renderSectionTitle(t.editor.experience.title)}
-          <div className="mt-4 space-y-4">
+          {renderSectionTitle(
+            t.editor.experience.title,
+            locale === 'en' ? `${experience.length} records` : `${experience.length} 条记录`
+          )}
+          <div style={{ display: 'grid', rowGap: `${metrics.entryGap}px` }}>
             {experience.map((exp) => (
-              <article key={exp.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="font-semibold" style={{ color: headingColor }}>
+              <article key={exp.id} className="pb-3 last:pb-0">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h3
+                    className="font-semibold"
+                    style={{
+                      color: headingColor,
+                      fontSize: `${metrics.itemTitleSize}px`,
+                      fontWeight: metrics.itemTitleWeight
+                    }}
+                  >
                     {exp.position}
                   </h3>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs" style={{ color: mutedColor }}>
+                  <span
+                    className="font-medium"
+                    style={{
+                      color: mutedColor,
+                      fontSize: `${metrics.metaSize}px`,
+                      fontWeight: metrics.metaWeight,
+                      minWidth: `${metrics.dateColumnWidth}px`,
+                      textAlign: 'right'
+                    }}
+                  >
                     {formatPeriod(exp.startDate, exp.endDate, exp.current)}
                   </span>
                 </div>
-                <div className="mt-1 text-sm font-medium" style={{ color: accentColor }}>
+                <p className="mt-1 text-sm font-medium" style={{ color: headingColor }}>
                   {exp.company}
                   {exp.location && <span style={{ color: mutedColor }}> · {exp.location}</span>}
-                </div>
+                </p>
                 {exp.description.length > 0 && (
-                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <ul
+                    className="pl-4"
+                    style={{
+                      marginTop: `${metrics.bulletGap}px`,
+                      display: 'grid',
+                      rowGap: `${metrics.bulletGap}px`
+                    }}
+                  >
                     {exp.description.map((desc, index) => (
-                      <li key={`${exp.id}-desc-${index}`} style={{ color: textColor }}>
+                      <li key={`${exp.id}-desc-${index}`} className="list-disc">
                         {desc}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {projects.length > 0 && (
+        <section
+          className="cursor-pointer"
+          onClick={() => onSectionClick?.('projects')}
+          style={{ marginBottom: `${sectionGap}px` }}
+        >
+          {renderSectionTitle(
+            t.editor.projects.title,
+            locale === 'en' ? `${projects.length} projects` : `${projects.length} 个项目`
+          )}
+          <div style={{ display: 'grid', rowGap: `${metrics.entryGap}px` }}>
+            {projects.map((project) => (
+              <article key={project.id} className="pb-3 last:pb-0">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h3
+                    className="font-semibold"
+                    style={{
+                      color: headingColor,
+                      fontSize: `${metrics.itemTitleSize}px`,
+                      fontWeight: metrics.itemTitleWeight
+                    }}
+                  >
+                    {project.name}
+                  </h3>
+                  <span
+                    className="font-medium"
+                    style={{
+                      color: mutedColor,
+                      fontSize: `${metrics.metaSize}px`,
+                      fontWeight: metrics.metaWeight,
+                      minWidth: `${metrics.dateColumnWidth}px`,
+                      textAlign: 'right'
+                    }}
+                  >
+                    {formatDateStr(project.startDate)} - {formatDateStr(project.endDate)}
+                  </span>
+                </div>
+                <p className="mt-1.5">{project.description}</p>
+                {project.highlights.length > 0 && (
+                  <ul
+                    className="pl-4"
+                    style={{
+                      marginTop: `${metrics.bulletGap}px`,
+                      display: 'grid',
+                      rowGap: `${metrics.bulletGap}px`
+                    }}
+                  >
+                    {project.highlights.map((highlight, index) => (
+                      <li key={`${project.id}-highlight-${index}`} className="list-disc">
+                        {highlight}
                       </li>
                     ))}
                   </ul>
@@ -189,58 +360,34 @@ export const MinimalTextLayout: React.FC<TemplateProps> = ({
           onClick={() => onSectionClick?.('education')}
           style={{ marginBottom: `${sectionGap}px` }}
         >
-          {renderSectionTitle(t.editor.education.title)}
-          <div className="mt-4 space-y-3">
+          {renderSectionTitle(
+            t.editor.education.title,
+            locale === 'en' ? `${education.length} records` : `${education.length} 条记录`
+          )}
+          <div style={{ display: 'grid', rowGap: `${metrics.entryGap - 2}px` }}>
             {education.map((edu) => (
-              <article key={edu.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="font-semibold" style={{ color: headingColor }}>
+              <article key={edu.id} className="pb-2.5 last:pb-0">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h3 className="font-semibold" style={{ color: headingColor, fontWeight: metrics.itemTitleWeight }}>
                     {edu.school}
                   </h3>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs" style={{ color: mutedColor }}>
+                  <span
+                    className="font-medium"
+                    style={{
+                      color: mutedColor,
+                      fontSize: `${metrics.metaSize}px`,
+                      fontWeight: metrics.metaWeight,
+                      minWidth: `${metrics.dateColumnWidth}px`,
+                      textAlign: 'right'
+                    }}
+                  >
                     {formatDateStr(edu.startDate)} - {formatDateStr(edu.endDate)}
                   </span>
                 </div>
-                <div className="mt-1 text-sm" style={{ color: mutedColor }}>
+                <p className="mt-1 text-sm" style={{ color: mutedColor }}>
                   {edu.degree} · {edu.major}
                   {edu.gpa && <span> · GPA {edu.gpa}</span>}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {projects.length > 0 && (
-        <section
-          className="cursor-pointer"
-          onClick={() => onSectionClick?.('projects')}
-          style={{ marginBottom: `${sectionGap}px` }}
-        >
-          {renderSectionTitle(t.editor.projects.title)}
-          <div className="mt-4 space-y-4">
-            {projects.map((project) => (
-              <article key={project.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="font-semibold" style={{ color: headingColor }}>
-                    {project.name}
-                  </h3>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs" style={{ color: mutedColor }}>
-                    {formatDateStr(project.startDate)} - {formatDateStr(project.endDate)}
-                  </span>
-                </div>
-                <p className="mt-2" style={{ color: textColor }}>
-                  {project.description}
                 </p>
-                {project.highlights.length > 0 && (
-                  <ul className="mt-2 list-disc space-y-1 pl-5">
-                    {project.highlights.map((highlight, index) => (
-                      <li key={`${project.id}-highlight-${index}`} style={{ color: textColor }}>
-                        {highlight}
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </article>
             ))}
           </div>
@@ -249,20 +396,25 @@ export const MinimalTextLayout: React.FC<TemplateProps> = ({
 
       {skills.length > 0 && (
         <section className="cursor-pointer" onClick={() => onSectionClick?.('skills')}>
-          {renderSectionTitle(t.editor.skills.title)}
-          <div className="mt-4 flex flex-wrap gap-2.5">
-            {skills.map((skill) => (
-              <span
-                key={skill.id}
-                className="rounded-full border px-3 py-1.5 text-sm"
-                style={{
-                  borderColor: `${accentColor}66`,
-                  color: headingColor,
-                  backgroundColor: '#ffffff'
-                }}
-              >
-                {skill.name}
-              </span>
+          {renderSectionTitle(
+            t.editor.skills.title,
+            locale === 'en' ? `${skills.length} skills` : `${skills.length} 项技能`
+          )}
+          <div style={{ display: 'grid', rowGap: `${metrics.bulletGap}px` }}>
+            {Object.entries(skillGroups).map(([category, items]) => (
+              <article key={category} className="flex gap-2 text-sm">
+                <span className="min-w-[68px] font-semibold" style={{ color: headingColor }}>
+                  {category}
+                </span>
+                <p style={{ color: textColor }}>
+                  {items.map((skill, index) => (
+                    <span key={skill.id}>
+                      {skill.name}
+                      {index < items.length - 1 && <span style={{ color: mutedColor }}> / </span>}
+                    </span>
+                  ))}
+                </p>
+              </article>
             ))}
           </div>
         </section>

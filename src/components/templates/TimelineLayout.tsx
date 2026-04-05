@@ -20,6 +20,7 @@ import { createContactQRCodeImageUrl, resolveContactQRCodePayload } from '@/util
 interface TemplateProps {
   resumeData: ResumeData
   styleConfig: StyleConfig
+  templateId?: string
   onSectionClick?: (section: string) => void
 }
 
@@ -30,25 +31,28 @@ interface TemplateProps {
 export const TimelineLayout: React.FC<TemplateProps> = ({
   resumeData,
   styleConfig,
+  templateId,
   onSectionClick
 }) => {
   const { personalInfo, experience, education, projects, skills } = resumeData
   const { colors, fontSize, spacing, fontFamily } = styleConfig
   const { locale, t } = useLanguage()
+  const isClassicTimeline = templateId === 'timeline-layout-classic'
 
   const fontFamilyStyle = fontFamily || '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif'
-  const pagePadding = Math.max(styleConfig.layout?.padding || 34, 32)
+  const pagePadding = Math.max(styleConfig.layout?.padding || (isClassicTimeline ? 36 : 34), isClassicTimeline ? 32 : 30)
   const baseContentSize = fontSize?.content || 14
   const metrics = getMarketResumeMetrics({ baseContentSize, sectionSpacing: spacing?.section })
-  const sectionGap = metrics.sectionGap
+  const sectionGap = isClassicTimeline ? Math.max(metrics.sectionGap - 1, 17) : metrics.sectionGap
+  const timelineDateWidth = isClassicTimeline ? Math.max(metrics.dateColumnWidth + 12, 134) : Math.max(metrics.dateColumnWidth + 6, 124)
+  const bodyLineHeight = isClassicTimeline ? 1.52 : metrics.bodyLineHeight
   const headingColor = colors.primary || '#0f172a'
   const textColor = colors.text || '#111827'
   const mutedColor = colors.secondary || '#64748b'
-  const borderColor = '#d7dee8'
-  const rowDividerColor = '#e7edf4'
-  const timelineColor = '#ced6e0'
-  const timelineDotColor = '#475569'
-  const summaryBgColor = '#f8fafc'
+  const borderColor = '#d3dbe6'
+  const rowDividerColor = '#e4ebf3'
+  const timelineColor = isClassicTimeline ? '#bcc9da' : '#cbd5e1'
+  const timelineDotColor = isClassicTimeline ? '#334155' : '#475569'
   const isEnglish = locale === 'en'
   const contactQRCodePayload = resolveContactQRCodePayload(personalInfo)
   const contactQRCodeUrl = contactQRCodePayload ? createContactQRCodeImageUrl(contactQRCodePayload, 176) : null
@@ -80,19 +84,16 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
         marginBottom: `${metrics.sectionTitleMarginBottom}px`
       }}
     >
-      <div className="inline-flex items-center gap-2">
-        <span className="h-3 w-[2px] rounded-full" style={{ backgroundColor: headingColor }} />
-        <h2
-          className={`text-sm font-semibold ${isEnglish ? 'uppercase tracking-[0.1em]' : ''}`}
-          style={{
-            color: headingColor,
-            fontSize: `${metrics.sectionTitleSize}px`,
-            fontWeight: metrics.sectionTitleWeight
-          }}
-        >
-          {title}
-        </h2>
-      </div>
+      <h2
+        className={`text-sm font-semibold ${isEnglish ? 'uppercase tracking-[0.1em]' : ''}`}
+        style={{
+          color: headingColor,
+          fontSize: `${metrics.sectionTitleSize}px`,
+          fontWeight: metrics.sectionTitleWeight
+        }}
+      >
+        {title}
+      </h2>
       {helperText && (
         <span className="text-xs" style={{ color: mutedColor, fontWeight: metrics.metaWeight }}>
           {helperText}
@@ -140,7 +141,7 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
         fontFamily: fontFamilyStyle,
         color: textColor,
         fontSize: `${baseContentSize}px`,
-        lineHeight: metrics.bodyLineHeight,
+        lineHeight: bodyLineHeight,
         padding: `${pagePadding}px`,
         borderColor
       }}
@@ -229,11 +230,10 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
         </div>
         {personalInfo.summary && (
           <div
-            className="whitespace-pre-line rounded-sm border-l-[3px] px-3 py-2"
+            className="whitespace-pre-line border-t pt-2"
             style={{
-              marginTop: `${metrics.entryGap - 3}px`,
+              marginTop: `${metrics.entryGap - 2}px`,
               lineHeight: metrics.summaryLineHeight,
-              backgroundColor: summaryBgColor,
               borderColor: rowDividerColor
             }}
           >
@@ -258,7 +258,7 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
                 key={exp.id}
                 className="grid gap-4"
                 style={{
-                  gridTemplateColumns: `${metrics.dateColumnWidth + 8}px 1fr`,
+                  gridTemplateColumns: `${timelineDateWidth}px 1fr`,
                   borderBottom: index < experience.length - 1 ? `1px solid ${rowDividerColor}` : 'none',
                   paddingBottom: index < experience.length - 1 ? `${metrics.entryGap - 1}px` : 0
                 }}
@@ -272,7 +272,10 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
                 <div className="relative border-l pl-4" style={{ borderColor: timelineColor }}>
                   <span
                     className="absolute left-0 top-1.5 h-2.5 w-2.5 -translate-x-1/2 rounded-full"
-                    style={{ backgroundColor: timelineDotColor }}
+                    style={{
+                      backgroundColor: isClassicTimeline ? '#ffffff' : timelineDotColor,
+                      border: `1.5px solid ${timelineDotColor}`
+                    }}
                   />
                   <h3
                     className="font-semibold"
@@ -292,12 +295,12 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
                     <ul
                       className="pl-4"
                       style={{
-                        marginTop: `${metrics.bulletGap}px`,
-                        display: 'grid',
-                        rowGap: `${metrics.bulletGap}px`,
-                        lineHeight: metrics.bodyLineHeight
-                      }}
-                    >
+                      marginTop: `${metrics.bulletGap}px`,
+                      display: 'grid',
+                      rowGap: `${metrics.bulletGap}px`,
+                      lineHeight: bodyLineHeight
+                    }}
+                  >
                       {exp.description.map((desc, index) => (
                         <li key={`${exp.id}-desc-${index}`} className="list-disc">
                           {desc}
@@ -328,7 +331,7 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
                 key={project.id}
                 className="grid gap-4"
                 style={{
-                  gridTemplateColumns: `${metrics.dateColumnWidth + 8}px 1fr`,
+                  gridTemplateColumns: `${timelineDateWidth}px 1fr`,
                   borderBottom: index < projects.length - 1 ? `1px solid ${rowDividerColor}` : 'none',
                   paddingBottom: index < projects.length - 1 ? `${metrics.entryGap - 1}px` : 0
                 }}
@@ -342,7 +345,10 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
                 <div className="relative border-l pl-4" style={{ borderColor: timelineColor }}>
                   <span
                     className="absolute left-0 top-1.5 h-2.5 w-2.5 -translate-x-1/2 rounded-full"
-                    style={{ backgroundColor: timelineDotColor }}
+                    style={{
+                      backgroundColor: isClassicTimeline ? '#ffffff' : timelineDotColor,
+                      border: `1.5px solid ${timelineDotColor}`
+                    }}
                   />
                   <h3
                     className="font-semibold"
@@ -362,7 +368,7 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
                         marginTop: `${metrics.bulletGap}px`,
                         display: 'grid',
                         rowGap: `${metrics.bulletGap}px`,
-                        lineHeight: metrics.bodyLineHeight
+                        lineHeight: bodyLineHeight
                       }}
                     >
                       {project.highlights.map((highlight, highlightIndex) => (
@@ -395,7 +401,7 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
                 key={edu.id}
                 className="grid gap-4"
                 style={{
-                  gridTemplateColumns: `${metrics.dateColumnWidth + 8}px 1fr`,
+                  gridTemplateColumns: `${timelineDateWidth}px 1fr`,
                   borderBottom: index < education.length - 1 ? `1px solid ${rowDividerColor}` : 'none',
                   paddingBottom: index < education.length - 1 ? `${metrics.entryGap - 2}px` : 0
                 }}
@@ -409,7 +415,10 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
                 <div className="relative border-l pl-4" style={{ borderColor: timelineColor }}>
                   <span
                     className="absolute left-0 top-1.5 h-2.5 w-2.5 -translate-x-1/2 rounded-full"
-                    style={{ backgroundColor: timelineDotColor }}
+                    style={{
+                      backgroundColor: isClassicTimeline ? '#ffffff' : timelineDotColor,
+                      border: `1.5px solid ${timelineDotColor}`
+                    }}
                   />
                   <h3 className="font-semibold" style={{ color: headingColor, fontWeight: metrics.itemTitleWeight }}>
                     {edu.school}
@@ -440,7 +449,7 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
                 >
                   {category}
                 </h3>
-                <p className="mt-1" style={{ color: textColor, lineHeight: metrics.bodyLineHeight }}>
+                <p className="mt-1" style={{ color: textColor, lineHeight: bodyLineHeight }}>
                   {items.map((skill, index) => (
                     <span key={skill.id}>
                       {skill.name}

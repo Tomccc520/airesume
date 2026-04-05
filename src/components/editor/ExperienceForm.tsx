@@ -6,7 +6,7 @@
  * @createDate 2025-9-22
  */
 
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Briefcase, Copy, MoveDown, MoveUp } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import { Experience } from '@/types/resume'
@@ -22,9 +22,14 @@ import { formatLineItems, parseLineItems } from '@/utils/editorTextParsers'
 interface ExperienceFormProps {
   experiences: Experience[]
   onChange: (data: Experience[]) => void
+  showSectionHeader?: boolean
 }
 
-export function ExperienceForm({ experiences, onChange }: ExperienceFormProps) {
+export function ExperienceForm({
+  experiences,
+  onChange,
+  showSectionHeader = true
+}: ExperienceFormProps) {
   const { t, locale } = useLanguage()
   const isZh = locale === 'zh'
   const {
@@ -38,6 +43,44 @@ export function ExperienceForm({ experiences, onChange }: ExperienceFormProps) {
     items: experiences,
     onChange
   })
+
+  /**
+   * 工作经历快捷片段
+   * 提供 STAR 与结果导向句式，降低高质量条目编写门槛。
+   */
+  const experienceSnippets = useMemo(() => {
+    if (isZh) {
+      return [
+        {
+          label: '结果导向句式',
+          content: '负责核心模块重构，3 个月内将页面首屏加载时间从 3.2s 降至 1.9s，转化率提升 12%。'
+        },
+        {
+          label: '协作推进句式',
+          content: '推动产品、研发与测试协作闭环，建立迭代评审机制，线上缺陷率下降 30%。'
+        },
+        {
+          label: '增长优化句式',
+          content: '围绕关键漏斗指标开展 A/B 实验，连续 2 个季度实现新增用户成本下降 18%。'
+        }
+      ]
+    }
+
+    return [
+      {
+        label: 'Impact sentence',
+        content: 'Led core module refactoring and reduced initial load time from 3.2s to 1.9s within 3 months, improving conversion by 12%.'
+      },
+      {
+        label: 'Collaboration sentence',
+        content: 'Aligned product, engineering, and QA execution with a shared release cadence, cutting production defects by 30%.'
+      },
+      {
+        label: 'Growth sentence',
+        content: 'Ran funnel-focused A/B experiments and reduced user acquisition cost by 18% across two consecutive quarters.'
+      }
+    ]
+  }, [isZh])
 
   /**
    * 添加工作经历
@@ -73,13 +116,15 @@ export function ExperienceForm({ experiences, onChange }: ExperienceFormProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <SectionHeader 
-        title={t.editor.experience.title}
-        description={t.editor.experience.description}
-        count={experiences.length}
-        icon={<Briefcase className="w-5 h-5" />}
-      />
+    <div className={showSectionHeader ? 'space-y-6' : 'space-y-5'}>
+      {showSectionHeader && (
+        <SectionHeader 
+          title={t.editor.experience.title}
+          description={t.editor.experience.description}
+          count={experiences.length}
+          icon={<Briefcase className="w-5 h-5" />}
+        />
+      )}
 
       <div className="space-y-4">
         <AnimatePresence mode="popLayout">
@@ -191,6 +236,9 @@ export function ExperienceForm({ experiences, onChange }: ExperienceFormProps) {
                   maxRows={12}
                   showToolbar={true}
                   enableAI={false}
+                  recommendedLength={{ min: 80, max: 260 }}
+                  snippets={experienceSnippets}
+                  enableQualityCheck={true}
                 />
               </div>
             </EditableCard>

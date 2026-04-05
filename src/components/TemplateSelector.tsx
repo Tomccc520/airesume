@@ -9,7 +9,7 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
-import { Check, Palette, X } from 'lucide-react'
+import { Check, LayoutTemplate, Palette, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TemplateStyle } from '@/types/template'
 import { CORE_TEMPLATE_IDS, getAvailableTemplates } from '@/data/templates'
@@ -18,6 +18,7 @@ import { getCareerTemplateData, isCareerTemplate } from '@/data/careerTemplates'
 import TemplatePreview from './TemplatePreview'
 import TemplateCard from './templates/TemplateCard'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { TemplateExperienceLevel, TemplateRecommendedRole } from '@/types/template'
 
 interface TemplateSelectorProps {
   isOpen: boolean
@@ -28,7 +29,7 @@ interface TemplateSelectorProps {
 }
 
 /**
- * 获取三套模板的固定排序
+ * 获取核心模板的固定排序
  * 通过 CORE_TEMPLATE_IDS 保证展示顺序稳定，避免因为数组顺序变化导致 UI 抖动。
  */
 function getOrderedCoreTemplates(): TemplateStyle[] {
@@ -40,7 +41,7 @@ function getOrderedCoreTemplates(): TemplateStyle[] {
 
 /**
  * 模板选择器组件
- * 仅保留三套核心模板，专注招聘投递场景，不再展示复杂分类筛选。
+ * 仅展示核心模板集，专注招聘投递场景，不再展示复杂分类筛选。
  */
 export default function TemplateSelector({
   isOpen,
@@ -53,38 +54,177 @@ export default function TemplateSelector({
   const [previewTemplate, setPreviewTemplate] = useState<TemplateStyle | null>(null)
 
   /**
-   * 缓存三套核心模板列表
+   * 缓存核心模板列表
    * 仅在组件初始化时读取，避免弹窗内重复计算。
    */
   const coreTemplates = useMemo(() => getOrderedCoreTemplates(), [])
+  const currentTemplateData = useMemo(
+    () => coreTemplates.find((template) => template.id === currentTemplate) || null,
+    [coreTemplates, currentTemplate]
+  )
 
   /**
-   * 获取模板风格简称
-   * 用于卡片上方辅助文案，帮助用户快速区分三套版本定位。
+   * 获取选择器说明文案
+   * 用于头部简短说明当前模板集的定位。
    */
-  const getTemplateVersionLabel = (templateId: string) => {
-    const labelMap = {
-      'banner-layout': locale === 'en' ? 'Indeed Style' : 'Indeed 风',
-      'card-layout': locale === 'en' ? 'Canva Style' : 'Canva 风',
-      'timeline-layout': locale === 'en' ? 'Boss Style' : 'Boss 风'
-    }
-    return labelMap[templateId as keyof typeof labelMap] || (locale === 'en' ? 'General Style' : '通用风格')
+  const getSelectorHint = () => {
+    return locale === 'en'
+      ? 'Choose one style first, then fine-tune content and spacing in editor.'
+      : '先选风格，再在编辑器里微调内容与间距，适合直接导出投递。'
   }
 
   /**
-   * 获取模板风格说明
-   * 保持简短描述，强调“投递效率”和“阅读效率”。
+   * 获取推荐岗位文案
+   * 统一模板详情面板中的岗位标签显示。
    */
-  const getTemplateVersionDescription = (templateId: string) => {
-    const descMap = {
-      'banner-layout': locale === 'en' ? 'ATS-first, single column' : '单栏 ATS 优先，投递稳妥',
-      'card-layout': locale === 'en' ? 'Business dual-column hierarchy' : '商务双栏信息分区，结构清晰',
-      'timeline-layout': locale === 'en' ? 'Compact timeline for quick scan' : '紧凑时间线，招聘方快速扫读'
+  const getRoleLabel = (role: TemplateRecommendedRole) => {
+    if (locale === 'en') {
+      const roleMap: Record<TemplateRecommendedRole, string> = {
+        tech: 'Tech',
+        product: 'Product',
+        operations: 'Operations',
+        design: 'Design',
+        general: 'General'
+      }
+      return roleMap[role]
     }
-    return (
-      descMap[templateId as keyof typeof descMap] ||
-      (locale === 'en' ? 'Mainstream application-ready template' : '主流投递场景可直接使用')
-    )
+
+    const roleMap: Record<TemplateRecommendedRole, string> = {
+      tech: '技术',
+      product: '产品',
+      operations: '运营',
+      design: '设计',
+      general: '通用'
+    }
+    return roleMap[role]
+  }
+
+  /**
+   * 获取经验段位文案
+   * 统一模板详情面板中的经验推荐显示。
+   */
+  const getExperienceLabel = (level: TemplateExperienceLevel) => {
+    if (locale === 'en') {
+      const levelMap: Record<TemplateExperienceLevel, string> = {
+        campus: 'Campus',
+        '1-3': '1-3 Years',
+        '3-5': '3-5 Years',
+        '5+': '5+ Years'
+      }
+      return levelMap[level]
+    }
+
+    const levelMap: Record<TemplateExperienceLevel, string> = {
+      campus: '校招',
+      '1-3': '1-3年',
+      '3-5': '3-5年',
+      '5+': '5年+'
+    }
+    return levelMap[level]
+  }
+
+  /**
+   * 获取模板结构文案
+   * 通过模板 ID 和布局配置输出更贴近投递场景的结构描述。
+   */
+  const getStructureLabel = (template: TemplateStyle) => {
+    if (template.id === 'timeline-layout' || template.id === 'timeline-layout-classic') {
+      return locale === 'en' ? 'Timeline' : '时间线'
+    }
+
+    const isTwoColumn =
+      template.id === 'card-layout' ||
+      template.id === 'card-layout-executive' ||
+      template.layout.columns.count === 2 ||
+      template.layoutType === 'left-right'
+
+    if (locale === 'en') {
+      return isTwoColumn ? 'Two-column' : 'Single-column'
+    }
+    return isTwoColumn ? '双栏' : '单栏'
+  }
+
+  /**
+   * 获取 ATS 适配文案
+   * 与模板卡片保持一致，便于用户在预览弹窗中快速判断。
+   */
+  const getATSLabel = (template: TemplateStyle) => {
+    const isAtsFriendly =
+      template.layout.columns.count === 1 &&
+      !template.components.cardStyle &&
+      !template.components.tableStyle &&
+      template.components.listItem.bulletStyle !== 'timeline'
+
+    if (isAtsFriendly) {
+      return locale === 'en' ? 'ATS Friendly' : 'ATS 友好'
+    }
+    return locale === 'en' ? 'ATS Balanced' : 'ATS 均衡'
+  }
+
+  /**
+   * 获取模板说明标签
+   * 用于预览弹窗顶部快速识别模板风格。
+   */
+  const getToneLabel = (template: TemplateStyle) => {
+    const toneMap: Record<string, string> = locale === 'en'
+      ? {
+          'banner-layout': 'Single Column Standard',
+          'banner-layout-compact': 'Single Column Compact',
+          'card-layout': 'Business Dual Column',
+          'card-layout-executive': 'Business Pro',
+          'timeline-layout': 'Timeline Compact',
+          'timeline-layout-classic': 'Timeline Pro'
+        }
+      : {
+          'banner-layout': '单栏标准',
+          'banner-layout-compact': '单栏紧凑',
+          'card-layout': '商务双栏',
+          'card-layout-executive': '双栏专业',
+          'timeline-layout': '时间线紧凑',
+          'timeline-layout-classic': '时间线专业'
+        }
+    return toneMap[template.id] || (locale === 'en' ? 'General' : '通用')
+  }
+
+  /**
+   * 获取当前模板对比提示
+   * 让用户在预览弹窗里快速理解“切换后会有什么变化”。
+   */
+  const getCompareTips = (targetTemplate: TemplateStyle, sourceTemplate?: TemplateStyle | null) => {
+    if (!sourceTemplate || sourceTemplate.id === targetTemplate.id) {
+      return []
+    }
+
+    const tips: string[] = []
+    const sourceStructure = getStructureLabel(sourceTemplate)
+    const targetStructure = getStructureLabel(targetTemplate)
+
+    if (sourceStructure !== targetStructure) {
+      tips.push(
+        locale === 'en'
+          ? `Layout changes from ${sourceStructure} to ${targetStructure}.`
+          : `版式将从${sourceStructure}切换为${targetStructure}。`
+      )
+    }
+
+    if (getATSLabel(sourceTemplate) !== getATSLabel(targetTemplate)) {
+      tips.push(
+        locale === 'en'
+          ? `${getATSLabel(targetTemplate)} with different screening focus.`
+          : `${getATSLabel(targetTemplate)}，筛选侧重点会不同。`
+      )
+    }
+
+    const targetLevels = targetTemplate.recommendedExperienceLevels?.slice(0, 1) || []
+    if (targetLevels.length > 0) {
+      tips.push(
+        locale === 'en'
+          ? `Better fit for ${getExperienceLabel(targetLevels[0])}.`
+          : `更适合 ${getExperienceLabel(targetLevels[0])} 候选人。`
+      )
+    }
+
+    return tips.slice(0, 3)
   }
 
   /**
@@ -125,8 +265,8 @@ export default function TemplateSelector({
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               {locale === 'en'
-                ? 'Keep only 3 mainstream apply-ready versions.'
-                : '仅保留 3 套主流投递版本，直接用于求职投递。'}
+                ? `Selected ${coreTemplates.length} mainstream apply-ready versions.`
+                : `精选 ${coreTemplates.length} 套主流投递版本，直接用于求职投递。`}
             </p>
           </div>
           <Button
@@ -140,13 +280,16 @@ export default function TemplateSelector({
         </div>
 
         <div className="max-h-[calc(95vh-92px)] overflow-y-auto p-4 sm:p-6">
-          <div className="mb-5 grid gap-3 sm:grid-cols-3">
-            {coreTemplates.map((template) => (
-              <div key={`version-${template.id}`} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                <p className="text-xs font-semibold text-slate-700">{getTemplateVersionLabel(template.id)}</p>
-                <p className="mt-1 text-xs text-slate-500">{getTemplateVersionDescription(template.id)}</p>
-              </div>
-            ))}
+          <div className="mb-5 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+            <div>
+              <p className="text-xs font-semibold text-slate-700">
+                {locale === 'en' ? 'Recruiting-ready template library' : '招聘投递模板库'}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">{getSelectorHint()}</p>
+            </div>
+            <div className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600">
+              {locale === 'en' ? `${coreTemplates.length} templates` : `${coreTemplates.length} 套模板`}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -173,11 +316,18 @@ export default function TemplateSelector({
 
       {previewTemplate && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-4xl rounded-xl border border-slate-200 bg-white">
+          <div className="w-full max-w-6xl rounded-xl border border-slate-200 bg-white">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <h3 className="text-sm font-semibold text-slate-900">
-                {locale === 'en' ? 'Template Preview' : '模板预览'}
-              </h3>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  {locale === 'en' ? 'Application Template Preview' : '投递模板预览'}
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  {locale === 'en'
+                    ? 'Compare structure and decide before switching.'
+                    : '先看版式与投递参数，再决定是否切换。'}
+                </p>
+              </div>
               <Button
                 type="button"
                 variant="ghost"
@@ -189,8 +339,116 @@ export default function TemplateSelector({
               </Button>
             </div>
             <div className="max-h-[72vh] overflow-auto p-4">
-              <div className="mx-auto w-full max-w-[820px] overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                <TemplatePreview template={previewTemplate} fullSize />
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_320px]">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <div className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600">
+                        <LayoutTemplate className="h-3.5 w-3.5" />
+                        {getToneLabel(previewTemplate)}
+                      </div>
+                      <h4 className="mt-2 text-lg font-semibold text-slate-900">
+                        {locale === 'en' && previewTemplate.nameEn ? previewTemplate.nameEn : previewTemplate.name}
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {locale === 'en' && previewTemplate.descriptionEn ? previewTemplate.descriptionEn : previewTemplate.description}
+                      </p>
+                    </div>
+                    {currentTemplate === previewTemplate.id && (
+                      <div className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-medium text-white">
+                        {locale === 'en' ? 'Current' : '当前使用'}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mx-auto w-full max-w-[820px] overflow-hidden rounded-lg border border-slate-200 bg-white">
+                    <TemplatePreview template={previewTemplate} fullSize />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-slate-700" />
+                      <h4 className="text-sm font-semibold text-slate-900">
+                        {locale === 'en' ? 'Application Parameters' : '投递参数'}
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[12px]">
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p className="text-slate-400">{locale === 'en' ? 'Structure' : '结构'}</p>
+                        <p className="mt-1 font-semibold text-slate-800">{getStructureLabel(previewTemplate)}</p>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p className="text-slate-400">ATS</p>
+                        <p className="mt-1 font-semibold text-slate-800">{getATSLabel(previewTemplate)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                      <span className="font-medium text-slate-500">
+                        {locale === 'en' ? 'Recommended roles: ' : '推荐岗位：'}
+                      </span>
+                      {(previewTemplate.recommendedRoles || ['general']).map(getRoleLabel).join(' / ')}
+                    </div>
+                    <div className="mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                      <span className="font-medium text-slate-500">
+                        {locale === 'en' ? 'Experience: ' : '适配经验：'}
+                      </span>
+                      {(previewTemplate.recommendedExperienceLevels || ['1-3']).map(getExperienceLabel).join(' / ')}
+                    </div>
+                    {previewTemplate.tags && previewTemplate.tags.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {previewTemplate.tags.slice(0, 3).map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-600"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <h4 className="text-sm font-semibold text-slate-900">
+                      {locale === 'en' ? 'Compare With Current' : '与当前模板对比'}
+                    </h4>
+                    {currentTemplateData ? (
+                      <>
+                        <p className="mt-2 text-sm text-slate-600">
+                          <span className="font-medium text-slate-500">
+                            {locale === 'en' ? 'Current: ' : '当前：'}
+                          </span>
+                          {locale === 'en' && currentTemplateData.nameEn ? currentTemplateData.nameEn : currentTemplateData.name}
+                        </p>
+                        <div className="mt-3 space-y-2">
+                          {getCompareTips(previewTemplate, currentTemplateData).map((tip) => (
+                            <div
+                              key={tip}
+                              className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600"
+                            >
+                              {tip}
+                            </div>
+                          ))}
+                          {getCompareTips(previewTemplate, currentTemplateData).length === 0 && (
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                              {locale === 'en'
+                                ? 'This preview matches your current template.'
+                                : '当前预览与正在使用的模板一致。'}
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                        {locale === 'en'
+                          ? 'Choose a template to start comparison.'
+                          : '选择模板后，这里会展示与当前模板的差异。'}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-4 py-3">

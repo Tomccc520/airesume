@@ -213,6 +213,7 @@ function ResumeEditorComponent({
             personalInfo={resumeData.personalInfo} 
             onChange={handlePersonalInfoChange}
             onAiOptimize={() => openAIAssistant('summary')}
+            showSectionHeader={!hideNavigation}
           />
         )
       case 'experience':
@@ -220,6 +221,7 @@ function ResumeEditorComponent({
           <ExperienceForm 
             experiences={resumeData.experience} 
             onChange={handleExperienceChange}
+            showSectionHeader={!hideNavigation}
           />
         )
       case 'education':
@@ -227,6 +229,7 @@ function ResumeEditorComponent({
           <EducationForm 
             education={resumeData.education} 
             onChange={handleEducationChange}
+            showSectionHeader={!hideNavigation}
           />
         )
       case 'skills':
@@ -234,6 +237,7 @@ function ResumeEditorComponent({
           <SkillsForm 
             skills={resumeData.skills} 
             onChange={handleSkillsChange}
+            showSectionHeader={!hideNavigation}
           />
         )
       case 'projects':
@@ -241,6 +245,7 @@ function ResumeEditorComponent({
           <ProjectsForm 
             projects={resumeData.projects} 
             onChange={handleProjectsChange}
+            showSectionHeader={!hideNavigation}
           />
         )
       default:
@@ -249,6 +254,7 @@ function ResumeEditorComponent({
             personalInfo={resumeData.personalInfo} 
             onChange={handlePersonalInfoChange}
             onAiOptimize={() => openAIAssistant('summary')}
+            showSectionHeader={!hideNavigation}
           />
         )
     }
@@ -264,7 +270,8 @@ function ResumeEditorComponent({
     handleEducationChange,
     handleSkillsChange,
     handleProjectsChange,
-    openAIAssistant
+    openAIAssistant,
+    hideNavigation
   ])
 
   // 渲染当前活动部分（带动画）
@@ -309,7 +316,7 @@ function ResumeEditorComponent({
         {/* 右侧编辑区域 */}
         <div className={`flex-1 flex flex-col ${hideNavigation ? '' : 'overflow-hidden'} bg-white/50`}>
           {/* 头部面包屑/标题 */}
-          <div className={`${hideNavigation ? 'px-6 py-4' : 'px-8 py-6'} pb-0`}>
+          <div className={`${hideNavigation ? 'border-b border-slate-100 px-6 py-5' : 'px-8 py-6'} ${hideNavigation ? '' : 'pb-0'}`}>
              <h2 className={`${hideNavigation ? 'text-xl' : 'text-2xl'} font-bold text-gray-900 mb-1`}>
                {translatedNavigationItems.find(item => item.id === activeSection)?.label}
              </h2>
@@ -319,7 +326,7 @@ function ResumeEditorComponent({
           </div>
 
           {/* 桌面端内联编辑 */}
-          <div className={`hidden md:block flex-1 ${hideNavigation ? 'px-6 py-4' : 'px-8 py-6'} ${hideNavigation ? '' : 'overflow-y-auto custom-scrollbar'}`}>
+          <div className={`hidden md:block flex-1 ${hideNavigation ? 'px-6 py-5' : 'px-8 py-6'} ${hideNavigation ? '' : 'overflow-y-auto custom-scrollbar'}`}>
             <div className={hideNavigation ? '' : 'max-w-3xl'}>
               {renderActiveSection()}
             </div>

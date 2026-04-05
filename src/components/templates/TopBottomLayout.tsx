@@ -6,8 +6,9 @@
  */
 
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
-import React, { useMemo } from 'react'
+import React from 'react'
 import { ResumeData } from '@/types/resume'
 import { StyleConfig } from '@/contexts/StyleContext'
 import { MapPin, Mail, Phone, Globe, Briefcase } from 'lucide-react'
@@ -426,4 +427,3 @@ export const TopBottomLayout: React.FC<TemplateProps> = ({
     </div>
   )
 }
-

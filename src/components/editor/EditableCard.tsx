@@ -7,7 +7,7 @@
 
 'use client'
 
-import React, { useState } from 'react'
+import React, { forwardRef, useState } from 'react'
 import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion'
 import { ChevronDown, Trash2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -24,7 +24,7 @@ interface EditableCardProps extends Omit<HTMLMotionProps<'div'>, 'title' | 'onAn
   dragHandle?: React.ReactNode
 }
 
-export function EditableCard({
+export const EditableCard = forwardRef<HTMLDivElement, EditableCardProps>(function EditableCard({
   title,
   subtitle,
   isExpanded: controlledIsExpanded,
@@ -36,7 +36,7 @@ export function EditableCard({
   className = '',
   dragHandle,
   ...motionProps
-}: EditableCardProps) {
+}, ref) {
   const [internalIsExpanded, setInternalIsExpanded] = useState(defaultExpanded)
   
   const isExpanded = controlledIsExpanded !== undefined ? controlledIsExpanded : internalIsExpanded
@@ -44,6 +44,7 @@ export function EditableCard({
 
   return (
     <motion.div
+      ref={ref}
       className={`group bg-white rounded-2xl border transition-all ${
         hasError 
           ? 'border-red-300 shadow-sm shadow-red-100' 
@@ -112,4 +113,4 @@ export function EditableCard({
       </AnimatePresence>
     </motion.div>
   )
-}
+})

@@ -10,7 +10,7 @@
 
 'use client'
 
-import React, { useMemo } from 'react'
+import React from 'react'
 import { ResumeData } from '@/types/resume'
 import { StyleConfig } from '@/contexts/StyleContext'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -30,10 +30,10 @@ interface TemplateProps {
 export const CreativeDesigner: React.FC<TemplateProps> = ({
   resumeData,
   styleConfig,
-  onSectionClick
+  onSectionClick: _onSectionClick
 }) => {
   const { personalInfo, experience, education, projects, skills } = resumeData
-  const { colors, fontSize, spacing, layout, skills: skillsConfig, fontFamily } = styleConfig
+  const { colors, fontSize, spacing, layout, skills: _skillsConfig, fontFamily } = styleConfig
   const { locale, t } = useLanguage()
 
   const formatDateStr = (date?: string) => formatDate(date, locale)
@@ -43,9 +43,7 @@ export const CreativeDesigner: React.FC<TemplateProps> = ({
   const nameFontSize = fontSize?.name || 36
   const titleFontSize = fontSize?.title || 18
   const contentFontSize = fontSize?.content || 14
-  const smallFontSize = fontSize?.small || 12
   const sectionSpacing = spacing?.section || 32
-  const itemSpacing = spacing?.item || 18
   const lineHeight = spacing?.line ? Math.max(1.5, spacing.line / contentFontSize) : 1.6
   const pagePadding = layout?.padding || 40
 
@@ -347,24 +345,20 @@ export const CreativeDesigner: React.FC<TemplateProps> = ({
       <div style={{ marginBottom: `${sectionSpacing}px` }}>
         {renderSectionTitle(t.preview.skills, <Award size={20} />)}
         <div className="flex flex-wrap gap-3">
-          {skills.map((skill, index) => {
-            // 为每个技能生成不同的颜色变化
-            const hue = (index * 137.5) % 360
-            return (
-              <span
-                key={index}
-                className="px-4 py-2 rounded-full font-medium shadow-sm"
-                style={{
-                  fontSize: `${contentFontSize}px`,
-                  background: `linear-gradient(135deg, ${colors.primary}20 0%, ${colors.accent}20 100%)`,
-                  color: colors.text,
-                  border: `2px solid ${colors.primary}40`
-                }}
-              >
-                {skill.name}
-              </span>
-            )
-          })}
+          {skills.map((skill, index) => (
+            <span
+              key={index}
+              className="px-4 py-2 rounded-full font-medium shadow-sm"
+              style={{
+                fontSize: `${contentFontSize}px`,
+                background: `linear-gradient(135deg, ${colors.primary}20 0%, ${colors.accent}20 100%)`,
+                color: colors.text,
+                border: `2px solid ${colors.primary}40`
+              }}
+            >
+              {skill.name}
+            </span>
+          ))}
         </div>
       </div>
     )
@@ -469,4 +463,3 @@ export const CreativeDesigner: React.FC<TemplateProps> = ({
 }
 
 export default CreativeDesigner
-

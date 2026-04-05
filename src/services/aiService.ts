@@ -25,6 +25,15 @@ export type AIErrorCode =
   | 'CANCELLED'
   | 'UNKNOWN_ERROR'
 
+export interface AIConfigStatus {
+  isConfigured: boolean
+  isEnabled: boolean
+  provider: AIConfig['provider'] | null
+  modelName: string | null
+  hasApiKey: boolean
+  needsApiKey: boolean
+}
+
 /**
  * AI 生成错误类
  * 满足需求 5.5: 提供明确的错误信息和重试选项
@@ -68,7 +77,9 @@ export class AIService {
       const savedConfig = localStorage.getItem('ai-config')
       if (savedConfig) {
         this.config = JSON.parse(savedConfig)
+        return
       }
+      this.config = null
     } catch (error) {
       console.error('加载AI配置失败:', error)
     }
@@ -154,11 +165,43 @@ export class AIService {
    * 检查是否已配置
    */
   isConfigured(): boolean {
+    this.loadConfig()
     // 免费模型不需要API密钥验证
     if (this.config?.provider === 'free') {
       return !!(this.config?.enabled)
     }
     return !!(this.config?.enabled && this.config?.apiKey)
+  }
+
+  /**
+   * 获取 AI 配置状态摘要
+   * 供界面展示当前提供商、模型和是否还缺少关键配置。
+   */
+  getConfigStatus(): AIConfigStatus {
+    this.loadConfig()
+
+    if (!this.config) {
+      return {
+        isConfigured: false,
+        isEnabled: false,
+        provider: null,
+        modelName: null,
+        hasApiKey: false,
+        needsApiKey: false
+      }
+    }
+
+    const needsApiKey = this.config.provider !== 'free'
+    const hasApiKey = !needsApiKey || Boolean(this.config.apiKey?.trim())
+
+    return {
+      isConfigured: Boolean(this.config.enabled && hasApiKey),
+      isEnabled: Boolean(this.config.enabled),
+      provider: this.config.provider,
+      modelName: this.config.modelName || null,
+      hasApiKey,
+      needsApiKey
+    }
   }
 
   /**

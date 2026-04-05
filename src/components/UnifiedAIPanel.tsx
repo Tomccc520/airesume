@@ -25,7 +25,7 @@ import {
 } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { ResumeData } from '@/types/resume'
-import { aiService } from '@/services/aiService'
+import { aiService, AIConfigStatus } from '@/services/aiService'
 import { aiSuggestionRanker } from '@/services/aiSuggestionRanker'
 import { aiQualityChecker, QualityScore } from '@/services/aiQualityChecker'
 import { jdMatcherService, JDSuggestion } from '@/services/jdMatcher'
@@ -36,6 +36,7 @@ interface UnifiedAIPanelProps {
   onClose: () => void
   resumeData: ResumeData
   preferredSection?: OptimizeSection | null
+  configVersion?: number
   onOpenAIConfig: () => void
   onApplySuggestion: (content: string, section: string) => void
   onApplyJDSuggestions: (suggestions: JDSuggestion[]) => void
@@ -125,6 +126,73 @@ function getScoreClass(score: number): string {
 }
 
 /**
+ * 获取 AI 提供商显示名称
+ * 将内部 provider 标识转换成更适合界面展示的短名称。
+ */
+function getProviderLabel(provider: AIConfigStatus['provider'], locale: 'zh' | 'en'): string {
+  const providerLabelMap: Record<NonNullable<AIConfigStatus['provider']>, string> = {
+    free: locale === 'zh' ? '免费模型' : 'Free Model',
+    siliconflow: 'SiliconFlow',
+    deepseek: 'DeepSeek',
+    custom: locale === 'zh' ? '自定义接口' : 'Custom API'
+  }
+
+  if (!provider) {
+    return locale === 'zh' ? '未配置' : 'Not Configured'
+  }
+
+  return providerLabelMap[provider]
+}
+
+/**
+ * 压缩模型名称展示
+ * 优先显示模型的最后一段，避免头部状态栏过长。
+ */
+function getCompactModelName(modelName: string | null): string {
+  if (!modelName) {
+    return ''
+  }
+
+  const segments = modelName.split('/')
+  return segments[segments.length - 1] || modelName
+}
+
+/**
+ * 判断错误是否需要引导到配置
+ * 将配置、密钥、鉴权、端点类异常统一收敛到配置入口。
+ */
+function shouldGuideToConfig(message: string): boolean {
+  const normalizedMessage = message.toLowerCase()
+  return ['配置', 'api', 'key', '密钥', '401', '403', '端点', 'endpoint'].some((keyword) =>
+    normalizedMessage.includes(keyword)
+  )
+}
+
+/**
+ * 获取模块名称标签
+ * 将内部 section 标识转换成更适合界面展示的中文或英文名称。
+ */
+function getSectionLabel(section: OptimizeSection | JDSuggestion['section'], locale: 'zh' | 'en'): string {
+  const labelMap: Record<OptimizeSection, { zh: string; en: string }> = {
+    summary: { zh: '个人简介', en: 'Summary' },
+    experience: { zh: '工作经历', en: 'Experience' },
+    skills: { zh: '专业技能', en: 'Skills' },
+    education: { zh: '教育经历', en: 'Education' },
+    projects: { zh: '项目经验', en: 'Projects' }
+  }
+
+  return labelMap[section][locale]
+}
+
+/**
+ * 生成 JD 建议唯一键
+ * 用于在局部应用后标记已处理项，避免同一建议重复点击。
+ */
+function getJDSuggestionKey(suggestion: JDSuggestion, index: number): string {
+  return `${suggestion.section}-${index}-${suggestion.suggestedText.slice(0, 32)}`
+}
+
+/**
  * 统一的AI助手面板 - 首页风格
  */
 export default function UnifiedAIPanel({
@@ -132,6 +200,7 @@ export default function UnifiedAIPanel({
   onClose,
   resumeData,
   preferredSection = null,
+  configVersion = 0,
   onOpenAIConfig,
   onApplySuggestion,
   onApplyJDSuggestions,
@@ -155,6 +224,47 @@ export default function UnifiedAIPanel({
     experienceLevel: 'mid' as 'junior' | 'mid' | 'senior'
   })
   const [generateApplied, setGenerateApplied] = useState(false)
+  const [aiConfigStatus, setAIConfigStatus] = useState<AIConfigStatus>(() => aiService.getConfigStatus())
+  const [appliedJDSuggestionKeys, setAppliedJDSuggestionKeys] = useState<string[]>([])
+  const aiStatusMeta = useMemo(() => {
+    if (aiConfigStatus.isConfigured) {
+      return {
+        title: locale === 'zh' ? 'AI 已就绪' : 'AI Ready',
+        description: `${getProviderLabel(aiConfigStatus.provider, locale)} · ${getCompactModelName(aiConfigStatus.modelName)}`,
+        toneClass: 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      }
+    }
+
+    if (aiConfigStatus.isEnabled) {
+      return {
+        title: locale === 'zh' ? 'AI 待配置' : 'AI Needs Setup',
+        description: locale === 'zh'
+          ? '智能优化和从零生成依赖 AI 配置，JD 匹配仍可直接使用。'
+          : 'Optimize and generate require AI configuration. JD match is still available.',
+        toneClass: 'border-amber-200 bg-amber-50 text-amber-700'
+      }
+    }
+
+    return {
+      title: locale === 'zh' ? 'AI 已停用' : 'AI Disabled',
+      description: locale === 'zh'
+        ? '可通过配置入口重新启用，或先使用职位匹配功能。'
+        : 'Re-enable it from configuration, or use JD match first.',
+      toneClass: 'border-slate-200 bg-slate-100 text-slate-700'
+    }
+  }, [aiConfigStatus, locale])
+
+  /**
+   * 刷新 AI 配置状态
+   * 配置弹窗保存后同步更新面板头部和底部状态提示。
+   */
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    setAIConfigStatus(aiService.getConfigStatus())
+  }, [configVersion, isOpen])
 
   /**
    * 根据外部入口预选优化模块
@@ -183,17 +293,20 @@ export default function UnifiedAIPanel({
     {
       id: 'optimize' as AIMode,
       name: locale === 'zh' ? '智能优化' : 'Smart Optimize',
-      icon: <Sparkles className="w-4 h-4" />
+      icon: <Sparkles className="w-4 h-4" />,
+      requiresConfig: true
     },
     {
       id: 'match' as AIMode,
       name: locale === 'zh' ? '职位匹配' : 'Job Match',
-      icon: <Target className="w-4 h-4" />
+      icon: <Target className="w-4 h-4" />,
+      requiresConfig: false
     },
     {
       id: 'generate' as AIMode,
       name: locale === 'zh' ? '从零开始' : 'Start Fresh',
-      icon: <Wand2 className="w-4 h-4" />
+      icon: <Wand2 className="w-4 h-4" />,
+      requiresConfig: true
     }
   ], [locale])
 
@@ -304,7 +417,7 @@ export default function UnifiedAIPanel({
     } catch (error) {
       const message = error instanceof Error ? error.message : (locale === 'zh' ? '优化失败，请稍后重试。' : 'Optimization failed, please retry later.')
       setErrorMessage(message)
-      if (message.includes('配置') || message.includes('API') || message.includes('key') || message.includes('密钥')) {
+      if (shouldGuideToConfig(message)) {
         onOpenAIConfig()
       }
     } finally {
@@ -342,6 +455,7 @@ export default function UnifiedAIPanel({
     setErrorMessage('')
     setIsProcessing(true)
     setMatchResult(null)
+    setAppliedJDSuggestionKeys([])
 
     try {
       const keywords = jdMatcherService.extractKeywords(jobDescription)
@@ -353,6 +467,36 @@ export default function UnifiedAIPanel({
     } finally {
       setIsProcessing(false)
     }
+  }
+
+  /**
+   * 应用单条 JD 建议
+   * 支持按模块渐进式采纳，减少“一键全改”带来的不确定性。
+   */
+  const handleApplySingleJDSuggestion = (suggestion: JDSuggestion, index: number) => {
+    onApplySuggestion(suggestion.suggestedText, suggestion.section)
+    setAppliedJDSuggestionKeys((currentKeys) => {
+      const nextKey = getJDSuggestionKey(suggestion, index)
+      if (currentKeys.includes(nextKey)) {
+        return currentKeys
+      }
+      return [...currentKeys, nextKey]
+    })
+  }
+
+  /**
+   * 应用全部 JD 建议
+   * 保留原有批量写回能力，并同步更新局部应用状态。
+   */
+  const handleApplyAllJDSuggestions = () => {
+    if (!matchResult) {
+      return
+    }
+
+    onApplyJDSuggestions(matchResult.suggestions)
+    setAppliedJDSuggestionKeys(
+      matchResult.suggestions.map((suggestion, index) => getJDSuggestionKey(suggestion, index))
+    )
   }
 
   /**
@@ -396,7 +540,7 @@ export default function UnifiedAIPanel({
     } catch (error) {
       const message = error instanceof Error ? error.message : (locale === 'zh' ? '生成失败，请稍后重试。' : 'Generation failed, please retry.')
       setErrorMessage(message)
-      if (message.includes('配置') || message.includes('API') || message.includes('key') || message.includes('密钥')) {
+      if (shouldGuideToConfig(message)) {
         onOpenAIConfig()
       }
     } finally {
@@ -464,8 +608,34 @@ export default function UnifiedAIPanel({
               >
                 {mode.icon}
                 <span>{mode.name}</span>
+                {mode.requiresConfig && !aiConfigStatus.isConfigured && (
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    activeMode === mode.id
+                      ? 'bg-white/15 text-white'
+                      : 'bg-amber-50 text-amber-700'
+                  }`}>
+                    {locale === 'zh' ? '需配置' : 'Setup'}
+                  </span>
+                )}
               </button>
             ))}
+          </div>
+
+          <div className={`mt-4 rounded-xl border px-4 py-3 ${aiStatusMeta.toneClass}`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">{aiStatusMeta.title}</div>
+                <div className="mt-1 text-xs opacity-90">{aiStatusMeta.description}</div>
+              </div>
+              <button
+                onClick={onOpenAIConfig}
+                className="rounded-lg border border-current/20 bg-white/70 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white"
+              >
+                {aiConfigStatus.isConfigured
+                  ? (locale === 'zh' ? '重新配置' : 'Reconfigure')
+                  : (locale === 'zh' ? '配置入口' : 'Open Config')}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -538,6 +708,11 @@ export default function UnifiedAIPanel({
                               <p className="text-xs text-gray-500 mb-1">
                                 {section.desc}
                               </p>
+                              {!aiConfigStatus.isConfigured && (
+                                <p className="text-[11px] text-slate-500">
+                                  {locale === 'zh' ? '点击后会先引导到 AI 配置。' : 'Clicking will guide you to AI setup first.'}
+                                </p>
+                              )}
                               {!section.hasContent && (
                                 <p className="text-[11px] text-amber-600">
                                   {locale === 'zh' ? '该模块内容为空，建议先补充' : 'This section is empty'}
@@ -746,13 +921,58 @@ export default function UnifiedAIPanel({
                           <div className="space-y-2 mb-3">
                             {matchResult.suggestions.map((suggestion, index) => (
                               <div key={`${suggestion.section}-${index}`} className="rounded-lg border border-slate-200 p-3">
-                                <div className="text-xs text-slate-500 mb-1">{suggestion.section}</div>
-                                <div className="text-sm text-slate-800">{suggestion.suggestedText}</div>
+                                <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+                                  <div className="space-y-1">
+                                    <div className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                                      {getSectionLabel(suggestion.section, locale)}
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                      {suggestion.reason}
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApplySingleJDSuggestion(suggestion, index)}
+                                    disabled={appliedJDSuggestionKeys.includes(getJDSuggestionKey(suggestion, index))}
+                                    className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                                      appliedJDSuggestionKeys.includes(getJDSuggestionKey(suggestion, index))
+                                        ? 'cursor-not-allowed border border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    {appliedJDSuggestionKeys.includes(getJDSuggestionKey(suggestion, index))
+                                      ? (locale === 'zh' ? '已应用' : 'Applied')
+                                      : (locale === 'zh' ? '应用到该模块' : 'Apply to Section')}
+                                  </button>
+                                </div>
+                                {suggestion.originalText && (
+                                  <div className="mb-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                                    <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                                      {locale === 'zh' ? '当前内容' : 'Current Content'}
+                                    </div>
+                                    <div className="text-xs leading-6 text-slate-600">
+                                      {suggestion.originalText}
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="text-sm leading-7 text-slate-800">{suggestion.suggestedText}</div>
+                                {suggestion.keywords.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {suggestion.keywords.slice(0, 6).map((keyword) => (
+                                      <span
+                                        key={`${suggestion.section}-${keyword}`}
+                                        className="rounded-md border border-sky-100 bg-sky-50 px-2 py-1 text-[11px] text-sky-700"
+                                      >
+                                        {keyword}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
                           <button
-                            onClick={() => onApplyJDSuggestions(matchResult.suggestions)}
+                            onClick={handleApplyAllJDSuggestions}
                             className="w-full px-5 py-3 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
                           >
                             {locale === 'zh' ? '一键应用全部建议' : 'Apply All Suggestions'}
@@ -837,15 +1057,24 @@ export default function UnifiedAIPanel({
                   </div>
 
                   {!generateApplied ? (
-                    <button
-                      onClick={handleGenerateResume}
-                      disabled={!userInfo.targetPosition.trim() || isProcessing}
-                      className="w-full px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors font-medium flex items-center justify-center space-x-2 disabled:opacity-50"
-                    >
-                      {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-                      <span>{locale === 'zh' ? '开始生成完整简历' : 'Generate Resume'}</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
+                    <>
+                      {!aiConfigStatus.isConfigured && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                          {locale === 'zh'
+                            ? '从零生成需要先配置 AI。配置完成后会保留你已填写的目标职位和经验段位。'
+                            : 'Start-fresh generation needs AI configuration first. Your current inputs will be kept.'}
+                        </div>
+                      )}
+                      <button
+                        onClick={handleGenerateResume}
+                        disabled={!userInfo.targetPosition.trim() || isProcessing}
+                        className="w-full px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors font-medium flex items-center justify-center space-x-2 disabled:opacity-50"
+                      >
+                        {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                        <span>{locale === 'zh' ? '开始生成完整简历' : 'Generate Resume'}</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </>
                   ) : (
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-center gap-2">
                       <CheckCircle className="w-4 h-4" />
@@ -866,9 +1095,13 @@ export default function UnifiedAIPanel({
               <span>
                 {isProcessing
                   ? (locale === 'zh' ? 'AI 正在处理中...' : 'AI processing...')
-                  : (locale === 'zh' ? 'AI 服务就绪' : 'AI service ready')}
+                  : aiConfigStatus.isConfigured
+                    ? (locale === 'zh' ? 'AI 服务就绪' : 'AI service ready')
+                    : aiConfigStatus.isEnabled
+                      ? (locale === 'zh' ? 'AI 待配置' : 'AI needs setup')
+                      : (locale === 'zh' ? 'AI 已停用' : 'AI disabled')}
               </span>
-                            </div>
+            </div>
             <button className="text-blue-600 hover:text-blue-700 font-medium">
               {locale === 'zh' ? '使用说明' : 'Guide'}
             </button>

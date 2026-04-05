@@ -140,14 +140,14 @@ export function SectionNavigation({
   return (
     <div className={`flex flex-col bg-white/50 backdrop-blur-sm ${className}`}>
       {/* Header */}
-      <div className="px-4 py-4 border-b border-gray-100">
+      <div className="border-b border-gray-100 px-3 py-3">
         <h3 className="text-sm font-semibold text-gray-900">{t.editor.content}</h3>
         <p className="text-xs text-gray-500 mt-0.5">{t.common.edit}</p>
       </div>
 
       {/* Navigation Items */}
-      <div className="py-4 px-3">
-        <nav className="space-y-2">
+      <div className="px-2 py-3">
+        <nav className="space-y-1.5">
           {translatedItems.map((item) => {
             const IconComponent = item.icon
             const isActive = item.id === activeSection
@@ -159,7 +159,7 @@ export function SectionNavigation({
               <button
                 key={item.id}
                 onClick={() => handleSectionClick(item.id)}
-                className={`relative w-full flex items-start gap-3 px-3 py-3 rounded-xl text-left transition-colors group ${
+                className={`relative w-full flex items-start gap-2.5 px-2.5 py-2.5 rounded-xl text-left transition-colors group ${
                   isActive
                     ? 'bg-gradient-to-r from-blue-50 to-blue-50/50 text-blue-600 ring-1 ring-blue-200'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -186,10 +186,10 @@ export function SectionNavigation({
                   <div className="text-sm font-semibold mb-0.5">{item.label}</div>
                   <div className={`text-xs leading-relaxed transition-colors ${
                     isActive ? 'text-blue-500/80' : 'text-gray-500 group-hover:text-gray-600'
-                  }`}>
+                  } line-clamp-2`}>
                     {item.description}
                   </div>
-                  <div className="mt-1.5 flex items-center gap-1.5">
+                  <div className="mt-1 flex items-center gap-1.5">
                     <span
                       className={`h-1.5 w-1.5 rounded-full ${
                         sectionCompleted ? 'bg-emerald-500' : 'bg-amber-500'
@@ -212,19 +212,19 @@ export function SectionNavigation({
       </div>
 
       {/* Template & Style Section */}
-      <div className="px-3 pb-4 border-t border-gray-100 pt-4 space-y-2">
+      <div className="border-t border-gray-100 px-2 pb-3 pt-3 space-y-2">
         {/* Template Selector Button */}
         {onShowTemplateSelector && (
           <button
             onClick={onShowTemplateSelector}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-gray-700 bg-white hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 hover:text-purple-700 transition-colors group border border-gray-100 hover:border-purple-200"
+            className="w-full flex items-center gap-2.5 rounded-xl border border-gray-200 bg-white px-2.5 py-2.5 text-left text-gray-700 transition-colors group hover:bg-slate-50 hover:text-slate-900"
           >
-            <div className="flex-shrink-0 p-2 rounded-lg bg-gradient-to-br from-purple-100 to-pink-100 text-purple-600 group-hover:from-purple-200 group-hover:to-pink-200 transition-all">
+            <div className="flex-shrink-0 rounded-lg bg-slate-100 p-2 text-slate-700 transition-all group-hover:bg-slate-200">
               <Palette className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold">{t.editor.template}</div>
-              <div className="text-xs text-gray-500 group-hover:text-purple-600/70 transition-colors">
+              <div className="text-xs text-gray-500 transition-colors group-hover:text-gray-700">
                 {locale === 'zh' ? '选择专业模板' : 'Choose template'}
               </div>
             </div>
@@ -234,29 +234,29 @@ export function SectionNavigation({
         {/* Style Settings Toggle Button */}
         <button
           onClick={() => setShowStyleSettings(!showStyleSettings)}
-          className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors group border ${
+          className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-left transition-colors group border ${
             showStyleSettings
-              ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 ring-1 ring-blue-200 border-blue-200'
-              : 'text-gray-700 bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700 border-gray-100 hover:border-blue-200'
+              ? 'bg-slate-50 text-slate-900 ring-1 ring-slate-200 border-slate-200'
+              : 'text-gray-700 bg-white hover:bg-slate-50 hover:text-slate-900 border-gray-200'
           }`}
         >
           <div className={`flex-shrink-0 p-2 rounded-lg transition-all ${
             showStyleSettings 
-              ? 'bg-blue-100 text-blue-600' 
-              : 'bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-600 group-hover:from-blue-200 group-hover:to-indigo-200'
+              ? 'bg-slate-200 text-slate-800' 
+              : 'bg-slate-100 text-slate-700 group-hover:bg-slate-200'
           }`}>
             <Settings2 className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold">{t.editor.styleSettings || '样式设置'}</div>
             <div className={`text-xs transition-colors ${
-              showStyleSettings ? 'text-blue-600/70' : 'text-gray-500 group-hover:text-blue-600/70'
+              showStyleSettings ? 'text-slate-600' : 'text-gray-500 group-hover:text-gray-700'
             }`}>
               {locale === 'zh' ? '自定义样式' : 'Customize styles'}
             </div>
           </div>
           <div className={`flex-shrink-0 transition-all ${
-            showStyleSettings ? 'text-blue-600 rotate-180' : 'text-gray-400 group-hover:text-blue-600'
+            showStyleSettings ? 'text-slate-700 rotate-180' : 'text-gray-400 group-hover:text-slate-700'
           }`}>
             <ChevronDown className="h-4 w-4" />
           </div>

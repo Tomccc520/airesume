@@ -7,21 +7,33 @@
  */
 
 import React, { useMemo } from 'react'
-import { User } from 'lucide-react'
+import Image from 'next/image'
+import { Link2, QrCode, Trash2, User } from 'lucide-react'
 import { PersonalInfo } from '@/types/resume'
 import { OptimizedImageUpload } from '../OptimizedImageUpload'
 import FormField, { FormFieldGroup } from '@/components/FormField'
 import { RichTextEditor } from './RichTextEditor'
 import { SectionHeader } from './SectionHeader'
 import { useLanguage } from '@/contexts/LanguageContext'
+import {
+  createContactQRCodeImageUrl,
+  normalizeContactQRCodePayload,
+  resolveContactQRCodePayload
+} from '@/utils/contactQRCode'
 
 interface PersonalInfoFormProps {
   personalInfo: PersonalInfo
   onChange: (data: PersonalInfo) => void
   onAiOptimize?: () => void
+  showSectionHeader?: boolean
 }
 
-export function PersonalInfoForm({ personalInfo, onChange, onAiOptimize }: PersonalInfoFormProps) {
+export function PersonalInfoForm({
+  personalInfo,
+  onChange,
+  onAiOptimize,
+  showSectionHeader = true
+}: PersonalInfoFormProps) {
   const { t, locale } = useLanguage()
   const personalInfoI18n = t.editor.personalInfo as Record<string, string | Record<string, string>>
   const isZh = locale === 'zh'
@@ -59,6 +71,19 @@ export function PersonalInfoForm({ personalInfo, onChange, onAiOptimize }: Perso
     }
 
     updateField('website', next)
+  }
+
+  /**
+   * 更新联系方式二维码字段
+   * 录入时做轻量规范化，确保后续模板展示可直接扫码。
+   */
+  const updateContactQRCode = (value: string) => {
+    const next = value.trim()
+    if (!next) {
+      updateField('contactQRCode', '')
+      return
+    }
+    updateField('contactQRCode', normalizeContactQRCodePayload(next))
   }
 
   // 更新头像圆角半径
@@ -126,14 +151,23 @@ export function PersonalInfoForm({ personalInfo, onChange, onAiOptimize }: Perso
 
   const emailLooksValid = !personalInfo.email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalInfo.email)
   const phoneLooksValid = !personalInfo.phone || /^[+\d\s\-()]{6,}$/.test(personalInfo.phone)
+  const resolvedQRCodePayload = resolveContactQRCodePayload(personalInfo)
+  const contactQRCodePreviewUrl = useMemo(() => {
+    if (!resolvedQRCodePayload) {
+      return null
+    }
+    return createContactQRCodeImageUrl(resolvedQRCodePayload, 168)
+  }, [resolvedQRCodePayload])
 
   return (
-    <div className="space-y-6">
-      <SectionHeader 
-        title={t.editor.personalInfo.title}
-        description={t.editor.personalInfo.description}
-        icon={<User className="w-5 h-5" />}
-      />
+    <div className={showSectionHeader ? 'space-y-6' : 'space-y-5'}>
+      {showSectionHeader && (
+        <SectionHeader 
+          title={t.editor.personalInfo.title}
+          description={t.editor.personalInfo.description}
+          icon={<User className="w-5 h-5" />}
+        />
+      )}
       
       {/* 头像上传区域 */}
       <div className="text-center mb-6">
@@ -250,6 +284,68 @@ export function PersonalInfoForm({ personalInfo, onChange, onAiOptimize }: Perso
           placeholder={t.editor.personalInfo.placeholders.website}
         />
       </FormFieldGroup>
+
+      {/* 联系方式二维码设置 */}
+      <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <QrCode className="h-4 w-4 text-slate-600" />
+          <h3 className="text-sm font-semibold text-slate-800">
+            {isZh ? '联系方式二维码' : 'Contact QR Code'}
+          </h3>
+        </div>
+
+        <FormField
+          label={isZh ? '二维码内容（链接/邮箱/手机号）' : 'QR Content (URL/Email/Phone)'}
+          type="text"
+          value={personalInfo.contactQRCode || ''}
+          onChange={updateContactQRCode}
+          placeholder={
+            isZh
+              ? '例如：https://github.com/yourname 或 weixin://dl/chat?username=...'
+              : 'e.g. https://github.com/yourname or mail@example.com'
+          }
+        />
+
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => updateContactQRCode(personalInfo.website || personalInfo.email || personalInfo.phone || '')}
+            className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100"
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            {isZh ? '使用已有联系方式' : 'Use Existing Contact'}
+          </button>
+          {personalInfo.contactQRCode && (
+            <button
+              type="button"
+              onClick={() => updateContactQRCode('')}
+              className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {isZh ? '清空二维码' : 'Clear QR'}
+            </button>
+          )}
+        </div>
+
+        {contactQRCodePreviewUrl && (
+          <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Image
+                src={contactQRCodePreviewUrl}
+                alt={isZh ? '联系方式二维码预览' : 'Contact QR Preview'}
+                width={84}
+                height={84}
+                unoptimized
+                className="rounded border border-slate-200"
+              />
+              <div className="min-w-0 text-xs text-slate-600">
+                <div className="font-medium text-slate-800">{isZh ? '扫码内容预览' : 'QR Payload Preview'}</div>
+                <p className="mt-1 break-all">{resolvedQRCodePayload}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 使用富文本编辑器 */}
       <RichTextEditor

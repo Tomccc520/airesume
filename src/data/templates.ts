@@ -3,8 +3,8 @@
  * @copyright UIED技术团队 (https://fsuied.com)
  * @author UIED技术团队
  * @createDate 2025-09-22
- * @updateDate 2026-03-26 - 收敛为3套市场化模板
- * @description 简历模板配置 - 市场化三套模板
+ * @updateDate 2026-03-26 - 扩展为6套市场化模板
+ * @description 简历模板配置 - 市场化模板
  */
 
 import { TemplateStyle, TemplateCategory } from '@/types/template'
@@ -100,8 +100,8 @@ export const resumeTemplates: TemplateStyle[] = [
   // 3. 现代时间轴 - 职业发展清晰
   {
     id: 'timeline-layout',
-    name: 'Boss 直聘紧凑',
-    nameEn: 'Boss Compact',
+    name: '时间线紧凑投递',
+    nameEn: 'Timeline Compact Apply',
     description: '紧凑时间线版式，适合快速浏览与高频沟通场景',
     descriptionEn: 'Compact timeline layout for fast recruiter scanning',
     preview: '/templates/timeline-layout.svg',
@@ -121,14 +121,53 @@ export const resumeTemplates: TemplateStyle[] = [
       timelineBg: '#cbd5e1'
     },
     fonts: {
-      heading: '"Inter", "PingFang SC", "Hiragino Sans GB", sans-serif',
-      body: '"Inter", "PingFang SC", "Hiragino Sans GB", sans-serif',
+      heading: '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif',
+      body: '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif',
       size: { heading: '1.5rem', body: '0.875rem', small: '0.75rem' }
     },
     layout: {
       margins: { top: '2.25rem', right: '2.25rem', bottom: '2.25rem', left: '2.25rem' },
       columns: { count: 1, gap: '2rem' },
       spacing: { section: '1.8rem', item: '1.1rem', line: '1.5rem' }
+    },
+    components: {
+      personalInfo: { layout: 'horizontal', showAvatar: true, avatarPosition: 'left', avatarShape: 'circle', avatarBorderRadius: 50, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'plain', alignment: 'left' },
+      listItem: { bulletStyle: 'timeline', indentation: '2rem' },
+      dateFormat: { format: 'YYYY.MM', position: 'left' }
+    }
+  },
+  {
+    id: 'timeline-layout-classic',
+    name: '时间线专业投递',
+    nameEn: 'Timeline Professional Apply',
+    description: '标准时间线+日期列布局，适合中高年限经历展示',
+    descriptionEn: 'Timeline with clear date column for experienced candidates',
+    preview: '/templates/timeline-layout.svg',
+    category: 'general',
+    subCategory: 'modern',
+    isPremium: false,
+    layoutType: 'top-bottom',
+    tags: ['时间线专业版', '日期列清晰', '资深投递'],
+    recommendedRoles: ['tech', 'operations', 'product', 'general'],
+    recommendedExperienceLevels: ['3-5', '5+', '1-3'],
+    colors: {
+      primary: '#0f172a',
+      secondary: '#5b677a',
+      accent: '#334155',
+      text: '#111827',
+      background: '#ffffff',
+      timelineBg: '#d3dce8'
+    },
+    fonts: {
+      heading: '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif',
+      body: '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif',
+      size: { heading: '1.52rem', body: '0.875rem', small: '0.75rem' }
+    },
+    layout: {
+      margins: { top: '2.25rem', right: '2.25rem', bottom: '2.25rem', left: '2.25rem' },
+      columns: { count: 1, gap: '2rem' },
+      spacing: { section: '1.65rem', item: '1.05rem', line: '1.5rem' }
     },
     components: {
       personalInfo: { layout: 'horizontal', showAvatar: true, avatarPosition: 'left', avatarShape: 'circle', avatarBorderRadius: 50, defaultAvatar: '/avatars/img1.png' },
@@ -264,8 +303,8 @@ export const resumeTemplates: TemplateStyle[] = [
   // 7. 创意卡片 - 视觉突出
   {
     id: 'card-layout',
-    name: 'Canva 商务简洁',
-    nameEn: 'Canva Business Clean',
+    name: '商务双栏标准',
+    nameEn: 'Business Dual Column Standard',
     description: '商务双栏版式，信息分区清晰，兼顾专业感与可读性',
     descriptionEn: 'Business two-column layout with clean content hierarchy',
     preview: '/templates/card-layout.svg',
@@ -286,14 +325,55 @@ export const resumeTemplates: TemplateStyle[] = [
       cardBorder: '#d1d5db'
     },
     fonts: {
-      heading: '"Inter", "PingFang SC", "Hiragino Sans GB", sans-serif',
-      body: '"Inter", "PingFang SC", "Hiragino Sans GB", sans-serif',
+      heading: '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif',
+      body: '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif',
       size: { heading: '1.5rem', body: '0.875rem', small: '0.75rem' }
     },
     layout: {
       margins: { top: '2rem', right: '2rem', bottom: '2rem', left: '2rem' },
       columns: { count: 1, gap: '1.5rem' },
       spacing: { section: '1.5rem', item: '0.95rem', line: '1.5rem' }
+    },
+    components: {
+      personalInfo: { layout: 'horizontal', showAvatar: true, avatarPosition: 'left', avatarShape: 'square', avatarBorderRadius: 10, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'background', alignment: 'left' },
+      listItem: { bulletStyle: 'none', indentation: '0' },
+      dateFormat: { format: 'YYYY.MM', position: 'right' },
+      cardStyle: true
+    }
+  },
+  {
+    id: 'card-layout-executive',
+    name: '商务双栏专业',
+    nameEn: 'Business Dual Column Professional',
+    description: '双栏商务投递版，右侧信息栏更突出，适合社招简历',
+    descriptionEn: 'Business dual-column format with clearer side panel hierarchy',
+    preview: '/templates/card-layout.svg',
+    category: 'general',
+    subCategory: 'creative',
+    isPremium: false,
+    layoutType: 'top-bottom',
+    tags: ['双栏专业', '商务投递', '右栏强化'],
+    recommendedRoles: ['tech', 'product', 'operations', 'general'],
+    recommendedExperienceLevels: ['1-3', '3-5', '5+'],
+    colors: {
+      primary: '#0f172a',
+      secondary: '#52637a',
+      accent: '#1d4ed8',
+      text: '#111827',
+      background: '#ffffff',
+      cardBg: '#f8fafc',
+      cardBorder: '#d7dee8'
+    },
+    fonts: {
+      heading: '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif',
+      body: '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif',
+      size: { heading: '1.52rem', body: '0.875rem', small: '0.75rem' }
+    },
+    layout: {
+      margins: { top: '2rem', right: '2rem', bottom: '2rem', left: '2rem' },
+      columns: { count: 1, gap: '1.5rem' },
+      spacing: { section: '1.5rem', item: '0.9rem', line: '1.48rem' }
     },
     components: {
       personalInfo: { layout: 'horizontal', showAvatar: true, avatarPosition: 'left', avatarShape: 'square', avatarBorderRadius: 10, defaultAvatar: '/avatars/img1.png' },
@@ -431,8 +511,8 @@ export const resumeTemplates: TemplateStyle[] = [
   // 11. 简历横幅 - 顶部突出
   {
     id: 'banner-layout',
-    name: 'Indeed 标准投递',
-    nameEn: 'Indeed Standard Apply',
+    name: '标准单栏投递',
+    nameEn: 'Standard Single Column Apply',
     description: '单栏 ATS 投递版，模块顺序标准，适配主流在线投递系统',
     descriptionEn: 'ATS-first single-column format for mainstream online applications',
     preview: '/templates/banner-layout.svg',
@@ -452,14 +532,53 @@ export const resumeTemplates: TemplateStyle[] = [
       bannerBg: '#ffffff'
     },
     fonts: {
-      heading: '"Inter", "PingFang SC", "Hiragino Sans GB", sans-serif',
-      body: '"Inter", "PingFang SC", "Hiragino Sans GB", sans-serif',
+      heading: '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif',
+      body: '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif',
       size: { heading: '1.68rem', body: '0.88rem', small: '0.75rem' }
     },
     layout: {
       margins: { top: '0', right: '2rem', bottom: '2rem', left: '2rem' },
       columns: { count: 1, gap: '1.5rem' },
       spacing: { section: '1.75rem', item: '0.95rem', line: '1.5rem' }
+    },
+    components: {
+      personalInfo: { layout: 'banner', showAvatar: true, avatarPosition: 'left', avatarShape: 'circle', avatarBorderRadius: 50, defaultAvatar: '/avatars/img1.png' },
+      sectionTitle: { style: 'plain', alignment: 'left' },
+      listItem: { bulletStyle: 'dot', indentation: '1rem' },
+      dateFormat: { format: 'YYYY.MM', position: 'right' }
+    }
+  },
+  {
+    id: 'banner-layout-compact',
+    name: '紧凑单栏投递',
+    nameEn: 'Compact Single Column Apply',
+    description: '更紧凑的单栏 ATS 结构，适合社招岗位快速筛选',
+    descriptionEn: 'Compact ATS-first single-column format for fast screening',
+    preview: '/templates/banner-layout.svg',
+    category: 'general',
+    subCategory: 'modern',
+    isPremium: false,
+    layoutType: 'top-bottom',
+    tags: ['单栏ATS', '紧凑排版', '社招常用'],
+    recommendedRoles: ['tech', 'product', 'operations', 'general'],
+    recommendedExperienceLevels: ['1-3', '3-5', '5+'],
+    colors: {
+      primary: '#0f172a',
+      secondary: '#475569',
+      accent: '#2563eb',
+      text: '#111827',
+      background: '#ffffff',
+      bannerBg: '#ffffff'
+    },
+    fonts: {
+      heading: '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif',
+      body: '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif',
+      size: { heading: '1.62rem', body: '0.865rem', small: '0.74rem' }
+    },
+    layout: {
+      margins: { top: '0', right: '2rem', bottom: '2rem', left: '2rem' },
+      columns: { count: 1, gap: '1.4rem' },
+      spacing: { section: '1.5rem', item: '0.85rem', line: '1.45rem' }
     },
     components: {
       personalInfo: { layout: 'banner', showAvatar: true, avatarPosition: 'left', avatarShape: 'circle', avatarBorderRadius: 50, defaultAvatar: '/avatars/img1.png' },
@@ -540,15 +659,22 @@ export const careerCategories = [
 ]
 
 /**
- * 三套核心模板 ID
- * 仅保留市场化投递风三套，避免模板过多造成选择负担。
+ * 核心模板 ID
+ * 使用市场化投递模板集，保证模板选择器与预览链路统一。
  */
-export const CORE_TEMPLATE_IDS = ['banner-layout', 'card-layout', 'timeline-layout'] as const
+export const CORE_TEMPLATE_IDS = [
+  'banner-layout',
+  'banner-layout-compact',
+  'card-layout',
+  'card-layout-executive',
+  'timeline-layout',
+  'timeline-layout-classic'
+] as const
 const CORE_TEMPLATE_ID_SET = new Set<string>(CORE_TEMPLATE_IDS)
 
 /**
  * 判断模板是否在当前可见范围
- * 除 hidden 控制外，再收敛到三套核心模板。
+ * 除 hidden 控制外，再收敛到核心模板集。
  */
 const isVisibleCoreTemplate = (template: TemplateStyle) => {
   return !template.hidden && CORE_TEMPLATE_ID_SET.has(template.id)
@@ -601,9 +727,7 @@ export const getPremiumTemplates = (): TemplateStyle[] => {
  * 流行模板ID列表
  */
 export const popularTemplateIds = [
-  'banner-layout',
-  'card-layout',
-  'timeline-layout'
+  ...CORE_TEMPLATE_IDS
 ]
 
 /**

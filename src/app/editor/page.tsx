@@ -29,7 +29,7 @@ import { useHorizontalSwipe } from '@/hooks/useSwipeGesture'
 import { ResumeData, Experience } from '@/types/resume'
 import { TemplateStyle } from '@/types/template'
 import { getDefaultTemplate, getTemplateById } from '@/data/templates'
-import { X } from 'lucide-react'
+import { Download, Palette, Save, Sparkles, X } from 'lucide-react'
 import { 
   EditorSkeleton, 
   AIAssistantSkeleton, 
@@ -106,6 +106,7 @@ export default function EditorPage() {
   const [showUnifiedAI, setShowUnifiedAI] = useState(false)
   const [preferredAISection, setPreferredAISection] = useState<AISection | null>(null)
   const [showAIConfig, setShowAIConfig] = useState(false)
+  const [aiConfigVersion, setAIConfigVersion] = useState(0)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showShortcutHelp, setShowShortcutHelp] = useState(false)
@@ -150,6 +151,7 @@ export default function EditorPage() {
       phone: '138-0000-0000',
       location: '北京市朝阳区',
       website: 'https://github.com/zhangsan',
+      contactQRCode: 'https://github.com/zhangsan',
       summary: '拥有5年前端开发经验，专注于构建高性能、可扩展的Web应用。精通React技术栈和现代前端工程化。具备良好的团队协作能力和技术领导力，曾主导多个大型项目的架构设计与开发。',
       avatar: '/avatars/img1.png'
     },
@@ -543,6 +545,7 @@ export default function EditorPage() {
             phone: '',
             location: '',
             website: '',
+            contactQRCode: '',
             summary: '',
             avatar: template.components?.personalInfo?.defaultAvatar || '/avatars/img1.png'
           },
@@ -612,6 +615,7 @@ export default function EditorPage() {
    * 用于统一 AI 配置入口的成功反馈
    */
   const handleAIConfigSave = useCallback((_config: AIConfig) => {
+    setAIConfigVersion((currentVersion) => currentVersion + 1)
     showSuccess('AI 配置已保存')
   }, [showSuccess])
 
@@ -684,7 +688,7 @@ export default function EditorPage() {
   }), [saveNow, openUnifiedAIPanel, normalizeAISection, activeSection])
 
   // 添加滑动手势支持
-  const { ...swipeHandlers } = useHorizontalSwipe(
+  const { isSwiping: _isSwiping, ...swipeHandlers } = useHorizontalSwipe(
     () => {
       // 左滑：切换到预览模式（仅在移动端且当前为编辑模式时）
       if (typeof window !== 'undefined' && window.innerWidth < 1024 && !isPreviewMode) {
@@ -706,10 +710,33 @@ export default function EditorPage() {
   // 使用键盘快捷键
   const { getShortcutHelp } = useKeyboardShortcuts(shortcuts)
 
+  /**
+   * 页面离开提醒
+   * 当存在未保存修改时，阻止用户误关闭标签页导致内容丢失。
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) {
+        return
+      }
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [hasUnsavedChanges])
+
   return (
       <StyleProvider>
           <TemplateStyleSync currentTemplate={currentTemplate} />
-          <div className="h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 text-gray-900 flex flex-col overflow-hidden">
+          <div className="h-screen bg-slate-50 text-gray-900 flex flex-col overflow-hidden">
             {!isFullscreen && <Header />}
 
           {/* 主要内容区域 - 固定高度，禁止页面滚动 */}
@@ -745,23 +772,23 @@ export default function EditorPage() {
               {...swipeHandlers}
             >
               {/* 移动端切换按钮 */}
-              <div className="xl:hidden flex-shrink-0 flex items-center justify-center gap-2 px-2 sm:px-4 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 py-2 border-b border-gray-200">
+              <div className="xl:hidden flex-shrink-0 flex items-center justify-center gap-2 px-2 sm:px-4 bg-white py-2 border-b border-gray-200">
                 <button
                   onClick={() => setIsPreviewMode(false)}
-                  className={`flex-1 max-w-28 sm:max-w-32 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all duration-300 ${
+                  className={`flex-1 max-w-28 sm:max-w-32 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${
                     !isPreviewMode 
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 active:scale-95' 
-                      : 'bg-white/50 text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-gray-200/60 active:scale-95 backdrop-blur-sm'
+                      ? 'bg-slate-900 text-white' 
+                      : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-gray-200'
                   }`}
                 >
                   {t.common.edit}
                 </button>
                 <button
                   onClick={() => setIsPreviewMode(true)}
-                  className={`flex-1 max-w-28 sm:max-w-32 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all duration-300 ${
+                  className={`flex-1 max-w-28 sm:max-w-32 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${
                     isPreviewMode 
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 active:scale-95' 
-                      : 'bg-white/50 text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-gray-200/60 active:scale-95 backdrop-blur-sm'
+                      ? 'bg-slate-900 text-white' 
+                      : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-gray-200'
                   }`}
                 >
                   {t.common.preview}
@@ -769,7 +796,7 @@ export default function EditorPage() {
               </div>
 
               {/* 三栏布局 - 桌面端 (>=1280px) */}
-              <div className="hidden xl:flex flex-1 min-h-0 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="hidden xl:flex flex-1 min-h-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
                 <ThreeColumnLayout
                   className="h-full w-full"
                   leftPanel={
@@ -826,7 +853,7 @@ export default function EditorPage() {
               {/* 双栏/单栏布局 - 平板和移动端 (<1280px) */}
               <div className="xl:hidden flex-1 flex flex-col lg:flex-row gap-4 min-h-0 overflow-hidden">
                 {/* 左侧编辑器 */}
-                <div className={`${isPreviewMode ? 'hidden lg:flex' : 'flex'} flex-1 min-h-0 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm flex-col`}>
+                <div className={`${isPreviewMode ? 'hidden lg:flex' : 'flex'} flex-1 min-h-0 bg-white border border-gray-200 rounded-xl overflow-hidden flex-col`}>
                   <div className="flex-1 overflow-y-auto custom-scrollbar">
                     <ResumeEditor
                       resumeData={resumeData}
@@ -835,12 +862,13 @@ export default function EditorPage() {
                       onSectionChange={setActiveSection}
                       onShowTemplateSelector={() => setShowTemplateSelector(true)}
                       onShowAIAssistant={(type) => openUnifiedAIPanel(type)}
+                      hideNavigation={true}
                     />
                   </div>
                 </div>
 
                 {/* 右侧预览 */}
-                <div className={`${isPreviewMode ? 'flex' : 'hidden lg:flex'} flex-1 min-h-0 lg:w-1/2 bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden flex-col`}>
+                <div className={`${isPreviewMode ? 'flex' : 'hidden lg:flex'} flex-1 min-h-0 lg:w-1/2 bg-gray-50 border border-gray-200 rounded-xl overflow-hidden flex-col`}>
                   <PreviewPanel
                     resumeData={previewData}
                     template={currentTemplate}
@@ -868,6 +896,42 @@ export default function EditorPage() {
                   </PreviewPanel>
                 </div>
               </div>
+
+              {/* 移动端快捷动作条 */}
+              <div className="xl:hidden mt-3 grid grid-cols-4 gap-2 rounded-xl border border-slate-200 bg-white p-2">
+                <button
+                  onClick={handleSave}
+                  className={`flex items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-medium transition-colors ${
+                    hasUnsavedChanges
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  {t.common.save}
+                </button>
+                <button
+                  onClick={() => setShowTemplateSelector(true)}
+                  className="flex items-center justify-center gap-1 rounded-lg bg-slate-100 px-2 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-200"
+                >
+                  <Palette className="h-3.5 w-3.5" />
+                  {t.editor.template}
+                </button>
+                <button
+                  onClick={() => openUnifiedAIPanel(normalizeAISection(activeSection))}
+                  className="flex items-center justify-center gap-1 rounded-lg bg-slate-100 px-2 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-200"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  AI
+                </button>
+                <button
+                  onClick={() => setShowExportDialog(true)}
+                  className="flex items-center justify-center gap-1 rounded-lg bg-slate-100 px-2 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-200"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {t.common.export}
+                </button>
+              </div>
             </div>
 
           </main>
@@ -882,6 +946,7 @@ export default function EditorPage() {
             }}
             resumeData={resumeData}
             preferredSection={preferredAISection}
+            configVersion={aiConfigVersion}
             onOpenAIConfig={() => setShowAIConfig(true)}
             onApplySuggestion={handleApplyAISuggestion}
             onApplyJDSuggestions={handleApplyAllJDSuggestions}

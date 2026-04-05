@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 import React from 'react'
 import { ResumeData } from '@/types/resume'
@@ -6,6 +7,7 @@ import { StyleConfig } from '@/contexts/StyleContext'
 import { MapPin, Mail, Phone, Globe } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { formatDate } from '@/utils/dateFormatter'
+import { createContactQRCodeImageUrl, resolveContactQRCodePayload } from '@/utils/contactQRCode'
 
 interface TemplateProps {
   resumeData: ResumeData
@@ -27,6 +29,8 @@ export const ModernSidebar: React.FC<TemplateProps> = ({
   const { locale, t } = useLanguage()
 
   const formatDateStr = (date?: string) => formatDate(date, locale)
+  const contactQRCodePayload = resolveContactQRCodePayload(personalInfo)
+  const contactQRCodeUrl = contactQRCodePayload ? createContactQRCodeImageUrl(contactQRCodePayload, 168) : null
 
   // 字体
   const fontFamilyStyle = fontFamily || 'Inter, sans-serif'
@@ -268,6 +272,20 @@ export const ModernSidebar: React.FC<TemplateProps> = ({
                 <Globe size={12} style={{ color: colors.accent || '#60a5fa' }} />
               </div>
               <span>{t.editor.templatePreview.personalWebsite}</span>
+            </div>
+          )}
+          {contactQRCodeUrl && (
+            <div className="pt-1">
+              <div className="inline-flex flex-col items-center rounded-md border border-white/20 p-1.5">
+                <img
+                  src={contactQRCodeUrl}
+                  alt={locale === 'en' ? 'Contact QR Code' : '联系方式二维码'}
+                  className="h-[72px] w-[72px] rounded bg-white p-1"
+                />
+                <span className="mt-1 text-[10px] text-white/60">
+                  {locale === 'en' ? 'Contact QR' : '联系二维码'}
+                </span>
+              </div>
             </div>
           )}
         </div>

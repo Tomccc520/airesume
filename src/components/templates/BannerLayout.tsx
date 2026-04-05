@@ -20,6 +20,7 @@ import { createContactQRCodeImageUrl, resolveContactQRCodePayload } from '@/util
 interface TemplateProps {
   resumeData: ResumeData
   styleConfig: StyleConfig
+  templateId?: string
   onSectionClick?: (section: string) => void
 }
 
@@ -30,23 +31,27 @@ interface TemplateProps {
 export const BannerLayout: React.FC<TemplateProps> = ({
   resumeData,
   styleConfig,
+  templateId,
   onSectionClick
 }) => {
   const { personalInfo, experience, education, projects, skills } = resumeData
   const { colors, fontSize, spacing, fontFamily } = styleConfig
   const { locale, t } = useLanguage()
+  const isCompactBanner = templateId === 'banner-layout-compact'
 
   const fontFamilyStyle = fontFamily || '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif'
-  const pagePadding = Math.max(styleConfig.layout?.padding || 34, 32)
+  const pagePadding = Math.max(styleConfig.layout?.padding || (isCompactBanner ? 32 : 34), isCompactBanner ? 28 : 32)
   const baseContentSize = fontSize?.content || 14
   const metrics = getMarketResumeMetrics({ baseContentSize, sectionSpacing: spacing?.section })
-  const sectionGap = metrics.sectionGap
+  const sectionGap = isCompactBanner ? Math.max(metrics.sectionGap - 1, 17) : metrics.sectionGap
+  const entryGap = isCompactBanner ? Math.max(metrics.entryGap - 1, 9) : metrics.entryGap
+  const timelineDateWidth = isCompactBanner ? Math.max(metrics.dateColumnWidth - 8, 112) : metrics.dateColumnWidth
+  const bodyLineHeight = isCompactBanner ? 1.52 : metrics.bodyLineHeight
   const headingColor = colors.primary || '#0f172a'
   const textColor = colors.text || '#111827'
   const mutedColor = colors.secondary || '#64748b'
-  const borderColor = '#d7dee8'
-  const rowDividerColor = '#e7edf4'
-  const summaryBgColor = '#f8fafc'
+  const borderColor = '#d3dbe6'
+  const rowDividerColor = '#e4ebf3'
   const isEnglish = locale === 'en'
   const contactQRCodePayload = resolveContactQRCodePayload(personalInfo)
   const contactQRCodeUrl = contactQRCodePayload ? createContactQRCodeImageUrl(contactQRCodePayload, 176) : null
@@ -78,19 +83,16 @@ export const BannerLayout: React.FC<TemplateProps> = ({
         marginBottom: `${metrics.sectionTitleMarginBottom}px`
       }}
     >
-      <div className="inline-flex items-center gap-2">
-        <span className="h-3 w-[2px] rounded-full" style={{ backgroundColor: headingColor }} />
-        <h2
-          className={`text-sm font-semibold ${isEnglish ? 'uppercase tracking-[0.1em]' : ''}`}
-          style={{
-            color: headingColor,
-            fontSize: `${metrics.sectionTitleSize}px`,
-            fontWeight: metrics.sectionTitleWeight
-          }}
-        >
-          {title}
-        </h2>
-      </div>
+      <h2
+        className={`text-sm font-semibold ${isEnglish ? 'uppercase tracking-[0.1em]' : ''}`}
+        style={{
+          color: headingColor,
+          fontSize: `${metrics.sectionTitleSize}px`,
+          fontWeight: metrics.sectionTitleWeight
+        }}
+      >
+        {title}
+      </h2>
       {helperText && (
         <span className="text-xs" style={{ color: mutedColor, fontWeight: metrics.metaWeight }}>
           {helperText}
@@ -131,7 +133,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
   const skillGroups = groupSkillsByCategory()
   const contactSummary = getContactSummary()
   const skillGroupEntries = Object.entries(skillGroups)
-  const skillColumns = skillGroupEntries.length > 2 ? 'repeat(2, minmax(0, 1fr))' : '1fr'
+  const skillColumns = isCompactBanner ? '1fr' : (skillGroupEntries.length > 2 ? 'repeat(2, minmax(0, 1fr))' : '1fr')
 
   return (
     <div
@@ -140,7 +142,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
         fontFamily: fontFamilyStyle,
         color: textColor,
         fontSize: `${baseContentSize}px`,
-        lineHeight: metrics.bodyLineHeight,
+        lineHeight: bodyLineHeight,
         padding: `${pagePadding}px`,
         borderColor
       }}
@@ -229,12 +231,11 @@ export const BannerLayout: React.FC<TemplateProps> = ({
         </div>
         {personalInfo.summary && (
           <div
-            className="whitespace-pre-line rounded-sm border-l-[3px] px-3 py-2"
+            className="whitespace-pre-line border-t pt-2"
             style={{
-              marginTop: `${metrics.entryGap - 3}px`,
+              marginTop: `${entryGap - 2}px`,
               color: textColor,
               lineHeight: metrics.summaryLineHeight,
-              backgroundColor: summaryBgColor,
               borderColor: rowDividerColor
             }}
           >
@@ -253,7 +254,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
             t.editor.experience.title,
             locale === 'en' ? `${experience.length} records` : `${experience.length} 条记录`
           )}
-          <div style={{ display: 'grid', rowGap: `${metrics.entryGap}px` }}>
+          <div style={{ display: 'grid', rowGap: `${entryGap}px` }}>
             {experience.map((exp, index) => (
               <article
                 key={exp.id}
@@ -279,7 +280,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
                       color: mutedColor,
                       fontSize: `${metrics.metaSize}px`,
                       fontWeight: metrics.metaWeight,
-                      minWidth: `${metrics.dateColumnWidth}px`,
+                      minWidth: `${timelineDateWidth}px`,
                       textAlign: 'right'
                     }}
                   >
@@ -297,7 +298,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
                       marginTop: `${metrics.bulletGap}px`,
                       display: 'grid',
                       rowGap: `${metrics.bulletGap}px`,
-                      lineHeight: metrics.bodyLineHeight
+                      lineHeight: bodyLineHeight
                     }}
                   >
                     {exp.description.map((desc, index) => (
@@ -323,7 +324,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
             t.editor.projects.title,
             locale === 'en' ? `${projects.length} projects` : `${projects.length} 个项目`
           )}
-          <div style={{ display: 'grid', rowGap: `${metrics.entryGap}px` }}>
+          <div style={{ display: 'grid', rowGap: `${entryGap}px` }}>
             {projects.map((project, index) => (
               <article
                 key={project.id}
@@ -349,7 +350,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
                       color: mutedColor,
                       fontSize: `${metrics.metaSize}px`,
                       fontWeight: metrics.metaWeight,
-                      minWidth: `${metrics.dateColumnWidth}px`,
+                      minWidth: `${timelineDateWidth}px`,
                       textAlign: 'right'
                     }}
                   >
@@ -364,7 +365,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
                       marginTop: `${metrics.bulletGap}px`,
                       display: 'grid',
                       rowGap: `${metrics.bulletGap}px`,
-                      lineHeight: metrics.bodyLineHeight
+                      lineHeight: bodyLineHeight
                     }}
                   >
                     {project.highlights.map((highlight, index) => (
@@ -390,7 +391,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
             t.editor.education.title,
             locale === 'en' ? `${education.length} records` : `${education.length} 条记录`
           )}
-          <div style={{ display: 'grid', rowGap: `${metrics.entryGap - 2}px` }}>
+          <div style={{ display: 'grid', rowGap: `${entryGap - 2}px` }}>
             {education.map((edu, index) => (
               <article
                 key={edu.id}
@@ -409,7 +410,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
                       color: mutedColor,
                       fontSize: `${metrics.metaSize}px`,
                       fontWeight: metrics.metaWeight,
-                      minWidth: `${metrics.dateColumnWidth}px`,
+                      minWidth: `${timelineDateWidth}px`,
                       textAlign: 'right'
                     }}
                   >
@@ -436,7 +437,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
             style={{
               display: 'grid',
               rowGap: `${metrics.bulletGap + 2}px`,
-              columnGap: `${metrics.entryGap + 8}px`,
+              columnGap: `${entryGap + 8}px`,
               gridTemplateColumns: skillColumns
             }}
           >
@@ -448,7 +449,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
                 >
                   {category}
                 </h3>
-                <p style={{ color: textColor, lineHeight: metrics.bodyLineHeight }}>
+                <p style={{ color: textColor, lineHeight: bodyLineHeight }}>
                   {items.map((skill, index) => (
                     <span key={skill.id}>
                       {skill.name}

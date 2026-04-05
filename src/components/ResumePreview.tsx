@@ -272,10 +272,12 @@ const ResumePreview = ({
           />
         )
       case 'timeline-layout':
+      case 'timeline-layout-classic':
         return (
           <TimelineLayout 
             resumeData={resumeData} 
             styleConfig={mergedStyleConfig} 
+            templateId={templateId}
             onSectionClick={onSectionClick}
           />
         )
@@ -306,10 +308,12 @@ const ResumePreview = ({
           />
         )
       case 'card-layout':
+      case 'card-layout-executive':
         return (
           <CardLayout 
             resumeData={resumeData} 
             styleConfig={mergedStyleConfig} 
+            templateId={templateId}
             onSectionClick={onSectionClick}
           />
         )
@@ -340,10 +344,12 @@ const ResumePreview = ({
           />
         )
       case 'banner-layout':
+      case 'banner-layout-compact':
         return (
           <BannerLayout 
             resumeData={resumeData} 
             styleConfig={mergedStyleConfig} 
+            templateId={templateId}
             onSectionClick={onSectionClick}
           />
         )

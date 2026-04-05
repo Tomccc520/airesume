@@ -21,9 +21,14 @@ import { useListEditor } from '@/hooks/useListEditor'
 interface EducationFormProps {
   education: Education[]
   onChange: (data: Education[]) => void
+  showSectionHeader?: boolean
 }
 
-export function EducationForm({ education, onChange }: EducationFormProps) {
+export function EducationForm({
+  education,
+  onChange,
+  showSectionHeader = true
+}: EducationFormProps) {
   const { t, locale } = useLanguage()
   const isZh = locale === 'zh'
   const {
@@ -56,13 +61,15 @@ export function EducationForm({ education, onChange }: EducationFormProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <SectionHeader 
-        title={t.editor.education.title}
-        description={t.editor.education.description}
-        count={education.length}
-        icon={<GraduationCap className="w-5 h-5" />}
-      />
+    <div className={showSectionHeader ? 'space-y-6' : 'space-y-5'}>
+      {showSectionHeader && (
+        <SectionHeader 
+          title={t.editor.education.title}
+          description={t.editor.education.description}
+          count={education.length}
+          icon={<GraduationCap className="w-5 h-5" />}
+        />
+      )}
 
       <div className="space-y-4">
         <AnimatePresence mode="popLayout">

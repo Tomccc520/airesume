@@ -2,7 +2,7 @@
  * @copyright Tomda (https://www.tomda.top)
  * @copyright UIED技术团队 (https://fsuied.com)
  * @author UIED技术团队
- * @createDate 2026-03-14
+ * @createDate 2026-03-26
  */
 
 'use client'
@@ -14,6 +14,8 @@ import { StyleConfig } from '@/contexts/StyleContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { formatDate } from '@/utils/dateFormatter'
 import { getAvatarClassName, getAvatarInlineStyle } from '@/utils/avatarUtils'
+import { getUnifiedResumeMetrics } from './resumePrintMetrics'
+import { createContactQRCodeImageUrl, resolveContactQRCodePayload } from '@/utils/contactQRCode'
 
 interface TemplateProps {
   resumeData: ResumeData
@@ -22,8 +24,8 @@ interface TemplateProps {
 }
 
 /**
- * 标准双栏布局
- * 左侧深色信息区 + 右侧浅色内容区，突出信息扫描效率
+ * 标准双栏模板
+ * 左侧信息栏 + 右侧经历主链，兼顾视觉层级和招聘筛选效率。
  */
 export const TwoColumnStandard: React.FC<TemplateProps> = ({
   resumeData,
@@ -34,28 +36,31 @@ export const TwoColumnStandard: React.FC<TemplateProps> = ({
   const { colors, fontSize, spacing, fontFamily } = styleConfig
   const { locale, t } = useLanguage()
 
-  const fontFamilyStyle = fontFamily || '"Manrope", "PingFang SC", "Hiragino Sans GB", sans-serif'
-  const pagePadding = styleConfig.layout?.padding || 36
-  const sidebarWidth = '33%'
-  const mainWidth = '67%'
-  const sidebarBg = (colors as Record<string, string>).sidebarBg || '#10233f'
-  const sidebarText = '#e2e8f0'
+  const fontFamilyStyle = fontFamily || '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif'
+  const pagePadding = styleConfig.layout?.padding || 34
+  const baseContentSize = fontSize?.content || 14
+  const metrics = getUnifiedResumeMetrics({ baseContentSize, sectionSpacing: spacing?.section })
+  const sectionGap = metrics.sectionGap
+  const sidebarBg = (colors as Record<string, string>).sidebarBg || '#1f2937'
+  const sidebarText = '#e5e7eb'
   const sidebarMuted = '#94a3b8'
-  const headingColor = colors.primary || '#0f172a'
-  const bodyColor = colors.text || '#1e293b'
-  const mutedColor = colors.secondary || '#64748b'
-  const accentColor = colors.accent || '#0ea5a4'
-  const sectionGap = spacing?.section || 24
+  const headingColor = colors.primary || '#1f2937'
+  const textColor = colors.text || '#1f2937'
+  const mutedColor = colors.secondary || '#6b7280'
+  const borderColor = '#d8dee7'
+  const isEnglish = locale === 'en'
+  const contactQRCodePayload = resolveContactQRCodePayload(personalInfo)
+  const contactQRCodeUrl = contactQRCodePayload ? createContactQRCodeImageUrl(contactQRCodePayload, 176) : null
 
   /**
-   * 格式化日期文本
-   * 统一中英文环境的日期展示规则
+   * 格式化日期
+   * 统一处理中英文日期展示。
    */
   const formatDateStr = (date?: string) => formatDate(date, locale)
 
   /**
    * 格式化时间区间
-   * 在“当前在职”场景下返回本地化的进行中标识
+   * 在当前在职场景下展示本地化“至今”文案。
    */
   const formatPeriod = (startDate?: string, endDate?: string, isCurrent?: boolean) => {
     return `${formatDateStr(startDate)} - ${isCurrent ? t.editor.experience.current : formatDateStr(endDate)}`
@@ -63,39 +68,73 @@ export const TwoColumnStandard: React.FC<TemplateProps> = ({
 
   /**
    * 渲染侧栏标题
-   * 使用统一的小标题样式提升侧栏信息可读性
+   * 侧栏统一使用大写小标题，保持信息分区清晰。
    */
   const renderSidebarTitle = (title: string) => (
     <h3
-      className="mb-3 border-b border-white/20 pb-2 text-xs font-semibold uppercase tracking-[0.16em]"
-      style={{ color: '#cbd5e1' }}
+      className={`border-b pb-2 text-[11px] font-semibold ${isEnglish ? 'uppercase tracking-[0.12em]' : ''}`}
+      style={{ color: sidebarText, borderColor: 'rgba(255,255,255,0.2)' }}
     >
       {title}
     </h3>
   )
 
   /**
-   * 渲染主内容标题
-   * 使用左侧强调条建立稳定视觉锚点
+   * 渲染主区标题
+   * 主区采用标准底线标题，减少视觉装饰。
    */
-  const renderMainTitle = (title: string) => (
-    <div className="flex items-center gap-2">
-      <div className="h-6 w-1.5 rounded-full" style={{ backgroundColor: accentColor }} />
+  const renderMainTitle = (title: string, helperText?: string) => (
+    <div
+      className="flex items-end justify-between border-b"
+      style={{
+        borderColor,
+        paddingBottom: `${metrics.sectionTitlePaddingBottom}px`,
+        marginBottom: `${metrics.sectionTitleMarginBottom}px`
+      }}
+    >
       <h2
-        className="text-[15px] font-bold uppercase tracking-[0.16em]"
-        style={{ color: headingColor }}
+        className={`text-sm font-semibold ${isEnglish ? 'uppercase tracking-[0.1em]' : ''}`}
+        style={{
+          color: headingColor,
+          fontSize: `${metrics.sectionTitleSize}px`,
+          fontWeight: metrics.sectionTitleWeight
+        }}
       >
         {title}
       </h2>
+      {helperText && (
+        <span className="text-xs" style={{ color: mutedColor, fontWeight: metrics.metaWeight }}>
+          {helperText}
+        </span>
+      )}
     </div>
   )
 
+  /**
+   * 聚合联系信息
+   * 将联系方式按顺序输出，避免重复 JSX 分支。
+   */
+  const getContactItems = () => {
+    const websiteLabel = personalInfo.website
+      ? personalInfo.website.replace(/^https?:\/\//i, '').replace(/\/$/, '')
+      : ''
+    const items = [
+      { label: locale === 'en' ? 'Phone' : '电话', value: personalInfo.phone },
+      { label: locale === 'en' ? 'Email' : '邮箱', value: personalInfo.email },
+      { label: locale === 'en' ? 'Location' : '地址', value: personalInfo.location },
+      { label: locale === 'en' ? 'Website' : '网站', value: websiteLabel }
+    ]
+    return items.filter((item) => Boolean(item.value))
+  }
+
+  const contactItems = getContactItems()
+
   return (
-    <div className="flex w-full min-h-full bg-slate-50" style={{ fontFamily: fontFamilyStyle }}>
+    <div className="flex w-full min-h-full border bg-white" style={{ borderColor, fontFamily: fontFamilyStyle }}>
       <aside
         className="flex flex-col"
         style={{
-          width: sidebarWidth,
+          width: '33%',
           backgroundColor: sidebarBg,
           padding: `${pagePadding}px`,
           color: sidebarText,
@@ -107,56 +146,54 @@ export const TwoColumnStandard: React.FC<TemplateProps> = ({
             <Image
               src={personalInfo.avatar}
               alt={personalInfo.name}
-              width={96}
-              height={96}
+              width={88}
+              height={88}
               unoptimized
-              className={`${getAvatarClassName(styleConfig, 'mx-auto mb-4 h-24 w-24')}`}
+              className={getAvatarClassName(styleConfig, 'mx-auto h-[88px] w-[88px]')}
               style={{
-                ...getAvatarInlineStyle(personalInfo.avatarBorderRadius, styleConfig, 96),
-                border: `3px solid ${accentColor}`,
-                boxShadow: '0 12px 24px -18px rgba(15, 23, 42, 0.85)'
+                ...getAvatarInlineStyle(personalInfo.avatarBorderRadius, styleConfig, 88),
+                border: '1px solid rgba(255,255,255,0.35)'
               }}
             />
           )}
-          <h1 className="text-2xl font-semibold tracking-[0.05em]">{personalInfo.name}</h1>
-          <p className="mt-1 text-sm" style={{ color: sidebarMuted }}>
+          <h1
+            className="mt-3 font-semibold tracking-[0.02em]"
+            style={{ fontSize: `${metrics.nameSize - 8}px`, fontWeight: metrics.nameWeight }}
+          >
+            {personalInfo.name}
+          </h1>
+          <p
+            className="mt-1"
+            style={{ color: sidebarMuted, fontSize: `${metrics.roleSize - 3}px`, fontWeight: metrics.roleWeight }}
+          >
             {personalInfo.title}
           </p>
         </section>
 
         <section className="cursor-pointer" onClick={() => onSectionClick?.('personal')}>
           {renderSidebarTitle(locale === 'en' ? 'Contact' : '联系方式')}
-          <div className="space-y-2 text-xs leading-relaxed">
-            {personalInfo.phone && (
-              <div className="rounded-md bg-white/5 px-2.5 py-2">
-                <div className="font-medium" style={{ color: sidebarMuted }}>
-                  {locale === 'en' ? 'Phone' : '电话'}
+          <div className="mt-3 space-y-2 text-xs">
+            {contactItems.map((item) => (
+              <div key={item.label} className="rounded border px-2.5 py-2" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
+                <div className="text-[10px] uppercase tracking-[0.08em]" style={{ color: sidebarMuted }}>
+                  {item.label}
                 </div>
-                <div>{personalInfo.phone}</div>
+                <div className="mt-1 break-all">{item.value}</div>
               </div>
-            )}
-            {personalInfo.email && (
-              <div className="rounded-md bg-white/5 px-2.5 py-2">
-                <div className="font-medium" style={{ color: sidebarMuted }}>
-                  {locale === 'en' ? 'Email' : '邮箱'}
-                </div>
-                <div className="break-all">{personalInfo.email}</div>
-              </div>
-            )}
-            {personalInfo.location && (
-              <div className="rounded-md bg-white/5 px-2.5 py-2">
-                <div className="font-medium" style={{ color: sidebarMuted }}>
-                  {locale === 'en' ? 'Location' : '地址'}
-                </div>
-                <div>{personalInfo.location}</div>
-              </div>
-            )}
-            {personalInfo.website && (
-              <div className="rounded-md bg-white/5 px-2.5 py-2">
-                <div className="font-medium" style={{ color: sidebarMuted }}>
-                  {locale === 'en' ? 'Website' : '网站'}
-                </div>
-                <div className="break-all">{personalInfo.website}</div>
+            ))}
+            {contactQRCodeUrl && (
+              <div className="rounded border p-2 text-center" style={{ borderColor: 'rgba(255,255,255,0.2)' }}>
+                <Image
+                  src={contactQRCodeUrl}
+                  alt={isEnglish ? 'Contact QR Code' : '联系方式二维码'}
+                  width={76}
+                  height={76}
+                  unoptimized
+                  className="mx-auto h-[76px] w-[76px] rounded bg-white p-1"
+                />
+                <p className="mt-1 text-[10px]" style={{ color: sidebarMuted }}>
+                  {isEnglish ? 'Contact QR' : '联系二维码'}
+                </p>
               </div>
             )}
           </div>
@@ -165,23 +202,20 @@ export const TwoColumnStandard: React.FC<TemplateProps> = ({
         {skills.length > 0 && (
           <section className="cursor-pointer" onClick={() => onSectionClick?.('skills')}>
             {renderSidebarTitle(t.editor.skills.title)}
-            <div className="space-y-2.5">
+            <div className="mt-3 space-y-2.5">
               {skills.map((skill) => (
-                <div key={skill.id}>
-                  <div className="mb-1.5 flex items-center justify-between text-xs">
-                    <span className="font-medium text-slate-100">{skill.name}</span>
+                <article key={skill.id}>
+                  <div className="flex items-center justify-between text-xs">
+                    <span>{skill.name}</span>
                     <span style={{ color: sidebarMuted }}>{skill.level}%</span>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-white/20">
+                  <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/15">
                     <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${skill.level}%`,
-                        backgroundColor: accentColor
-                      }}
+                      className="h-full rounded-full bg-white/70"
+                      style={{ width: `${skill.level}%` }}
                     />
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           </section>
@@ -190,16 +224,17 @@ export const TwoColumnStandard: React.FC<TemplateProps> = ({
         {education.length > 0 && (
           <section className="cursor-pointer" onClick={() => onSectionClick?.('education')}>
             {renderSidebarTitle(t.editor.education.title)}
-            <div className="space-y-3 text-xs">
+            <div className="mt-3 space-y-3 text-xs">
               {education.map((edu) => (
-                <article key={edu.id} className="rounded-md bg-white/5 px-2.5 py-2">
-                  <div className="font-semibold text-slate-100">{edu.school}</div>
-                  <div className="mt-1" style={{ color: sidebarMuted }}>
+                <article key={edu.id} className="rounded border px-2.5 py-2" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
+                  <h4 className="font-semibold">{edu.school}</h4>
+                  <p className="mt-1" style={{ color: sidebarMuted }}>
                     {edu.degree} · {edu.major}
-                  </div>
-                  <div className="mt-1 text-[11px]" style={{ color: sidebarMuted }}>
+                  </p>
+                  <p className="mt-1 text-[11px]" style={{ color: sidebarMuted }}>
                     {formatDateStr(edu.startDate)} - {formatDateStr(edu.endDate)}
-                  </div>
+                    {edu.gpa && <span> · GPA {edu.gpa}</span>}
+                  </p>
                 </article>
               ))}
             </div>
@@ -208,10 +243,12 @@ export const TwoColumnStandard: React.FC<TemplateProps> = ({
       </aside>
 
       <main
-        className="flex flex-col bg-white"
+        className="flex flex-col"
         style={{
-          width: mainWidth,
-          color: bodyColor,
+          width: '67%',
+          color: textColor,
+          fontSize: `${baseContentSize}px`,
+          lineHeight: metrics.bodyLineHeight,
           padding: `${pagePadding}px`,
           gap: `${sectionGap}px`
         }}
@@ -219,7 +256,7 @@ export const TwoColumnStandard: React.FC<TemplateProps> = ({
         {personalInfo.summary && (
           <section className="cursor-pointer" onClick={() => onSectionClick?.('personal')}>
             {renderMainTitle(t.editor.templatePreview.personalSummary)}
-            <p className="mt-3 whitespace-pre-line leading-7" style={{ color: bodyColor }}>
+            <p className="whitespace-pre-line" style={{ lineHeight: metrics.summaryLineHeight }}>
               {personalInfo.summary}
             </p>
           </section>
@@ -227,26 +264,52 @@ export const TwoColumnStandard: React.FC<TemplateProps> = ({
 
         {experience.length > 0 && (
           <section className="cursor-pointer" onClick={() => onSectionClick?.('experience')}>
-            {renderMainTitle(t.editor.experience.title)}
-            <div className="mt-4 space-y-4">
+            {renderMainTitle(
+              t.editor.experience.title,
+              locale === 'en' ? `${experience.length} records` : `${experience.length} 条记录`
+            )}
+            <div style={{ display: 'grid', rowGap: `${metrics.entryGap}px` }}>
               {experience.map((exp) => (
-                <article key={exp.id} className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="font-semibold" style={{ color: headingColor, fontSize: `${fontSize?.content || 14}px` }}>
+                <article key={exp.id} className="pb-3 last:pb-0">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <h3
+                      className="font-semibold"
+                      style={{
+                        color: headingColor,
+                        fontSize: `${metrics.itemTitleSize}px`,
+                        fontWeight: metrics.itemTitleWeight
+                      }}
+                    >
                       {exp.position}
                     </h3>
-                    <span className="rounded-full bg-white px-2.5 py-1 text-xs" style={{ color: mutedColor }}>
+                    <span
+                      className="font-medium"
+                      style={{
+                        color: mutedColor,
+                        fontSize: `${metrics.metaSize}px`,
+                        fontWeight: metrics.metaWeight,
+                        minWidth: `${metrics.dateColumnWidth}px`,
+                        textAlign: 'right'
+                      }}
+                    >
                       {formatPeriod(exp.startDate, exp.endDate, exp.current)}
                     </span>
                   </div>
-                  <div className="mt-1 text-sm font-medium" style={{ color: accentColor }}>
+                  <p className="mt-1 text-sm font-medium" style={{ color: headingColor }}>
                     {exp.company}
                     {exp.location && <span style={{ color: mutedColor }}> · {exp.location}</span>}
-                  </div>
+                  </p>
                   {exp.description.length > 0 && (
-                    <ul className="mt-2 list-disc space-y-1 pl-5">
+                    <ul
+                      className="pl-4"
+                      style={{
+                        marginTop: `${metrics.bulletGap}px`,
+                        display: 'grid',
+                        rowGap: `${metrics.bulletGap}px`
+                      }}
+                    >
                       {exp.description.map((desc, index) => (
-                        <li key={`${exp.id}-desc-${index}`} style={{ color: bodyColor, fontSize: `${fontSize?.small || 12}px` }}>
+                        <li key={`${exp.id}-desc-${index}`} className="list-disc">
                           {desc}
                         </li>
                       ))}
@@ -260,25 +323,49 @@ export const TwoColumnStandard: React.FC<TemplateProps> = ({
 
         {projects.length > 0 && (
           <section className="cursor-pointer" onClick={() => onSectionClick?.('projects')}>
-            {renderMainTitle(t.editor.projects.title)}
-            <div className="mt-4 grid gap-3">
+            {renderMainTitle(
+              t.editor.projects.title,
+              locale === 'en' ? `${projects.length} projects` : `${projects.length} 个项目`
+            )}
+            <div style={{ display: 'grid', rowGap: `${metrics.entryGap}px` }}>
               {projects.map((project) => (
-                <article key={project.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="font-semibold" style={{ color: headingColor, fontSize: `${fontSize?.content || 14}px` }}>
+                <article key={project.id} className="pb-3 last:pb-0">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <h3
+                      className="font-semibold"
+                      style={{
+                        color: headingColor,
+                        fontSize: `${metrics.itemTitleSize}px`,
+                        fontWeight: metrics.itemTitleWeight
+                      }}
+                    >
                       {project.name}
                     </h3>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs" style={{ color: mutedColor }}>
+                    <span
+                      className="font-medium"
+                      style={{
+                        color: mutedColor,
+                        fontSize: `${metrics.metaSize}px`,
+                        fontWeight: metrics.metaWeight,
+                        minWidth: `${metrics.dateColumnWidth}px`,
+                        textAlign: 'right'
+                      }}
+                    >
                       {formatDateStr(project.startDate)} - {formatDateStr(project.endDate)}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm" style={{ color: bodyColor }}>
-                    {project.description}
-                  </p>
+                  <p className="mt-1.5">{project.description}</p>
                   {project.highlights.length > 0 && (
-                    <ul className="mt-2 list-disc space-y-1 pl-5">
+                    <ul
+                      className="pl-4"
+                      style={{
+                        marginTop: `${metrics.bulletGap}px`,
+                        display: 'grid',
+                        rowGap: `${metrics.bulletGap}px`
+                      }}
+                    >
                       {project.highlights.map((highlight, index) => (
-                        <li key={`${project.id}-highlight-${index}`} style={{ color: bodyColor, fontSize: `${fontSize?.small - 1 || 11}px` }}>
+                        <li key={`${project.id}-highlight-${index}`} className="list-disc">
                           {highlight}
                         </li>
                       ))}

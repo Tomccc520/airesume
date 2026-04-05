@@ -112,9 +112,9 @@ const TemplatePreview = ({
     const id = template.id
 
     // 招聘市场主流模板（优先精确匹配）
-    if (id === 'banner-layout') return 'marketBanner'
-    if (id === 'card-layout') return 'marketCard'
-    if (id === 'timeline-layout') return 'marketTimeline'
+    if (id === 'banner-layout' || id === 'banner-layout-compact') return 'marketBanner'
+    if (id === 'card-layout' || id === 'card-layout-executive') return 'marketCard'
+    if (id === 'timeline-layout' || id === 'timeline-layout-classic') return 'marketTimeline'
     
     // 根据模板ID精确匹配布局类型
     // 侧边栏布局
@@ -285,24 +285,24 @@ const TemplatePreview = ({
    * 参考招聘平台常见单栏 ATS 版式：页眉 + 经历主区 + 技能文本行。
    */
   const renderMarketBannerLayout = () => (
-    <div className="w-full h-full p-3" style={{ color: '#111827' }}>
-      <div className="border-b pb-2.5" style={{ borderColor: '#d7dee8' }}>
-        <div className="text-[10px] font-semibold tracking-[0.02em]">{sampleData.personalInfo.name}</div>
-        <div className="text-[7px] text-slate-600 mt-0.5">{sampleData.personalInfo.title}</div>
-        <div className="text-[5px] text-slate-500 mt-1.5">
+    <div className="h-full w-full p-3" style={{ color: '#111827' }}>
+      <div className="border-b pb-2.5" style={{ borderColor: '#d3dbe6' }}>
+        <div className="text-[10px] font-semibold">{sampleData.personalInfo.name}</div>
+        <div className="mt-0.5 text-[7px] text-slate-600">{sampleData.personalInfo.title}</div>
+        <div className="mt-1.5 text-[5px] text-slate-500">
           {sampleData.personalInfo.phone} · {sampleData.personalInfo.email}
         </div>
-        <div className="mt-1.5 rounded-sm border-l-2 bg-slate-50 px-2 py-1 text-[5px] text-slate-600" style={{ borderColor: '#e2e8f0' }}>
+        <div className="mt-1.5 border-t pt-1 text-[5px] text-slate-600" style={{ borderColor: '#e4ebf3' }}>
           {sampleData.personalInfo.summary}
         </div>
       </div>
 
       <div className="mt-2.5">
-        <div className="text-[6.5px] font-semibold pb-1 border-b" style={{ borderColor: '#dfe6ef' }}>
+        <div className="border-b pb-1 text-[6.5px] font-semibold" style={{ borderColor: '#d3dbe6' }}>
           {t.editor.experience.title}
         </div>
         <div className="mt-1.5 space-y-1.5 text-[6px]">
-          <div className="border-b pb-1" style={{ borderColor: '#edf2f7' }}>
+          <div className="border-b pb-1" style={{ borderColor: '#e4ebf3' }}>
             <div className="flex items-start justify-between gap-2">
               <span className="font-medium">{sampleData.experience[0].position}</span>
               <span className="text-slate-500">{formatDateStr(sampleData.experience[0].startDate)}</span>
@@ -320,10 +320,10 @@ const TemplatePreview = ({
       </div>
 
       <div className="mt-2.5">
-        <div className="text-[6.5px] font-semibold pb-1 border-b" style={{ borderColor: '#dfe6ef' }}>
+        <div className="border-b pb-1 text-[6.5px] font-semibold" style={{ borderColor: '#d3dbe6' }}>
           {t.editor.skills.title}
         </div>
-        <div className="mt-1 text-[5px] text-slate-600 line-clamp-2">
+        <div className="mt-1 text-[5px] leading-[1.35] text-slate-600 line-clamp-2">
           {sampleData.skills.map((skill, index) => (
             <span key={skill.id}>
               {skill.name}
@@ -340,15 +340,15 @@ const TemplatePreview = ({
    * 参考主流双栏模板：左主栏放经历项目，右侧栏放技能教育。
    */
   const renderMarketCardLayout = () => (
-    <div className="w-full h-full p-3 text-[6px]" style={{ color: '#111827' }}>
-      <div className="border-b pb-2.5" style={{ borderColor: '#d7dee8' }}>
+    <div className="h-full w-full p-3 text-[6px]" style={{ color: '#111827' }}>
+      <div className="border-b pb-2.5" style={{ borderColor: '#d3dbe6' }}>
         <div className="text-[10px] font-semibold">{sampleData.personalInfo.name}</div>
         <div className="text-[7px] text-slate-600">{sampleData.personalInfo.title}</div>
       </div>
 
       <div className="mt-2 grid grid-cols-[1.55fr,1fr] gap-2">
         <div>
-          <div className="text-[6.5px] font-semibold pb-1 border-b" style={{ borderColor: '#dfe6ef' }}>
+          <div className="border-b pb-1 text-[6.5px] font-semibold" style={{ borderColor: '#d3dbe6' }}>
             {t.editor.experience.title}
           </div>
           <div className="mt-1.5">
@@ -357,7 +357,7 @@ const TemplatePreview = ({
             <div className="text-slate-500 mt-0.5 line-clamp-1">{sampleData.experience[0].description[0]}</div>
           </div>
 
-          <div className="text-[6.5px] font-semibold pb-1 border-b mt-2" style={{ borderColor: '#dfe6ef' }}>
+          <div className="mt-2 border-b pb-1 text-[6.5px] font-semibold" style={{ borderColor: '#d3dbe6' }}>
             {t.editor.projects.title}
           </div>
           <div className="mt-1.5">
@@ -366,8 +366,8 @@ const TemplatePreview = ({
           </div>
         </div>
 
-        <div className="rounded border bg-slate-50 px-2 py-1.5" style={{ borderColor: '#e7edf4' }}>
-          <div className="text-[6.5px] font-semibold pb-1 border-b" style={{ borderColor: '#dfe6ef' }}>
+        <div className="border-l pl-2" style={{ borderColor: '#e4ebf3' }}>
+          <div className="border-b pb-1 text-[6.5px] font-semibold" style={{ borderColor: '#d3dbe6' }}>
             {t.editor.skills.title}
           </div>
           <div className="mt-1 text-[5px] text-slate-600 line-clamp-2">
@@ -379,7 +379,7 @@ const TemplatePreview = ({
             ))}
           </div>
 
-          <div className="text-[6.5px] font-semibold pb-1 border-b mt-2" style={{ borderColor: '#dfe6ef' }}>
+          <div className="mt-2 border-b pb-1 text-[6.5px] font-semibold" style={{ borderColor: '#d3dbe6' }}>
             {t.editor.education.title}
           </div>
           <div className="mt-1">
@@ -396,28 +396,28 @@ const TemplatePreview = ({
    * 采用招聘常见逆序时间线：左日期、右侧纵向事件轨道。
    */
   const renderMarketTimelineLayout = () => (
-    <div className="w-full h-full p-3" style={{ color: '#111827' }}>
-      <div className="border-b pb-2.5" style={{ borderColor: '#d7dee8' }}>
+    <div className="h-full w-full p-3" style={{ color: '#111827' }}>
+      <div className="border-b pb-2.5" style={{ borderColor: '#d3dbe6' }}>
         <div className="text-[10px] font-semibold">{sampleData.personalInfo.name}</div>
         <div className="text-[7px] text-slate-600">{sampleData.personalInfo.title}</div>
       </div>
 
-      <div className="mt-2.5 text-[6.5px] font-semibold pb-1 border-b" style={{ borderColor: '#dfe6ef' }}>
+      <div className="mt-2.5 border-b pb-1 text-[6.5px] font-semibold" style={{ borderColor: '#d3dbe6' }}>
         {t.editor.experience.title}
       </div>
       <div className="mt-1.5 space-y-1.5">
-        <div className="grid grid-cols-[46px,1fr] gap-2 border-b pb-1" style={{ borderColor: '#edf2f7' }}>
+        <div className="grid grid-cols-[48px,1fr] gap-2 border-b pb-1" style={{ borderColor: '#e4ebf3' }}>
           <div className="text-slate-500">{formatDateStr(sampleData.experience[0].startDate)}</div>
-          <div className="relative border-l pl-2" style={{ borderColor: '#ced6e0' }}>
-            <span className="absolute left-0 top-1 h-2 w-2 -translate-x-1/2 rounded-full bg-slate-500" />
+          <div className="relative border-l pl-2" style={{ borderColor: '#cbd5e1' }}>
+            <span className="absolute left-0 top-1 h-2 w-2 -translate-x-1/2 rounded-full border border-slate-500 bg-white" />
             <div className="font-medium">{sampleData.experience[0].position}</div>
             <div className="text-slate-600">{sampleData.experience[0].company}</div>
           </div>
         </div>
-        <div className="grid grid-cols-[46px,1fr] gap-2 text-[6px]">
+        <div className="grid grid-cols-[48px,1fr] gap-2 text-[6px]">
           <div className="text-slate-500">{formatDateStr(sampleData.education[0].startDate)}</div>
-          <div className="relative border-l pl-2" style={{ borderColor: '#ced6e0' }}>
-            <span className="absolute left-0 top-1 h-2 w-2 -translate-x-1/2 rounded-full bg-slate-500" />
+          <div className="relative border-l pl-2" style={{ borderColor: '#cbd5e1' }}>
+            <span className="absolute left-0 top-1 h-2 w-2 -translate-x-1/2 rounded-full border border-slate-500 bg-white" />
             <div className="font-medium">{sampleData.education[0].school}</div>
             <div className="text-slate-600">{sampleData.education[0].major}</div>
           </div>
