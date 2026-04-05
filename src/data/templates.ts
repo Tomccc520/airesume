@@ -17,10 +17,10 @@ export const resumeTemplates: TemplateStyle[] = [
   // 1. 经典居中 - ATS友好 ⭐ 最推荐
   {
     id: 'minimal-text',
-    name: '经典居中',
-    nameEn: 'Classic Centered',
-    description: '经典衬线排版，兼顾 ATS 友好与视觉质感',
-    descriptionEn: 'Editorial serif layout with ATS-friendly structure',
+    name: '经典单栏投递',
+    nameEn: 'Classic Single Column Apply',
+    description: '经典单栏与居中页眉结合，适合稳妥的一页式投递',
+    descriptionEn: 'Classic single-column resume with centered header for safer one-page delivery',
     preview: '/templates/minimal-text.svg',
     category: 'general',
     subCategory: 'minimal',
@@ -139,16 +139,16 @@ export const resumeTemplates: TemplateStyle[] = [
   },
   {
     id: 'timeline-layout-classic',
-    name: '时间线专业投递',
-    nameEn: 'Timeline Professional Apply',
-    description: '标准时间线+日期列布局，适合中高年限经历展示',
-    descriptionEn: 'Timeline with clear date column for experienced candidates',
+    name: '时间线资深投递',
+    nameEn: 'Senior Timeline Apply',
+    description: '标准时间线与日期列并列，适合经历较多、需要清晰展示履历顺序的简历',
+    descriptionEn: 'A professional timeline with clear date column for experienced candidates',
     preview: '/templates/timeline-layout.svg',
     category: 'general',
     subCategory: 'modern',
     isPremium: false,
     layoutType: 'top-bottom',
-    tags: ['时间线专业版', '日期列清晰', '资深投递'],
+    tags: ['时间线履历', '日期列清晰', '资深社招'],
     recommendedRoles: ['tech', 'operations', 'product', 'general'],
     recommendedExperienceLevels: ['3-5', '5+', '1-3'],
     colors: {
@@ -263,10 +263,10 @@ export const resumeTemplates: TemplateStyle[] = [
   // 6. 高效紧凑 - 信息密度高
   {
     id: 'compact-layout',
-    name: '高效紧凑',
-    nameEn: 'Efficient Compact',
-    description: '紧凑排版，信息密度高，适合经验丰富者',
-    descriptionEn: 'Compact layout, high density, for experienced professionals',
+    name: '紧凑单栏投递',
+    nameEn: 'Compact Single Column Apply',
+    description: '紧凑单栏排版，适合内容较多但仍希望保持 ATS 友好结构',
+    descriptionEn: 'Compact single-column layout for content-heavy resumes that still need ATS readability',
     preview: '/templates/compact-layout.svg',
     category: 'general',
     subCategory: 'minimal',
@@ -344,16 +344,16 @@ export const resumeTemplates: TemplateStyle[] = [
   },
   {
     id: 'card-layout-executive',
-    name: '商务双栏专业',
-    nameEn: 'Business Dual Column Professional',
-    description: '双栏商务投递版，右侧信息栏更突出，适合社招简历',
-    descriptionEn: 'Business dual-column format with clearer side panel hierarchy',
+    name: '商务双栏投递',
+    nameEn: 'Business Dual Column Apply',
+    description: '主内容区配合信息侧栏，适合希望突出技能、教育与联系方式的社招简历',
+    descriptionEn: 'Business dual-column layout with a stronger side panel for professional applications',
     preview: '/templates/card-layout.svg',
     category: 'general',
     subCategory: 'creative',
     isPremium: false,
     layoutType: 'top-bottom',
-    tags: ['双栏专业', '商务投递', '右栏强化'],
+    tags: ['商务双栏', '社招常用', '信息侧栏'],
     recommendedRoles: ['tech', 'product', 'operations', 'general'],
     recommendedExperienceLevels: ['1-3', '3-5', '5+'],
     colors: {
@@ -513,14 +513,14 @@ export const resumeTemplates: TemplateStyle[] = [
     id: 'banner-layout',
     name: '标准单栏投递',
     nameEn: 'Standard Single Column Apply',
-    description: '单栏 ATS 投递版，模块顺序标准，适配主流在线投递系统',
+    description: 'ATS 优先的标准单栏，模块顺序稳定，适合大多数岗位与在线投递场景',
     descriptionEn: 'ATS-first single-column format for mainstream online applications',
     preview: '/templates/banner-layout.svg',
     category: 'general',
     subCategory: 'modern',
     isPremium: false,
     layoutType: 'top-bottom',
-    tags: ['单栏ATS', '在线投递', '基础通用'],
+    tags: ['ATS优先', '在线投递', '通用首选'],
     recommendedRoles: ['general', 'tech', 'product', 'operations'],
     recommendedExperienceLevels: ['campus', '1-3', '3-5'],
     colors: {
@@ -664,13 +664,25 @@ export const careerCategories = [
  */
 export const CORE_TEMPLATE_IDS = [
   'banner-layout',
-  'banner-layout-compact',
-  'card-layout',
+  'minimal-text',
+  'compact-layout',
   'card-layout-executive',
-  'timeline-layout',
   'timeline-layout-classic'
 ] as const
 const CORE_TEMPLATE_ID_SET = new Set<string>(CORE_TEMPLATE_IDS)
+
+/**
+ * 旧模板 ID 映射
+ * 将之前暴露给用户的紧凑版/标准版收敛到当前主模板集，避免历史缓存失效。
+ */
+const TEMPLATE_ID_ALIASES: Record<string, string> = {
+  'banner-layout-compact': 'banner-layout',
+  classic: 'minimal-text',
+  minimal: 'minimal-text',
+  compact: 'compact-layout',
+  'card-layout': 'card-layout-executive',
+  'timeline-layout': 'timeline-layout-classic'
+}
 
 /**
  * 判断模板是否在当前可见范围
@@ -706,7 +718,8 @@ export const getDefaultTemplate = (): TemplateStyle => {
  * 根据ID获取模板
  */
 export const getTemplateById = (id: string): TemplateStyle | undefined => {
-  return getAvailableTemplates().find(t => t.id === id)
+  const normalizedId = TEMPLATE_ID_ALIASES[id] || id
+  return getAvailableTemplates().find(t => t.id === normalizedId)
 }
 
 /**

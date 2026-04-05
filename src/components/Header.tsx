@@ -168,15 +168,30 @@ export default function Header() {
     return 'bg-sky-100 text-sky-700'
   }
 
+  /**
+   * 获取导航项样式
+   * 让首页与编辑器顶部操作区共用同一套导航胶囊规范。
+   */
+  const getNavItemClass = (isActive: boolean) => {
+    return `${isActive ? 'app-shell-nav-pill app-shell-nav-pill-active' : 'app-shell-nav-pill'}`
+  }
+
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-md">
-      <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+    <header className="sticky top-0 z-50 app-shell-header">
+      <div className="app-shell-container">
+        <div className="flex h-[68px] items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white">
+            <span className="app-shell-brand-mark h-10 w-10">
               <FileText className="h-5 w-5" />
             </span>
-            <span className="text-lg font-semibold text-slate-900">{locale === 'zh' ? '简历助手' : 'Resume Builder'}</span>
+            <div className="min-w-0">
+              <div className="text-base font-semibold text-slate-900">
+                {locale === 'zh' ? '简历助手' : 'Resume Builder'}
+              </div>
+              <div className="hidden text-xs text-slate-500 md:block">
+                {locale === 'zh' ? '招聘投递与 AI 简历工作台' : 'Resume workspace for application delivery'}
+              </div>
+            </div>
           </Link>
 
           <nav className="hidden items-center gap-1 xl:flex">
@@ -193,9 +208,7 @@ export default function Header() {
                     onMouseLeave={() => setActiveSubmenu(null)}
                   >
                     <button
-                      className={`relative inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                        isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                      }`}
+                      className={getNavItemClass(isActive)}
                     >
                       <span>{item.text}</span>
                       <ChevronDown className="h-3.5 w-3.5" />
@@ -210,14 +223,14 @@ export default function Header() {
 
                     {activeSubmenu === item.id && (
                       <div className="absolute left-0 top-full z-50 w-44 pt-2">
-                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                           {item.submenu?.map((subItem) => (
                             <Link
                               key={subItem.id}
                               href={subItem.link}
                               target={subItem.external ? '_blank' : undefined}
                               rel={subItem.external ? 'noopener noreferrer' : undefined}
-                              className="block px-4 py-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                              className="block px-4 py-2.5 text-sm text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                             >
                               {subItem.text}
                             </Link>
@@ -235,9 +248,7 @@ export default function Header() {
                   href={item.link}
                   target={isExternal ? '_blank' : undefined}
                   rel={isExternal ? 'noopener noreferrer' : undefined}
-                  className={`relative inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
+                  className={getNavItemClass(isActive)}
                 >
                   <span>{item.text}</span>
                   {item.label && (
@@ -257,7 +268,7 @@ export default function Header() {
               href="https://github.com/Tomccc520/uied-resume"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 sm:inline-flex"
+              className="app-shell-action-button hidden sm:inline-flex"
             >
               <Github className="h-4 w-4" />
               <span>Star</span>
@@ -265,7 +276,7 @@ export default function Header() {
 
             <button
               onClick={toggleLocale}
-              className="hidden items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 sm:inline-flex"
+              className="app-shell-action-button hidden sm:inline-flex"
             >
               <Languages className="h-4 w-4" />
               <span>{t.common.language}</span>
@@ -273,7 +284,7 @@ export default function Header() {
 
             <button
               onClick={() => setIsMobileMenuOpen((prev) => !prev)}
-              className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 xl:hidden"
+              className="app-shell-action-button px-2.5 xl:hidden"
               aria-label="切换菜单"
             >
               {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -287,7 +298,7 @@ export default function Header() {
               {navItems.map((item) => {
                 if (item.hasSubmenu) {
                   return (
-                    <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-2">
                       <div className="mb-2 flex items-center justify-between px-2 py-1 text-sm font-semibold text-slate-900">
                         <span>{item.text}</span>
                         {item.label && (
@@ -304,7 +315,7 @@ export default function Header() {
                             target={subItem.external ? '_blank' : undefined}
                             rel={subItem.external ? 'noopener noreferrer' : undefined}
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className="rounded-md bg-white px-2 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                            className="rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                           >
                             {subItem.text}
                           </Link>
@@ -321,7 +332,7 @@ export default function Header() {
                     target={item.external ? '_blank' : undefined}
                     rel={item.external ? 'noopener noreferrer' : undefined}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                    className="flex items-center justify-between rounded-xl border border-transparent px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900"
                   >
                     <span>{item.text}</span>
                     {item.label && (
@@ -337,7 +348,7 @@ export default function Header() {
             <div className="flex items-center justify-between border-t border-slate-200 pt-3">
               <button
                 onClick={toggleLocale}
-                className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                className="app-shell-action-button"
               >
                 <Languages className="h-4 w-4" />
                 <span>{t.common.language}</span>
@@ -346,7 +357,7 @@ export default function Header() {
                 href="https://github.com/Tomccc520/uied-resume"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                className="app-shell-action-button"
               >
                 <Github className="h-4 w-4" />
                 <span>GitHub</span>

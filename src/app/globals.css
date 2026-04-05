@@ -96,6 +96,65 @@ body {
   letter-spacing: -0.011em;
 }
 
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+@layer components {
+  .app-shell-header {
+    @apply border-b border-slate-200/90 bg-white/90 backdrop-blur-xl;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+  }
+
+  .app-shell-container {
+    @apply mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8;
+  }
+
+  .app-shell-brand-mark {
+    @apply flex items-center justify-center rounded-2xl bg-slate-900 text-white;
+    box-shadow: 0 8px 18px -14px rgba(15, 23, 42, 0.5);
+  }
+
+  .app-shell-nav-pill {
+    @apply relative inline-flex items-center gap-1 rounded-xl border border-transparent px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900;
+  }
+
+  .app-shell-nav-pill-active {
+    @apply border-slate-900 bg-slate-900 text-white hover:border-slate-900 hover:bg-slate-900 hover:text-white;
+  }
+
+  .app-shell-action-button {
+    @apply inline-flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900;
+  }
+
+  .app-shell-toolbar-surface {
+    @apply rounded-2xl border border-slate-200 bg-white/90 backdrop-blur-xl;
+    box-shadow: 0 10px 26px -24px rgba(15, 23, 42, 0.3);
+  }
+
+  .app-shell-toolbar-group {
+    @apply inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-1;
+  }
+
+  .app-shell-toolbar-button {
+    @apply inline-flex items-center justify-center rounded-xl border border-transparent px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-slate-200 hover:bg-white hover:text-slate-900;
+  }
+
+  .app-shell-toolbar-button-active {
+    @apply border-slate-900 bg-slate-900 text-white hover:border-slate-900 hover:bg-slate-900 hover:text-white;
+  }
+
+  .app-shell-status-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium;
+  }
+}
+
 /* 标题使用系统字体 */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
@@ -117,25 +176,14 @@ code, pre {
   scrollbar-width: none;  /* Firefox */
 }
 
-/* 自定义细滚动条 - Editorial 风格 */
+/* 自定义滚动容器 - 保留滚动能力但不显示滚动条 */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  display: none;
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(var(--color-ink), 0.05);
-  border-radius: 3px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(var(--color-amber), 0.5);
-  border-radius: 3px;
-  transition: background 0.2s ease;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--color-amber), 0.8);
+.custom-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* 动画类 */

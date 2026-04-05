@@ -64,6 +64,252 @@ import {
   normalizeSectionToAISection
 } from '@/domain/editor/resumeAIActions'
 
+type EditorEntryScenario = 'campus' | 'engineering' | 'product' | 'general'
+type EditorRoutePanel = 'template' | 'ai'
+
+interface EditorRouteSource {
+  get: (name: string) => string | null
+}
+
+interface EditorRouteIntent {
+  hasRouteIntent: boolean
+  entryScenario: EditorEntryScenario | null
+  section: ResumeSectionId | null
+  panel: EditorRoutePanel | null
+  template: TemplateStyle | null
+  aiSection: AISection | null
+  toastTitle: string | null
+  toastDescription: string | null
+}
+
+/**
+ * 规范化编辑器模块参数
+ * 兼容首页入口、历史参数和语义化别名，统一落到编辑器主链模块。
+ */
+function normalizeEditorFocusParam(value: string | null): ResumeSectionId | null {
+  if (!value) {
+    return null
+  }
+
+  const normalizedMap: Record<string, ResumeSectionId> = {
+    personal: 'personal',
+    'personal-info': 'personal',
+    personalInfo: 'personal',
+    summary: 'personal',
+    experience: 'experience',
+    experiences: 'experience',
+    work: 'experience',
+    education: 'education',
+    educations: 'education',
+    skills: 'skills',
+    skill: 'skills',
+    projects: 'projects',
+    project: 'projects'
+  }
+
+  return normalizedMap[value] ?? null
+}
+
+/**
+ * 规范化编辑器面板参数
+ * 收敛模板选择和 AI 面板的不同命名，避免首页入口继续散落字符串。
+ */
+function normalizeEditorPanelParam(value: string | null): EditorRoutePanel | null {
+  if (!value) {
+    return null
+  }
+
+  const normalizedMap: Record<string, EditorRoutePanel> = {
+    template: 'template',
+    templates: 'template',
+    selector: 'template',
+    ai: 'ai',
+    assistant: 'ai'
+  }
+
+  return normalizedMap[value] ?? null
+}
+
+/**
+ * 规范化首页入口场景参数
+ * 将不同入口别名统一到固定场景，便于编辑器按场景预设默认状态。
+ */
+function normalizeEditorEntryParam(value: string | null): EditorEntryScenario | null {
+  if (!value) {
+    return null
+  }
+
+  const normalizedMap: Record<string, EditorEntryScenario> = {
+    campus: 'campus',
+    student: 'campus',
+    engineering: 'engineering',
+    tech: 'engineering',
+    product: 'product',
+    operation: 'product',
+    operations: 'product',
+    general: 'general',
+    default: 'general',
+    universal: 'general'
+  }
+
+  return normalizedMap[value] ?? null
+}
+
+/**
+ * 规范化模板参数
+ * 支持语义化别名和真实模板 ID，确保首页跳转能稳定命中目标模板。
+ */
+function normalizeEditorTemplateParam(value: string | null): TemplateStyle | null {
+  if (!value) {
+    return null
+  }
+
+  const normalizedMap: Record<string, string> = {
+    standard: 'banner-layout',
+    banner: 'banner-layout',
+    business: 'card-layout-executive',
+    card: 'card-layout-executive',
+    timeline: 'timeline-layout-classic',
+    senior: 'timeline-layout-classic'
+  }
+
+  return getTemplateById(normalizedMap[value] ?? value) ?? null
+}
+
+/**
+ * 获取首页入口场景预设
+ * 用统一配置描述“校招 / 技术岗 / 产品运营 / 通用投递”的默认落点。
+ */
+function getEditorEntryPreset(
+  entry: EditorEntryScenario | null,
+  locale: 'zh' | 'en'
+): Omit<EditorRouteIntent, 'hasRouteIntent'> {
+  if (!entry) {
+    return {
+      entryScenario: null,
+      section: null,
+      panel: null,
+      template: null,
+      aiSection: null,
+      toastTitle: null,
+      toastDescription: null
+    }
+  }
+
+  const standardTemplate = getTemplateById('banner-layout') ?? null
+  const businessTemplate = getTemplateById('card-layout-executive') ?? null
+
+  const presetMap: Record<EditorEntryScenario, Omit<EditorRouteIntent, 'hasRouteIntent'>> = locale === 'en'
+    ? {
+        campus: {
+          entryScenario: 'campus',
+          section: 'education',
+          panel: null,
+          template: standardTemplate,
+          aiSection: null,
+          toastTitle: 'Campus entry applied',
+          toastDescription: 'Education is focused first, and the standard single-column template is ready.'
+        },
+        engineering: {
+          entryScenario: 'engineering',
+          section: 'experience',
+          panel: 'ai',
+          template: standardTemplate,
+          aiSection: 'experience',
+          toastTitle: 'Engineering entry applied',
+          toastDescription: 'Experience is focused first and AI rewrite is ready for your delivery highlights.'
+        },
+        product: {
+          entryScenario: 'product',
+          section: 'projects',
+          panel: 'ai',
+          template: businessTemplate,
+          aiSection: 'projects',
+          toastTitle: 'Product / Ops entry applied',
+          toastDescription: 'Projects are focused first with the business dual-column template selected.'
+        },
+        general: {
+          entryScenario: 'general',
+          section: 'personal',
+          panel: 'template',
+          template: standardTemplate,
+          aiSection: null,
+          toastTitle: 'General delivery entry applied',
+          toastDescription: 'The template selector is opened first so you can choose a delivery-ready layout.'
+        }
+      }
+    : {
+        campus: {
+          entryScenario: 'campus',
+          section: 'education',
+          panel: null,
+          template: standardTemplate,
+          aiSection: null,
+          toastTitle: '已切换到校招入口',
+          toastDescription: '已优先定位教育模块，并预设标准单栏投递模板。'
+        },
+        engineering: {
+          entryScenario: 'engineering',
+          section: 'experience',
+          panel: 'ai',
+          template: standardTemplate,
+          aiSection: 'experience',
+          toastTitle: '已切换到技术岗入口',
+          toastDescription: '已优先定位工作经历，并准备好 AI 润色入口。'
+        },
+        product: {
+          entryScenario: 'product',
+          section: 'projects',
+          panel: 'ai',
+          template: businessTemplate,
+          aiSection: 'projects',
+          toastTitle: '已切换到产品/运营入口',
+          toastDescription: '已优先定位项目模块，并预设商务双栏投递模板。'
+        },
+        general: {
+          entryScenario: 'general',
+          section: 'personal',
+          panel: 'template',
+          template: standardTemplate,
+          aiSection: null,
+          toastTitle: '已打开通用投递入口',
+          toastDescription: '已先为你打开模板选择器，方便直接挑选投递版式。'
+        }
+      }
+
+  return presetMap[entry]
+}
+
+/**
+ * 解析编辑器路由入口意图
+ * 将首页与其他入口传入的场景、模块、面板、模板参数收敛成统一状态。
+ */
+function resolveEditorRouteIntent(
+  routeSource: EditorRouteSource,
+  locale: 'zh' | 'en'
+): EditorRouteIntent {
+  const entry = normalizeEditorEntryParam(routeSource.get('entry'))
+  const preset = getEditorEntryPreset(entry, locale)
+  const section = normalizeEditorFocusParam(routeSource.get('focus')) ?? preset.section
+  const panel = normalizeEditorPanelParam(routeSource.get('panel')) ?? preset.panel
+  const template = normalizeEditorTemplateParam(routeSource.get('template')) ?? preset.template
+  const aiSectionParam = routeSource.get('aiSection') ?? routeSource.get('ai')
+  const aiSection = aiSectionParam
+    ? normalizeSectionToAISection(aiSectionParam)
+    : preset.aiSection ?? (panel === 'ai' && section ? normalizeSectionToAISection(section) : null)
+
+  return {
+    hasRouteIntent: Boolean(entry || section || panel || template),
+    entryScenario: entry,
+    section,
+    panel,
+    template,
+    aiSection,
+    toastTitle: preset.toastTitle,
+    toastDescription: preset.toastDescription
+  }
+}
+
 // 懒加载非关键组件 - 优化初始加载性能 (Requirements: 1.5)
 const ResumeEditor = dynamic(() => import('@/components/ResumeEditor'), {
   loading: () => <EditorSkeleton />,
@@ -111,6 +357,7 @@ export default function EditorPage() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showShortcutHelp, setShowShortcutHelp] = useState(false)
   const [showTemplateSelector, setShowTemplateSelector] = useState(false)
+  const [activeEntryScenario, setActiveEntryScenario] = useState<EditorEntryScenario>('general')
   const [currentTemplate, setCurrentTemplate] = useState<TemplateStyle>(() => {
     // 尝试从 localStorage 恢复用户之前选择的模板
     if (typeof window !== 'undefined') {
@@ -137,9 +384,9 @@ export default function EditorPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const totalPages = 1
   const searchParams = useSearchParams()
-  const routeParamsAppliedRef = useRef(false)
+  const lastAppliedRouteSignatureRef = useRef<string | null>(null)
   
-  const { t } = useLanguage()
+  const { t, locale } = useLanguage()
 
   const { success: showSuccess, error: showError, info: showInfo } = useToastContext()
   // 简历数据状态
@@ -438,41 +685,6 @@ export default function EditorPage() {
   }, [saveNow])
 
   /**
-   * 应用首页入口参数
-   * 支持通过 URL 参数快速定位编辑模块，并打开 AI/模板面板。
-   */
-  useEffect(() => {
-    // 仅首次进入页面时应用一次路由参数，避免后续交互被重复覆盖
-    if (routeParamsAppliedRef.current) {
-      return
-    }
-
-    const focus = searchParams.get('focus')
-    const panel = searchParams.get('panel')
-    const validSections = new Set(['personal', 'experience', 'education', 'skills', 'projects'])
-    let applied = false
-
-    if (focus && validSections.has(focus)) {
-      setActiveSection(focus)
-      applied = true
-    }
-
-    if (panel === 'template') {
-      setShowTemplateSelector(true)
-      applied = true
-    }
-
-    if (panel === 'ai') {
-      setShowUnifiedAI(true)
-      applied = true
-    }
-
-    if (applied) {
-      routeParamsAppliedRef.current = true
-    }
-  }, [searchParams])
-  
-  /**
    * 从本地存储加载简历数据 - 增强错误恢复
    */
   useEffect(() => {
@@ -678,6 +890,91 @@ export default function EditorPage() {
     setShowUnifiedAI(true)
   }, [])
 
+  /**
+   * 切换编辑器投递场景
+   * 统一应用模块定位、模板预设和面板开关，避免场景入口逻辑分散在多个按钮中。
+   */
+  const handleEntryScenarioChange = useCallback((scenario: EditorEntryScenario) => {
+    const preset = getEditorEntryPreset(scenario, locale)
+
+    setActiveEntryScenario(scenario)
+
+    if (preset.section) {
+      setActiveSection(preset.section)
+    }
+
+    if (preset.template) {
+      setCurrentTemplate(preset.template)
+    }
+
+    if (preset.panel === 'template') {
+      setShowUnifiedAI(false)
+      setShowTemplateSelector(true)
+    } else if (preset.panel === 'ai') {
+      setShowTemplateSelector(false)
+      openUnifiedAIPanel(preset.aiSection ?? undefined)
+    } else {
+      setShowUnifiedAI(false)
+      setShowTemplateSelector(false)
+      setPreferredAISection(preset.aiSection ?? null)
+    }
+
+    if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+      setIsPreviewMode(false)
+    }
+
+    if (preset.toastTitle && preset.toastDescription) {
+      showInfo(preset.toastTitle, preset.toastDescription)
+    }
+  }, [locale, openUnifiedAIPanel, showInfo])
+
+  /**
+   * 应用首页和外部入口参数
+   * 让首页场景入口、模板推荐和 AI 面板入口都通过统一协议落到编辑器状态。
+   */
+  useEffect(() => {
+    const routeSignature = searchParams.toString()
+    if (lastAppliedRouteSignatureRef.current === routeSignature) {
+      return
+    }
+
+    lastAppliedRouteSignatureRef.current = routeSignature
+
+    const routeIntent = resolveEditorRouteIntent(searchParams, locale)
+    if (!routeIntent.hasRouteIntent) {
+      return
+    }
+
+    if (routeIntent.entryScenario) {
+      setActiveEntryScenario(routeIntent.entryScenario)
+    }
+
+    if (routeIntent.section) {
+      setActiveSection(routeIntent.section)
+      if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+        setIsPreviewMode(false)
+      }
+    }
+
+    if (routeIntent.template) {
+      setCurrentTemplate(routeIntent.template)
+    }
+
+    if (routeIntent.panel === 'template') {
+      setShowUnifiedAI(false)
+      setShowTemplateSelector(true)
+    }
+
+    if (routeIntent.panel === 'ai') {
+      setShowTemplateSelector(false)
+      openUnifiedAIPanel(routeIntent.aiSection ?? undefined)
+    }
+
+    if (routeIntent.toastTitle && routeIntent.toastDescription) {
+      showInfo(routeIntent.toastTitle, routeIntent.toastDescription)
+    }
+  }, [locale, openUnifiedAIPanel, searchParams, showInfo])
+
   // 键盘快捷键配置 - 使用 useMemo 优化
   const shortcuts = useMemo(() => createEditorShortcuts({
     onSave: saveNow,
@@ -761,6 +1058,8 @@ export default function EditorPage() {
               onSave={handleSave}
               activeSection={activeSection}
               onQuickSectionChange={setActiveSection}
+              entryScenario={activeEntryScenario}
+              onEntryScenarioChange={handleEntryScenarioChange}
               completionPercent={completeness.totalScore}
               incompleteSectionCount={completeness.totalSections - completeness.completedSections}
               onJumpToNextIncomplete={jumpToNextIncompleteSection}
@@ -772,27 +1071,31 @@ export default function EditorPage() {
               {...swipeHandlers}
             >
               {/* 移动端切换按钮 */}
-              <div className="xl:hidden flex-shrink-0 flex items-center justify-center gap-2 px-2 sm:px-4 bg-white py-2 border-b border-gray-200">
-                <button
-                  onClick={() => setIsPreviewMode(false)}
-                  className={`flex-1 max-w-28 sm:max-w-32 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${
-                    !isPreviewMode 
-                      ? 'bg-slate-900 text-white' 
-                      : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-gray-200'
-                  }`}
-                >
-                  {t.common.edit}
-                </button>
-                <button
-                  onClick={() => setIsPreviewMode(true)}
-                  className={`flex-1 max-w-28 sm:max-w-32 px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-colors ${
-                    isPreviewMode 
-                      ? 'bg-slate-900 text-white' 
-                      : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-gray-200'
-                  }`}
-                >
-                  {t.common.preview}
-                </button>
+              <div className="xl:hidden flex-shrink-0 px-2 pt-3 sm:px-4">
+                <div className="app-shell-toolbar-surface p-1.5">
+                  <div className="grid grid-cols-2 gap-1">
+                    <button
+                      onClick={() => setIsPreviewMode(false)}
+                      className={`h-10 rounded-xl px-4 text-sm font-medium transition-colors ${
+                        !isPreviewMode
+                          ? 'app-shell-toolbar-button app-shell-toolbar-button-active'
+                          : 'app-shell-toolbar-button'
+                      }`}
+                    >
+                      {t.common.edit}
+                    </button>
+                    <button
+                      onClick={() => setIsPreviewMode(true)}
+                      className={`h-10 rounded-xl px-4 text-sm font-medium transition-colors ${
+                        isPreviewMode
+                          ? 'app-shell-toolbar-button app-shell-toolbar-button-active'
+                          : 'app-shell-toolbar-button'
+                      }`}
+                    >
+                      {t.common.preview}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* 三栏布局 - 桌面端 (>=1280px) */}

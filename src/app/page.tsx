@@ -81,6 +81,358 @@ function TemplateShowcaseCard({
 }
 
 /**
+ * 首页章节标题组件
+ * 统一首页功能区的标题层级、说明文案与操作按钮密度。
+ */
+function HomeSectionHeader({
+  badge,
+  icon,
+  title,
+  desc,
+  align = 'left',
+  actions
+}: {
+  badge: string
+  icon: React.ReactNode
+  title: string
+  desc: string
+  align?: 'left' | 'center'
+  actions?: React.ReactNode
+}) {
+  const isCenter = align === 'center'
+
+  return (
+    <div className={`flex flex-col gap-4 ${isCenter ? 'items-center text-center' : 'lg:flex-row lg:items-end lg:justify-between'}`}>
+      <div className={isCenter ? 'max-w-3xl' : 'max-w-3xl'}>
+        <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+          {icon}
+          {badge}
+        </div>
+        <h2 className="mt-4 text-[30px] font-semibold tracking-tight text-slate-900 sm:text-[36px]">
+          {title}
+        </h2>
+        <p className="mt-3 text-sm leading-7 text-slate-600 sm:text-base">{desc}</p>
+      </div>
+      {actions && (
+        <div className={`flex flex-wrap gap-2 ${isCenter ? 'justify-center' : 'lg:justify-end'}`}>
+          {actions}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * 首页能力卡片组件
+ * 将功能区卡片统一成更像招聘工具工作台的紧凑信息结构。
+ */
+function HomeFeatureCard({
+  icon,
+  title,
+  desc,
+  highlights,
+  toneClass
+}: {
+  icon: React.ReactNode
+  title: string
+  desc: string
+  highlights: string[]
+  toneClass: string
+}) {
+  return (
+    <article className="app-shell-toolbar-surface p-5">
+      <div className={`inline-flex items-center justify-center rounded-xl border px-2.5 py-2 ${toneClass}`}>
+        {icon}
+      </div>
+      <h3 className="mt-4 text-base font-semibold text-slate-900">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{desc}</p>
+      <ul className="mt-4 space-y-2 text-[13px] leading-6 text-slate-500">
+        {highlights.map((item) => (
+          <li key={item} className="flex items-start gap-2">
+            <CheckCircle2 className="mt-1 h-3.5 w-3.5 shrink-0 text-slate-500" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </article>
+  )
+}
+
+/**
+ * 首页指标卡片组件
+ * 统一首屏统计信息块的密度与数字层级。
+ */
+function HeroMetricCard({
+  value,
+  label
+}: {
+  value: string
+  label: string
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <p className="text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
+      <p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
+    </div>
+  )
+}
+
+/**
+ * 首页辅助标签组件
+ * 统一首屏与底部 CTA 中的能力提示标签，保持同一套信息密度。
+ */
+function HeroSupportPill({
+  icon,
+  label,
+  dark = false
+}: {
+  icon: React.ReactNode
+  label: string
+  dark?: boolean
+}) {
+  return (
+    <span
+      className={
+        dark
+          ? 'inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/80'
+          : 'inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600'
+      }
+    >
+      {icon}
+      {label}
+    </span>
+  )
+}
+
+type HomeEditorEntry = 'campus' | 'engineering' | 'product' | 'general'
+type HomeEditorFocus = 'personal' | 'experience' | 'education' | 'skills' | 'projects'
+type HomeEditorPanel = 'template' | 'ai'
+type HomeEditorAISection = 'summary' | 'experience' | 'education' | 'skills' | 'projects'
+
+interface EditorEntryHrefOptions {
+  entry?: HomeEditorEntry
+  focus?: HomeEditorFocus
+  panel?: HomeEditorPanel
+  template?: string
+  aiSection?: HomeEditorAISection
+}
+
+/**
+ * 构建首页到编辑器的入口链接
+ * 用统一函数生成场景化跳转参数，避免页面里散落手写 query 字符串。
+ */
+function buildEditorEntryHref({
+  entry,
+  focus,
+  panel,
+  template,
+  aiSection
+}: EditorEntryHrefOptions = {}) {
+  const params = new URLSearchParams()
+
+  if (entry) {
+    params.set('entry', entry)
+  }
+  if (focus) {
+    params.set('focus', focus)
+  }
+  if (panel) {
+    params.set('panel', panel)
+  }
+  if (template) {
+    params.set('template', template)
+  }
+  if (aiSection) {
+    params.set('aiSection', aiSection)
+  }
+
+  const queryString = params.toString()
+  return queryString ? `/editor?${queryString}` : '/editor'
+}
+
+/**
+ * 首页首屏简历预览组件
+ * 用更接近真实投递简历的缩略图替换占位示意卡，强化招聘工具感知。
+ */
+function HeroResumePreview({ locale }: { locale: string }) {
+  const isEn = locale === 'en'
+  const summaryPoints = isEn
+    ? ['5 years in web product delivery', 'ATS-first resume structure', 'AI rewrite and export ready']
+    : ['5年 Web 产品交付经验', 'ATS 优先的简历结构', '支持 AI 润色与导出投递']
+  const experiencePoints = isEn
+    ? ['Led design system upgrade and reduced delivery time by 32%', 'Built resume workflow with AI assistance and export fallback']
+    : ['主导设计系统升级，需求交付周期缩短 32%', '搭建 AI 协作简历工作流，补齐导出与配置闭环']
+  const projectPoints = isEn
+    ? ['Refined three hiring-ready templates', 'Added JD match and content quality checks']
+    : ['精修 3 套招聘投递模板', '加入 JD 匹配与内容质量检查']
+  const skillGroups = isEn
+    ? ['React / Next.js', 'TypeScript', 'Design Systems', 'Prompt UX']
+    : ['React / Next.js', 'TypeScript', '设计系统', 'Prompt UX']
+  const headerMeta = isEn
+    ? ['Shanghai', 'resume@uied.dev', 'portfolio / GitHub']
+    : ['上海', 'resume@uied.dev', '作品集 / GitHub']
+  const insightTitle = isEn ? 'Delivery Fit' : '投递匹配度'
+  const insightItems = isEn
+    ? [
+        { label: 'ATS', value: '98%' },
+        { label: 'Readability', value: '94%' },
+        { label: 'Keyword Fit', value: '91%' }
+      ]
+    : [
+        { label: 'ATS', value: '98%' },
+        { label: '可读性', value: '94%' },
+        { label: '关键词匹配', value: '91%' }
+      ]
+
+  return (
+    <div className="relative mx-auto w-full max-w-[500px]">
+      <div className="absolute -left-3 top-16 z-10 rounded-2xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-[11px] font-semibold text-cyan-800">
+        <div className="flex items-center gap-1.5">
+          <Bot className="h-3.5 w-3.5" />
+          {isEn ? 'AI Rewrite Ready' : 'AI 润色就绪'}
+        </div>
+      </div>
+      <div className="absolute right-4 top-0 z-10 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700">
+        <div className="flex items-center gap-1.5">
+          <LayoutTemplate className="h-3.5 w-3.5" />
+          {isEn ? 'Hiring Template' : '投递模板'}
+        </div>
+      </div>
+      <div className="absolute -right-4 bottom-12 z-10 w-40 rounded-2xl border border-slate-200 bg-white/95 p-3 backdrop-blur">
+        <div className="text-[11px] font-semibold text-slate-900">{insightTitle}</div>
+        <div className="mt-3 space-y-2">
+          {insightItems.map((item) => (
+            <div key={item.label}>
+              <div className="flex items-center justify-between text-[11px] text-slate-500">
+                <span>{item.label}</span>
+                <span className="font-semibold text-slate-700">{item.value}</span>
+              </div>
+              <div className="mt-1 h-1.5 rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-slate-900"
+                  style={{ width: item.value }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="app-shell-toolbar-surface relative overflow-hidden p-4 sm:p-5">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-cyan-50 via-white to-amber-50" />
+        <div className="relative rounded-[28px] border border-slate-200 bg-white p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-5">
+            <div className="min-w-0">
+              <div className="text-[24px] font-semibold tracking-tight text-slate-900">
+                {isEn ? 'Tomda Chen' : 'Tomda 陈'}
+              </div>
+              <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {isEn ? 'Senior Product Designer / Frontend Lead' : '高级产品设计师 / 前端负责人'}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                {headerMeta.map((item) => (
+                  <span key={item} className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="w-20 shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-2 text-center">
+              <div className="flex aspect-square items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400">
+                <Target className="h-4 w-4" />
+              </div>
+              <div className="mt-2 text-[10px] font-semibold text-slate-600">
+                {isEn ? 'QR Contact' : '联系二维码'}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-[136px,minmax(0,1fr)] gap-4">
+            <aside className="space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  {isEn ? 'Summary' : '个人摘要'}
+                </div>
+                <div className="mt-3 space-y-2">
+                  {summaryPoints.map((item) => (
+                    <div key={item} className="flex items-start gap-2 text-[11px] leading-5 text-slate-600">
+                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  {isEn ? 'Core Skills' : '核心技能'}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {skillGroups.map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-600"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </aside>
+
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                    {isEn ? 'Experience' : '工作经历'}
+                  </div>
+                  <div className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                    {isEn ? 'Latest' : '最近经历'}
+                  </div>
+                </div>
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">
+                          {isEn ? 'Resume Product Lead' : '简历产品负责人'}
+                        </div>
+                        <div className="text-[11px] text-slate-500">UIED Resume</div>
+                      </div>
+                      <div className="text-[11px] font-medium text-slate-400">2023 - Now</div>
+                    </div>
+                    <div className="mt-2 space-y-1.5">
+                      {experiencePoints.map((item) => (
+                        <div key={item} className="text-[11px] leading-5 text-slate-600">
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  {isEn ? 'Projects & Delivery' : '项目与交付'}
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {projectPoints.map((item) => (
+                    <div key={item} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] leading-5 text-slate-600">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
  * 首页
  * 重构为“模板展示 + AI能力 + 工作流”三段式落地页
  */
@@ -167,25 +519,41 @@ export default function HomePage() {
         {
           title: 'Campus Application',
           desc: 'Start from education and projects, then complete skills and summary.',
-          href: '/editor?focus=education',
+          href: buildEditorEntryHref({ entry: 'campus', focus: 'education', template: 'banner-layout' }),
           icon: GraduationCap
         },
         {
           title: 'Engineering Role',
           desc: 'Jump to experience and skills first, keep technical highlights concise.',
-          href: '/editor?focus=experience',
+          href: buildEditorEntryHref({
+            entry: 'engineering',
+            focus: 'experience',
+            panel: 'ai',
+            aiSection: 'experience',
+            template: 'banner-layout'
+          }),
           icon: Workflow
         },
         {
           title: 'Product / Operation',
           desc: 'Build project impact first, then polish wording with AI panel.',
-          href: '/editor?focus=projects&panel=ai',
+          href: buildEditorEntryHref({
+            entry: 'product',
+            focus: 'projects',
+            panel: 'ai',
+            aiSection: 'projects',
+            template: 'card-layout-executive'
+          }),
           icon: Target
         },
         {
           title: 'Universal Delivery',
           desc: 'Open template panel directly and choose ATS-friendly layout first.',
-          href: '/editor?panel=template',
+          href: buildEditorEntryHref({
+            entry: 'general',
+            panel: 'template',
+            template: 'banner-layout'
+          }),
           icon: Building2
         }
       ]
@@ -195,25 +563,41 @@ export default function HomePage() {
       {
         title: '校招应届投递',
         desc: '优先完善教育、项目与技能模块，再补个人总结。',
-        href: '/editor?focus=education',
+        href: buildEditorEntryHref({ entry: 'campus', focus: 'education', template: 'banner-layout' }),
         icon: GraduationCap
       },
       {
         title: '技术岗社招',
         desc: '先写工作经历与核心技能，突出复杂项目与性能指标。',
-        href: '/editor?focus=experience',
+        href: buildEditorEntryHref({
+          entry: 'engineering',
+          focus: 'experience',
+          panel: 'ai',
+          aiSection: 'experience',
+          template: 'banner-layout'
+        }),
         icon: Workflow
       },
       {
         title: '产品/运营岗位',
         desc: '先整理项目成果，再打开 AI 面板打磨表达与关键词。',
-        href: '/editor?focus=projects&panel=ai',
+        href: buildEditorEntryHref({
+          entry: 'product',
+          focus: 'projects',
+          panel: 'ai',
+          aiSection: 'projects',
+          template: 'card-layout-executive'
+        }),
         icon: Target
       },
       {
         title: '通用模板起步',
         desc: '直接打开模板面板，先定 ATS 友好的版式再填内容。',
-        href: '/editor?panel=template',
+        href: buildEditorEntryHref({
+          entry: 'general',
+          panel: 'template',
+          template: 'banner-layout'
+        }),
         icon: Building2
       }
     ]
@@ -249,77 +633,83 @@ export default function HomePage() {
                 <p className="mt-4 text-lg font-medium text-slate-500 sm:text-xl">{t.home.hero.subtitle}</p>
                 <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-slate-600 lg:mx-0">{t.home.hero.desc}</p>
 
-                <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
-                  <Link
-                    href="/editor"
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                  >
-                    <Wand2 className="h-4 w-4" />
-                    {t.home.hero.start}
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                  <a
-                    href="#template-showcase"
-                    className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400"
-                  >
-                    {locale === 'en' ? 'View Templates' : '查看模板'}
-                  </a>
+                <div className="mt-6 flex flex-wrap justify-center gap-2 lg:justify-start">
+                  <HeroSupportPill
+                    icon={<LayoutTemplate className="h-3.5 w-3.5" />}
+                    label={locale === 'en' ? '3 hiring-ready templates' : '3 套招聘投递模板'}
+                  />
+                  <HeroSupportPill
+                    icon={<Bot className="h-3.5 w-3.5" />}
+                    label={locale === 'en' ? 'AI rewrite workflow' : 'AI 润色工作流'}
+                  />
+                  <HeroSupportPill
+                    icon={<FileCheck2 className="h-3.5 w-3.5" />}
+                    label={locale === 'en' ? 'PDF / PNG export' : '支持 PDF / PNG 导出'}
+                  />
+                  <HeroSupportPill
+                    icon={<Shield className="h-3.5 w-3.5" />}
+                    label={locale === 'en' ? 'ATS-first structure' : 'ATS 优先结构'}
+                  />
                 </div>
 
-                <div className="mt-8 grid grid-cols-3 gap-4 rounded-xl border border-slate-200 bg-white/80 p-4 text-center lg:text-left">
-                  <div>
-                    <p className="text-2xl font-bold text-slate-900">12+</p>
-                    <p className="mt-1 text-xs text-slate-500">{locale === 'en' ? 'Template Styles' : '模板风格'}</p>
+                <div className="mt-8 max-w-2xl rounded-2xl border border-slate-200 bg-white/90 p-4 backdrop-blur lg:mx-0">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                    <Link
+                      href={buildEditorEntryHref({
+                        entry: 'general',
+                        focus: 'personal',
+                        template: 'banner-layout'
+                      })}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-900 bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:border-slate-900 hover:bg-slate-900"
+                    >
+                      <Wand2 className="h-4 w-4" />
+                      {t.home.hero.start}
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <a
+                      href="#template-showcase"
+                      className="app-shell-action-button px-6 py-3"
+                    >
+                      {locale === 'en' ? 'View Templates' : '查看模板'}
+                    </a>
+                    <Link
+                      href={buildEditorEntryHref({
+                        entry: 'engineering',
+                        panel: 'ai',
+                        aiSection: 'experience',
+                        template: 'banner-layout'
+                      })}
+                      className="app-shell-action-button px-6 py-3"
+                    >
+                      {locale === 'en' ? 'Open AI Panel' : '打开 AI 面板'}
+                    </Link>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-slate-900">98%</p>
-                    <p className="mt-1 text-xs text-slate-500">{locale === 'en' ? 'ATS Pass Focus' : 'ATS通过导向'}</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-slate-900">&lt; 5m</p>
-                    <p className="mt-1 text-xs text-slate-500">{locale === 'en' ? 'First Draft' : '首版生成'}</p>
-                  </div>
+                  <p className="mt-3 text-xs leading-6 text-slate-500">
+                    {locale === 'en'
+                      ? 'Template selection, AI rewrite, content editing, and export stay in one delivery-ready workflow.'
+                      : '模板选择、AI 润色、内容编辑与导出投递都保持在同一条可交付工作流内。'}
+                  </p>
+                </div>
+
+                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <HeroMetricCard
+                    value="12+"
+                    label={locale === 'en' ? 'Template Styles' : '模板风格'}
+                  />
+                  <HeroMetricCard
+                    value="98%"
+                    label={locale === 'en' ? 'ATS Pass Focus' : 'ATS通过导向'}
+                  />
+                  <HeroMetricCard
+                    value="< 5m"
+                    label={locale === 'en' ? 'First Draft' : '首版生成'}
+                  />
                 </div>
               </div>
             </ScrollFadeIn>
 
             <ScrollFadeIn direction="up">
-              <div className="mx-auto w-full max-w-[460px]">
-                <div className="relative rounded-3xl border border-slate-200 bg-white p-6" style={{ aspectRatio: '1 / 1.33' }}>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="h-2.5 w-32 rounded-full bg-slate-900" />
-                    <div className="mt-2 h-2 w-24 rounded-full bg-slate-400" />
-                    <div className="mt-4 grid gap-2">
-                      <div className="h-2 rounded-full bg-slate-200" />
-                      <div className="h-2 rounded-full bg-slate-200" />
-                      <div className="h-2 w-2/3 rounded-full bg-slate-200" />
-                    </div>
-                  </div>
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="text-xs font-semibold text-slate-500">{locale === 'en' ? 'Template Match' : '模板匹配'}</div>
-                      <div className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">98</div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="h-2 rounded-full bg-gradient-to-r from-cyan-500 to-cyan-300" />
-                      <div className="h-2 w-5/6 rounded-full bg-gradient-to-r from-amber-500 to-amber-300" />
-                      <div className="h-2 w-4/6 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-300" />
-                    </div>
-                  </div>
-                  <div className="absolute -right-5 top-8 rounded-xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-800">
-                    <div className="flex items-center gap-1">
-                      <Bot className="h-3.5 w-3.5" />
-                      {locale === 'en' ? 'AI Rewrite' : 'AI重写'}
-                    </div>
-                  </div>
-                  <div className="absolute -left-5 bottom-10 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-                    <div className="flex items-center gap-1">
-                      <FileCheck2 className="h-3.5 w-3.5" />
-                      {locale === 'en' ? 'ATS Ready' : 'ATS就绪'}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <HeroResumePreview locale={locale} />
             </ScrollFadeIn>
           </div>
         </section>
@@ -327,17 +717,40 @@ export default function HomePage() {
         <section className="bg-white px-4 py-12 sm:px-6 lg:px-8 lg:py-14">
           <div className="mx-auto w-full max-w-7xl">
             <ScrollFadeIn direction="up">
-              <div className="mb-6 flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                    {locale === 'en' ? 'Start by Hiring Scenario' : '按投递场景快速开始'}
-                  </h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {locale === 'en'
-                      ? 'Choose one entry and land directly on the right editing path.'
-                      : '从真实招聘流程出发，直接进入对应模块，减少无效点击。'}
-                  </p>
-                </div>
+              <div className="mb-6">
+                <HomeSectionHeader
+                  badge={locale === 'en' ? 'Quick Start Paths' : '快速开始路径'}
+                  icon={<Workflow className="h-3.5 w-3.5" />}
+                  title={locale === 'en' ? 'Start by Hiring Scenario' : '按投递场景快速开始'}
+                  desc={locale === 'en'
+                    ? 'Choose one entry and land directly on the right editing path.'
+                    : '从真实招聘流程出发，直接进入对应模块，减少无效点击。'}
+                  actions={
+                    <>
+                      <Link
+                        href={buildEditorEntryHref({
+                          entry: 'general',
+                          focus: 'personal',
+                          template: 'banner-layout'
+                        })}
+                        className="app-shell-action-button"
+                      >
+                        <span>{locale === 'en' ? 'Open Editor' : '打开编辑器'}</span>
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                      <Link
+                        href={buildEditorEntryHref({
+                          entry: 'general',
+                          panel: 'template',
+                          template: 'banner-layout'
+                        })}
+                        className="app-shell-action-button"
+                      >
+                        <span>{locale === 'en' ? 'Pick Template' : '选择模板'}</span>
+                      </Link>
+                    </>
+                  }
+                />
               </div>
             </ScrollFadeIn>
 
@@ -348,14 +761,14 @@ export default function HomePage() {
                   <Link
                     key={item.title}
                     href={item.href}
-                    className="group rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-slate-300"
+                    className="group app-shell-toolbar-surface p-4 sm:p-5"
                   >
-                    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-2 text-slate-700">
+                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700">
                       <Icon className="h-4 w-4" />
                     </div>
-                    <h3 className="mt-3 text-base font-semibold text-slate-900">{item.title}</h3>
+                    <h3 className="mt-4 text-base font-semibold text-slate-900">{item.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-600">{item.desc}</p>
-                    <div className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-slate-700">
+                    <div className="mt-4 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
                       {locale === 'en' ? 'Open editor' : '进入编辑器'}
                       <ArrowRight className="h-3.5 w-3.5" />
                     </div>
@@ -369,19 +782,16 @@ export default function HomePage() {
         <section id="template-showcase" className="px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="mx-auto w-full max-w-7xl">
             <ScrollFadeIn direction="up">
-              <div className="mb-10 text-center">
-                <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
-                  <LayoutTemplate className="h-3.5 w-3.5" />
-                  {locale === 'en' ? 'Template Library' : '模板库升级'}
-                </div>
-                <h2 className="mt-4 text-3xl font-bold text-slate-900 sm:text-4xl">
-                  {locale === 'en' ? 'Not Generic Templates, But Hiring-Focused Layouts' : '不是“套模板”，而是面向招聘筛选的版式'}
-                </h2>
-                <p className="mx-auto mt-3 max-w-3xl text-base leading-7 text-slate-600">
-                  {locale === 'en'
+              <div className="mb-10">
+                <HomeSectionHeader
+                  align="center"
+                  badge={locale === 'en' ? 'Template Library' : '模板库升级'}
+                  icon={<LayoutTemplate className="h-3.5 w-3.5" />}
+                  title={locale === 'en' ? 'Not Generic Templates, But Hiring-Focused Layouts' : '不是“套模板”，而是面向招聘筛选的版式'}
+                  desc={locale === 'en'
                     ? 'Each template now has a stronger hierarchy, clearer section rhythm, and faster readability for HR and ATS systems.'
                     : '每套模板都强调信息层级、章节节奏和快速可扫读性，让 HR 与 ATS 都更容易抓到你的关键价值。'}
-                </p>
+                />
               </div>
             </ScrollFadeIn>
 
@@ -402,84 +812,75 @@ export default function HomePage() {
         <section id="features" className="border-y border-slate-200 bg-white px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="mx-auto w-full max-w-7xl">
             <ScrollFadeIn direction="up">
-              <div className="mb-10 text-center">
-                <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">{t.home.features.title}</h2>
-                <p className="mx-auto mt-3 max-w-3xl text-base leading-7 text-slate-600">{t.home.features.desc}</p>
+              <div className="mb-10">
+                <HomeSectionHeader
+                  badge={locale === 'en' ? 'Core Workspace' : '核心工作台能力'}
+                  icon={<Target className="h-3.5 w-3.5" />}
+                  title={t.home.features.title}
+                  desc={t.home.features.desc}
+                  actions={
+                    <>
+                      <Link
+                        href={buildEditorEntryHref({
+                          entry: 'engineering',
+                          panel: 'ai',
+                          aiSection: 'experience',
+                          template: 'banner-layout'
+                        })}
+                        className="app-shell-action-button"
+                      >
+                        <Bot className="h-4 w-4" />
+                        <span>{locale === 'en' ? 'Open AI Panel' : '打开 AI 面板'}</span>
+                      </Link>
+                      <Link
+                        href={buildEditorEntryHref({
+                          entry: 'general',
+                          panel: 'template',
+                          template: 'banner-layout'
+                        })}
+                        className="app-shell-action-button"
+                      >
+                        <LayoutTemplate className="h-4 w-4" />
+                        <span>{locale === 'en' ? 'Browse Templates' : '查看模板'}</span>
+                      </Link>
+                    </>
+                  }
+                />
               </div>
             </ScrollFadeIn>
 
             <StaggerFadeIn className="grid gap-5 md:grid-cols-2 xl:grid-cols-4" staggerDelay={0.08} direction="up">
-              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="inline-flex rounded-lg bg-cyan-100 p-2 text-cyan-700">
-                  <Bot className="h-4 w-4" />
-                </div>
-                <h3 className="mt-3 text-lg font-semibold text-slate-900">{t.home.features.ai.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{t.home.features.ai.desc}</p>
-                <ul className="mt-3 space-y-1.5 text-xs text-slate-500">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-cyan-600" />
-                    {t.home.features.ai.list1}
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-cyan-600" />
-                    {t.home.features.ai.list2}
-                  </li>
-                </ul>
-              </article>
+              <HomeFeatureCard
+                icon={<Bot className="h-4 w-4 text-cyan-700" />}
+                title={t.home.features.ai.title}
+                desc={t.home.features.ai.desc}
+                highlights={[t.home.features.ai.list1, t.home.features.ai.list2]}
+                toneClass="border-cyan-200 bg-cyan-50"
+              />
 
-              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="inline-flex rounded-lg bg-amber-100 p-2 text-amber-700">
-                  <Zap className="h-4 w-4" />
-                </div>
-                <h3 className="mt-3 text-lg font-semibold text-slate-900">{t.home.features.realtime.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{t.home.features.realtime.desc}</p>
-                <ul className="mt-3 space-y-1.5 text-xs text-slate-500">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-amber-600" />
-                    {t.home.features.realtime.list1}
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-amber-600" />
-                    {t.home.features.realtime.list2}
-                  </li>
-                </ul>
-              </article>
+              <HomeFeatureCard
+                icon={<Zap className="h-4 w-4 text-amber-700" />}
+                title={t.home.features.realtime.title}
+                desc={t.home.features.realtime.desc}
+                highlights={[t.home.features.realtime.list1, t.home.features.realtime.list2]}
+                toneClass="border-amber-200 bg-amber-50"
+              />
 
-              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="inline-flex rounded-lg bg-emerald-100 p-2 text-emerald-700">
-                  <FileCheck2 className="h-4 w-4" />
-                </div>
-                <h3 className="mt-3 text-lg font-semibold text-slate-900">{t.home.features.export.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{t.home.features.export.desc}</p>
-                <ul className="mt-3 space-y-1.5 text-xs text-slate-500">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-emerald-600" />
-                    {t.home.features.export.list1}
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-emerald-600" />
-                    {t.home.features.export.list2}
-                  </li>
-                </ul>
-              </article>
+              <HomeFeatureCard
+                icon={<FileCheck2 className="h-4 w-4 text-emerald-700" />}
+                title={t.home.features.export.title}
+                desc={t.home.features.export.desc}
+                highlights={[t.home.features.export.list1, t.home.features.export.list2]}
+                toneClass="border-emerald-200 bg-emerald-50"
+              />
 
-              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="inline-flex rounded-lg bg-violet-100 p-2 text-violet-700">
-                  <Shield className="h-4 w-4" />
-                </div>
-                <h3 className="mt-3 text-lg font-semibold text-slate-900">{t.home.features.privacy.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{t.home.features.privacy.desc}</p>
-                <ul className="mt-3 space-y-1.5 text-xs text-slate-500">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-violet-600" />
-                    {t.home.features.privacy.list1}
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-violet-600" />
-                    {t.home.features.privacy.list2}
-                  </li>
-                </ul>
-              </article>
+              <HomeFeatureCard
+                icon={<Shield className="h-4 w-4 text-violet-700" />}
+                title={t.home.features.privacy.title}
+                desc={t.home.features.privacy.desc}
+                highlights={[t.home.features.privacy.list1, t.home.features.privacy.list2]}
+                toneClass="border-violet-200 bg-violet-50"
+              />
             </StaggerFadeIn>
           </div>
         </section>
@@ -487,15 +888,16 @@ export default function HomePage() {
         <section className="bg-[#f8fafc] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="mx-auto w-full max-w-6xl">
             <ScrollFadeIn direction="up">
-              <div className="mb-10 text-center">
-                <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">
-                  {locale === 'en' ? 'Three-Step Editing Workflow' : '三步完成高质量简历编辑'}
-                </h2>
-                <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-slate-600">
-                  {locale === 'en'
+              <div className="mb-10">
+                <HomeSectionHeader
+                  align="center"
+                  badge={locale === 'en' ? 'Editing Workflow' : '编辑工作流'}
+                  icon={<Workflow className="h-3.5 w-3.5" />}
+                  title={locale === 'en' ? 'Three-Step Editing Workflow' : '三步完成高质量简历编辑'}
+                  desc={locale === 'en'
                     ? 'Designed for speed and quality: structure first, language next, then export.'
                     : '先结构、再语言、后导出。减少来回返工，把编辑节奏固定下来。'}
-                </p>
+                />
               </div>
             </ScrollFadeIn>
 
@@ -535,9 +937,14 @@ export default function HomePage() {
         <section className="border-y border-slate-200 bg-white px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="mx-auto w-full max-w-6xl">
             <ScrollFadeIn direction="up">
-              <div className="mb-10 text-center">
-                <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">{t.home.testimonials.title}</h2>
-                <p className="mt-3 text-base text-slate-600">{t.home.testimonials.desc}</p>
+              <div className="mb-10">
+                <HomeSectionHeader
+                  align="center"
+                  badge={locale === 'en' ? 'Feedback' : '用户反馈'}
+                  icon={<Star className="h-3.5 w-3.5" />}
+                  title={t.home.testimonials.title}
+                  desc={t.home.testimonials.desc}
+                />
               </div>
             </ScrollFadeIn>
 
@@ -563,9 +970,14 @@ export default function HomePage() {
         <section className="bg-[#f8fafc] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="mx-auto w-full max-w-4xl">
             <ScrollFadeIn direction="up">
-              <div className="mb-8 text-center">
-                <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">{t.home.faq.title}</h2>
-                <p className="mt-3 text-base text-slate-600">{t.home.faq.desc}</p>
+              <div className="mb-8">
+                <HomeSectionHeader
+                  align="center"
+                  badge={locale === 'en' ? 'FAQ' : '常见问题'}
+                  icon={<ChevronDown className="h-3.5 w-3.5" />}
+                  title={t.home.faq.title}
+                  desc={t.home.faq.desc}
+                />
               </div>
             </ScrollFadeIn>
 
@@ -609,18 +1021,73 @@ export default function HomePage() {
         <section className="relative overflow-hidden bg-slate-900 px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="pointer-events-none absolute -left-20 top-0 h-64 w-64 rounded-full bg-cyan-500/25 blur-3xl" />
           <div className="pointer-events-none absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-amber-500/20 blur-3xl" />
-          <div className="relative mx-auto max-w-4xl text-center">
-            <h2 className="text-3xl font-bold text-white sm:text-4xl">{t.home.cta.title}</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-300">{t.home.cta.desc}</p>
-            <div className="mt-8">
-              <Link
-                href="/editor"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-7 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
-              >
-                <Sparkles className="h-4 w-4" />
-                {t.home.cta.button}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+          <div className="relative mx-auto max-w-5xl">
+            <div className="rounded-[28px] border border-white/10 bg-white/5 p-6 backdrop-blur sm:p-8 lg:p-10">
+              <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                <div className="text-center lg:text-left">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {locale === 'en' ? 'Ready to Deliver' : '准备开始投递'}
+                  </div>
+                  <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">{t.home.cta.title}</h2>
+                  <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">{t.home.cta.desc}</p>
+                  <div className="mt-5 flex flex-wrap justify-center gap-2 lg:justify-start">
+                    <HeroSupportPill
+                      dark
+                      icon={<LayoutTemplate className="h-3.5 w-3.5" />}
+                      label={locale === 'en' ? 'Template first' : '模板先行'}
+                    />
+                    <HeroSupportPill
+                      dark
+                      icon={<Bot className="h-3.5 w-3.5" />}
+                      label={locale === 'en' ? 'AI polish' : 'AI 润色'}
+                    />
+                    <HeroSupportPill
+                      dark
+                      icon={<FileCheck2 className="h-3.5 w-3.5" />}
+                      label={locale === 'en' ? 'Export delivery' : '导出投递'}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <Link
+                    href={buildEditorEntryHref({
+                      entry: 'general',
+                      focus: 'personal',
+                      template: 'banner-layout'
+                    })}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white px-7 py-3 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-100"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {t.home.cta.button}
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Link
+                      href={buildEditorEntryHref({
+                        entry: 'general',
+                        panel: 'template',
+                        template: 'banner-layout'
+                      })}
+                      className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                    >
+                      {locale === 'en' ? 'Choose Template' : '选择模板'}
+                    </Link>
+                    <Link
+                      href={buildEditorEntryHref({
+                        entry: 'engineering',
+                        panel: 'ai',
+                        aiSection: 'experience',
+                        template: 'banner-layout'
+                      })}
+                      className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                    >
+                      {locale === 'en' ? 'Open AI' : '打开 AI'}
+                    </Link>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>

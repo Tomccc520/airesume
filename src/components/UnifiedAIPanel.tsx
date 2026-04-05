@@ -17,6 +17,8 @@ import {
   Bot,
   CheckCircle,
   Loader2,
+  RotateCcw,
+  ShieldCheck,
   Sparkles,
   Target,
   Wand2,
@@ -58,6 +60,13 @@ interface OptimizeResult {
   suggestions: OptimizeSuggestion[]
   selectedIndex: number
   applied: boolean
+}
+
+interface JDBatchHistoryEntry {
+  id: string
+  label: string
+  appliedKeys: string[]
+  revertSuggestions: JDSuggestion[]
 }
 
 /**
@@ -158,6 +167,59 @@ function getCompactModelName(modelName: string | null): string {
 }
 
 /**
+ * 获取 AI 状态摘要
+ * 统一 AI 面板头部、底部和配置引导区的状态文案与摘要信息。
+ */
+function getAIStatusMeta(aiConfigStatus: AIConfigStatus, locale: 'zh' | 'en') {
+  const providerSummary = getProviderLabel(aiConfigStatus.provider, locale)
+  const modelSummary = aiConfigStatus.modelName
+    ? getCompactModelName(aiConfigStatus.modelName)
+    : (locale === 'zh' ? '未选择模型' : 'No model selected')
+
+  if (aiConfigStatus.isConfigured) {
+    return {
+      title: locale === 'zh' ? 'AI 已就绪' : 'AI Ready',
+      description: locale === 'zh'
+        ? `${providerSummary} 已连接，可直接继续智能优化、职位匹配与从零生成。`
+        : `${providerSummary} is connected. You can continue with optimize, match, and generate.`,
+      toneClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      providerSummary,
+      modelSummary,
+      actionLabel: locale === 'zh' ? '重新配置' : 'Reconfigure',
+      footerLabel: locale === 'zh' ? 'AI 服务就绪' : 'AI service ready'
+    }
+  }
+
+  if (aiConfigStatus.isEnabled) {
+    return {
+      title: locale === 'zh' ? 'AI 待配置' : 'AI Needs Setup',
+      description: locale === 'zh'
+        ? 'JD 匹配仍可直接使用；智能优化和从零生成需要先补齐配置。'
+        : 'JD match is available. Optimize and generate still need configuration.',
+      toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+      providerSummary,
+      modelSummary: aiConfigStatus.needsApiKey && !aiConfigStatus.hasApiKey
+        ? (locale === 'zh' ? '待补充密钥' : 'API key required')
+        : modelSummary,
+      actionLabel: locale === 'zh' ? '打开配置' : 'Open Config',
+      footerLabel: locale === 'zh' ? 'AI 待配置' : 'AI needs setup'
+    }
+  }
+
+  return {
+    title: locale === 'zh' ? 'AI 已停用' : 'AI Disabled',
+    description: locale === 'zh'
+      ? '可通过配置入口重新启用；当前仍可先使用职位匹配功能。'
+      : 'You can re-enable it from configuration. JD match is still available.',
+    toneClass: 'border-slate-200 bg-slate-100 text-slate-700',
+    providerSummary: locale === 'zh' ? '未启用' : 'Disabled',
+    modelSummary,
+    actionLabel: locale === 'zh' ? '前往配置' : 'Open Config',
+    footerLabel: locale === 'zh' ? 'AI 已停用' : 'AI disabled'
+  }
+}
+
+/**
  * 判断错误是否需要引导到配置
  * 将配置、密钥、鉴权、端点类异常统一收敛到配置入口。
  */
@@ -190,6 +252,127 @@ function getSectionLabel(section: OptimizeSection | JDSuggestion['section'], loc
  */
 function getJDSuggestionKey(suggestion: JDSuggestion, index: number): string {
   return `${suggestion.section}-${index}-${suggestion.suggestedText.slice(0, 32)}`
+}
+
+/**
+ * 获取优化模块内容摘要
+ * 为卡片提供更接近工作台语义的当前内容概况，帮助用户判断先优化哪一块。
+ */
+function getOptimizeSectionContentSummary(
+  section: OptimizeSection,
+  resumeData: ResumeData,
+  locale: 'zh' | 'en'
+): string {
+  const isZh = locale === 'zh'
+
+  switch (section) {
+    case 'summary': {
+      const summaryLength = resumeData.personalInfo.summary?.trim().length ?? 0
+      if (summaryLength === 0) {
+        return isZh ? '当前未填写个人简介' : 'Summary is currently empty'
+      }
+      return isZh ? `当前约 ${summaryLength} 字` : `About ${summaryLength} characters`
+    }
+    case 'experience': {
+      const count = resumeData.experience.length
+      return isZh ? `当前 ${count} 段工作经历` : `${count} experience item(s)`
+    }
+    case 'skills': {
+      const count = resumeData.skills.length
+      return isZh ? `当前 ${count} 项专业技能` : `${count} skill item(s)`
+    }
+    case 'education': {
+      const count = resumeData.education.length
+      return isZh ? `当前 ${count} 段教育经历` : `${count} education item(s)`
+    }
+    case 'projects': {
+      const count = resumeData.projects.length
+      return isZh ? `当前 ${count} 段项目经验` : `${count} project item(s)`
+    }
+    default:
+      return ''
+  }
+}
+
+/**
+ * 获取优化模块重点提示
+ * 将每个模块最值得 AI 发力的方向提炼成短句，降低选择成本。
+ */
+function getOptimizeSectionFocusHint(section: OptimizeSection, locale: 'zh' | 'en'): string {
+  const hintMap: Record<OptimizeSection, { zh: string; en: string }> = {
+    summary: {
+      zh: '优先强化首句定位、关键词和个人价值表达。',
+      en: 'Focus on opening positioning, keywords, and value proposition.'
+    },
+    experience: {
+      zh: '优先量化成果、动作词和业务影响力表达。',
+      en: 'Focus on quantified impact, action verbs, and business outcomes.'
+    },
+    skills: {
+      zh: '优先重排技能优先级，并按岗位重新组织结构。',
+      en: 'Focus on reprioritizing skills and regrouping them for the target role.'
+    },
+    education: {
+      zh: '优先提炼课程、成绩与岗位相关的教育亮点。',
+      en: 'Focus on coursework, grades, and role-relevant education highlights.'
+    },
+    projects: {
+      zh: '优先强化项目背景、关键动作和结果表达。',
+      en: 'Focus on project context, key actions, and result-oriented storytelling.'
+    }
+  }
+
+  return hintMap[section][locale]
+}
+
+/**
+ * 规范化对比文本
+ * 去除多余空白并统一大小写，便于做候选结果的轻量差异分析。
+ */
+function normalizeComparisonText(text: string): string {
+  return text.replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+/**
+ * 拆分文本为可对比语义片段
+ * 优先按换行和中文/英文标点切分，兼容简历条目和段落文本。
+ */
+function splitComparisonSegments(text: string): string[] {
+  return text
+    .split(/[\n。；;！!？?\u2022•]/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length >= 4)
+}
+
+/**
+ * 生成候选结果差异摘要
+ * 用于在优化候选卡中提示新增表达和保留信息，降低人工对比成本。
+ */
+function getSuggestionDiffSummary(original: string, suggestion: string) {
+  const originalSegments = splitComparisonSegments(original)
+  const suggestionSegments = splitComparisonSegments(suggestion)
+  const originalNormalizedSet = new Set(originalSegments.map(normalizeComparisonText))
+
+  const addedSegments = suggestionSegments.filter((segment) => !originalNormalizedSet.has(normalizeComparisonText(segment)))
+  const preservedSegments = suggestionSegments.filter((segment) => originalNormalizedSet.has(normalizeComparisonText(segment)))
+
+  return {
+    addedSegments: addedSegments.slice(0, 3),
+    preservedCount: preservedSegments.length
+  }
+}
+
+/**
+ * 构建 JD 建议回退载荷
+ * 将已应用建议还原为原始内容，支持最近一次单条或批量撤销。
+ */
+function buildJDSuggestionRevertPayload(suggestions: JDSuggestion[]): JDSuggestion[] {
+  return suggestions
+    .filter((suggestion) => suggestion.originalText && suggestion.originalText.trim())
+    .map((suggestion) => ({
+      ...suggestion,
+      suggestedText: suggestion.originalText!.trim()
+    }))
 }
 
 /**
@@ -226,33 +409,8 @@ export default function UnifiedAIPanel({
   const [generateApplied, setGenerateApplied] = useState(false)
   const [aiConfigStatus, setAIConfigStatus] = useState<AIConfigStatus>(() => aiService.getConfigStatus())
   const [appliedJDSuggestionKeys, setAppliedJDSuggestionKeys] = useState<string[]>([])
-  const aiStatusMeta = useMemo(() => {
-    if (aiConfigStatus.isConfigured) {
-      return {
-        title: locale === 'zh' ? 'AI 已就绪' : 'AI Ready',
-        description: `${getProviderLabel(aiConfigStatus.provider, locale)} · ${getCompactModelName(aiConfigStatus.modelName)}`,
-        toneClass: 'border-emerald-200 bg-emerald-50 text-emerald-700'
-      }
-    }
-
-    if (aiConfigStatus.isEnabled) {
-      return {
-        title: locale === 'zh' ? 'AI 待配置' : 'AI Needs Setup',
-        description: locale === 'zh'
-          ? '智能优化和从零生成依赖 AI 配置，JD 匹配仍可直接使用。'
-          : 'Optimize and generate require AI configuration. JD match is still available.',
-        toneClass: 'border-amber-200 bg-amber-50 text-amber-700'
-      }
-    }
-
-    return {
-      title: locale === 'zh' ? 'AI 已停用' : 'AI Disabled',
-      description: locale === 'zh'
-        ? '可通过配置入口重新启用，或先使用职位匹配功能。'
-        : 'Re-enable it from configuration, or use JD match first.',
-      toneClass: 'border-slate-200 bg-slate-100 text-slate-700'
-    }
-  }, [aiConfigStatus, locale])
+  const [jdApplyHistory, setJdApplyHistory] = useState<JDBatchHistoryEntry[]>([])
+  const aiStatusMeta = useMemo(() => getAIStatusMeta(aiConfigStatus, locale), [aiConfigStatus, locale])
 
   /**
    * 刷新 AI 配置状态
@@ -316,30 +474,93 @@ export default function UnifiedAIPanel({
       name: locale === 'zh' ? '个人简介' : 'Summary',
       icon: <Sparkles className="w-5 h-5" />,
       desc: locale === 'zh' ? '强化定位与吸引力' : 'Sharpen positioning',
-      hasContent: Boolean(resumeData.personalInfo.summary?.trim())
+      hasContent: Boolean(resumeData.personalInfo.summary?.trim()),
+      contentSummary: getOptimizeSectionContentSummary('summary', resumeData, locale),
+      focusHint: getOptimizeSectionFocusHint('summary', locale)
     },
     {
       id: 'experience' as OptimizeSection,
       name: locale === 'zh' ? '工作经历' : 'Experience',
       icon: <Zap className="w-5 h-5" />,
       desc: locale === 'zh' ? '突出成果与影响力' : 'Highlight impact',
-      hasContent: resumeData.experience.length > 0
+      hasContent: resumeData.experience.length > 0,
+      contentSummary: getOptimizeSectionContentSummary('experience', resumeData, locale),
+      focusHint: getOptimizeSectionFocusHint('experience', locale)
     },
     {
       id: 'skills' as OptimizeSection,
       name: locale === 'zh' ? '专业技能' : 'Skills',
       icon: <Target className="w-5 h-5" />,
       desc: locale === 'zh' ? '优化技能结构与优先级' : 'Optimize skill hierarchy',
-      hasContent: resumeData.skills.length > 0
+      hasContent: resumeData.skills.length > 0,
+      contentSummary: getOptimizeSectionContentSummary('skills', resumeData, locale),
+      focusHint: getOptimizeSectionFocusHint('skills', locale)
     },
     {
       id: 'projects' as OptimizeSection,
       name: locale === 'zh' ? '项目经验' : 'Projects',
       icon: <Bot className="w-5 h-5" />,
       desc: locale === 'zh' ? '增强项目叙事与亮点' : 'Improve project storytelling',
-      hasContent: resumeData.projects.length > 0
+      hasContent: resumeData.projects.length > 0,
+      contentSummary: getOptimizeSectionContentSummary('projects', resumeData, locale),
+      focusHint: getOptimizeSectionFocusHint('projects', locale)
     }
   ], [locale, resumeData])
+
+  /**
+   * 汇总 JD 建议分组
+   * 便于提供“按模块应用”入口，并在结果区按模块展示建议数量。
+   */
+  const jdSuggestionGroups = useMemo(() => {
+    if (!matchResult) {
+      return []
+    }
+
+    const groupMap = new Map<JDSuggestion['section'], JDSuggestion[]>()
+
+    matchResult.suggestions.forEach((suggestion) => {
+      const currentGroup = groupMap.get(suggestion.section) || []
+      currentGroup.push(suggestion)
+      groupMap.set(suggestion.section, currentGroup)
+    })
+
+    return Array.from(groupMap.entries()).map(([section, suggestions]) => ({
+      section,
+      suggestions,
+      unappliedSuggestions: suggestions.filter((suggestion) => {
+        const globalIndex = matchResult.suggestions.findIndex((item) => item === suggestion && item.section === section)
+        return !appliedJDSuggestionKeys.includes(getJDSuggestionKey(suggestion, globalIndex))
+      })
+    }))
+  }, [appliedJDSuggestionKeys, matchResult])
+
+  /**
+   * 汇总从零生成表单完整度
+   * 用于在提交前提示用户还差哪些关键字段，提高首次生成质量。
+   */
+  const generateReadiness = useMemo(() => {
+    const completedFields = [userInfo.name, userInfo.targetPosition].filter((value) => value.trim()).length + 1
+    const missingLabels = [
+      !userInfo.name.trim() ? (locale === 'zh' ? '姓名' : 'Name') : null,
+      !userInfo.targetPosition.trim() ? (locale === 'zh' ? '目标职位' : 'Target role') : null
+    ].filter(Boolean) as string[]
+
+    return {
+      completedFields,
+      totalFields: 3,
+      missingLabels
+    }
+  }, [locale, userInfo.name, userInfo.targetPosition])
+
+  /**
+   * 生成岗位预设
+   * 为从零生成提供常见目标岗位快捷填充，减少手动录入成本。
+   */
+  const generateRolePresets = useMemo(() => (
+    locale === 'zh'
+      ? ['高级前端工程师', '产品经理', 'UI/UX 设计师', '运营经理']
+      : ['Senior Frontend Engineer', 'Product Manager', 'UI/UX Designer', 'Operations Manager']
+  ), [locale])
 
   /**
    * 切换模式并清理局部状态
@@ -355,6 +576,8 @@ export default function UnifiedAIPanel({
     }
     if (mode !== 'match') {
       setMatchResult(null)
+      setAppliedJDSuggestionKeys([])
+      setJdApplyHistory([])
     }
     if (mode !== 'generate') {
       setGenerateApplied(false)
@@ -456,6 +679,7 @@ export default function UnifiedAIPanel({
     setIsProcessing(true)
     setMatchResult(null)
     setAppliedJDSuggestionKeys([])
+    setJdApplyHistory([])
 
     try {
       const keywords = jdMatcherService.extractKeywords(jobDescription)
@@ -470,18 +694,81 @@ export default function UnifiedAIPanel({
   }
 
   /**
+   * 记录 JD 应用历史
+   * 仅记录可回退的原始内容，供“撤销最近一次应用”使用。
+   */
+  const appendJDBatchHistory = (label: string, appliedKeys: string[], suggestions: JDSuggestion[]) => {
+    const revertSuggestions = buildJDSuggestionRevertPayload(suggestions)
+    if (revertSuggestions.length === 0) {
+      return
+    }
+
+    setJdApplyHistory((currentHistory) => [
+      ...currentHistory,
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        label,
+        appliedKeys,
+        revertSuggestions
+      }
+    ])
+  }
+
+  /**
+   * 应用一组 JD 建议
+   * 统一处理单条、按模块和全部应用，保证状态标记和撤销历史一致。
+   */
+  const applyJDSuggestionBatch = (suggestions: JDSuggestion[], label: string, appliedKeys: string[]) => {
+    if (suggestions.length === 0) {
+      return
+    }
+
+    if (suggestions.length === 1) {
+      onApplySuggestion(suggestions[0].suggestedText, suggestions[0].section)
+    } else {
+      onApplyJDSuggestions(suggestions)
+    }
+
+    setAppliedJDSuggestionKeys((currentKeys) => Array.from(new Set([...currentKeys, ...appliedKeys])))
+    appendJDBatchHistory(label, appliedKeys, suggestions)
+  }
+
+  /**
    * 应用单条 JD 建议
    * 支持按模块渐进式采纳，减少“一键全改”带来的不确定性。
    */
   const handleApplySingleJDSuggestion = (suggestion: JDSuggestion, index: number) => {
-    onApplySuggestion(suggestion.suggestedText, suggestion.section)
-    setAppliedJDSuggestionKeys((currentKeys) => {
-      const nextKey = getJDSuggestionKey(suggestion, index)
-      if (currentKeys.includes(nextKey)) {
-        return currentKeys
-      }
-      return [...currentKeys, nextKey]
-    })
+    const suggestionKey = getJDSuggestionKey(suggestion, index)
+    applyJDSuggestionBatch(
+      [suggestion],
+      `${getSectionLabel(suggestion.section, locale)} · ${locale === 'zh' ? '单条建议' : 'Single suggestion'}`,
+      [suggestionKey]
+    )
+  }
+
+  /**
+   * 应用指定模块的 JD 建议
+   * 让用户可以先集中处理某一个模块，而不必一次性写回全部内容。
+   */
+  const handleApplyJDSectionSuggestions = (section: JDSuggestion['section']) => {
+    if (!matchResult) {
+      return
+    }
+
+    const sectionSuggestions = matchResult.suggestions
+      .map((suggestion, index) => ({ suggestion, index }))
+      .filter(({ suggestion, index }) => {
+        if (suggestion.section !== section) {
+          return false
+        }
+        return !appliedJDSuggestionKeys.includes(getJDSuggestionKey(suggestion, index))
+      })
+
+    applyJDSuggestionBatch(
+      sectionSuggestions.map(({ suggestion }) => suggestion),
+      `${getSectionLabel(section, locale)} · ${locale === 'zh' ? '批量应用' : 'Batch apply'}`,
+      sectionSuggestions.map(({ suggestion, index }) => getJDSuggestionKey(suggestion, index))
+    )
   }
 
   /**
@@ -493,10 +780,32 @@ export default function UnifiedAIPanel({
       return
     }
 
-    onApplyJDSuggestions(matchResult.suggestions)
-    setAppliedJDSuggestionKeys(
-      matchResult.suggestions.map((suggestion, index) => getJDSuggestionKey(suggestion, index))
+    const unappliedSuggestions = matchResult.suggestions
+      .map((suggestion, index) => ({ suggestion, index }))
+      .filter(({ suggestion, index }) => !appliedJDSuggestionKeys.includes(getJDSuggestionKey(suggestion, index)))
+
+    applyJDSuggestionBatch(
+      unappliedSuggestions.map(({ suggestion }) => suggestion),
+      locale === 'zh' ? '全部 JD 建议' : 'All JD suggestions',
+      unappliedSuggestions.map(({ suggestion, index }) => getJDSuggestionKey(suggestion, index))
     )
+  }
+
+  /**
+   * 撤销最近一次 JD 应用
+   * 使用记录的原始内容回写对应模块，形成可逆的闭环体验。
+   */
+  const handleUndoLastJDBatch = () => {
+    const lastBatch = jdApplyHistory[jdApplyHistory.length - 1]
+    if (!lastBatch || lastBatch.revertSuggestions.length === 0) {
+      return
+    }
+
+    onApplyJDSuggestions(lastBatch.revertSuggestions)
+    setAppliedJDSuggestionKeys((currentKeys) =>
+      currentKeys.filter((key) => !lastBatch.appliedKeys.includes(key))
+    )
+    setJdApplyHistory((currentHistory) => currentHistory.slice(0, -1))
   }
 
   /**
@@ -561,49 +870,56 @@ export default function UnifiedAIPanel({
         onClick={onClose}
       />
 
-      {/* 主面板 - 首页风格 */}
+      {/* 主面板 - 统一产品风格 */}
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.96 }}
         transition={{ duration: 0.2 }}
-        className="relative w-full max-w-5xl max-h-[88vh] rounded-2xl overflow-hidden flex flex-col border border-slate-200 bg-white shadow-2xl"
+        className="relative flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 头部 - 首页风格 */}
-        <div className="flex-none px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-cyan-50/40">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
+        <div className="flex-none border-b border-slate-200 px-6 py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <span className="app-shell-brand-mark h-11 w-11 shrink-0">
+                <Sparkles className="h-5 w-5" />
+              </span>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  {locale === 'zh' ? 'AI 助手' : 'AI Assistant'}
-                </h2>
-                <p className="text-xs text-gray-500">
-                  {locale === 'zh' ? '智能优化你的简历' : 'Optimize your resume'}
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-xl font-semibold text-slate-900">
+                    {locale === 'zh' ? 'AI 助手' : 'AI Assistant'}
+                  </h2>
+                  <div className={`app-shell-status-chip ${aiStatusMeta.toneClass}`}>
+                    {aiStatusMeta.title}
+                  </div>
+                </div>
+                <p className="mt-1 text-sm text-slate-500">
+                  {locale === 'zh' ? '智能优化你的简历内容与岗位匹配度。' : 'Improve resume content and role alignment with AI.'}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {locale === 'zh' ? '统一处理智能优化、职位匹配与从零生成。' : 'Optimize, match, and generate in one workspace.'}
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
             >
-              <X className="w-5 h-5" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* 模式切换 - 首页标签风格 */}
-          <div className="flex gap-2 mt-4">
+          <div className="mt-4 flex flex-wrap gap-2">
             {modes.map((mode) => (
               <button
                 key={mode.id}
+                type="button"
                 onClick={() => handleSwitchMode(mode.id)}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
                   activeMode === mode.id
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                    ? 'app-shell-toolbar-button app-shell-toolbar-button-active'
+                    : 'app-shell-toolbar-button border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 }`}
               >
                 {mode.icon}
@@ -612,7 +928,7 @@ export default function UnifiedAIPanel({
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                     activeMode === mode.id
                       ? 'bg-white/15 text-white'
-                      : 'bg-amber-50 text-amber-700'
+                      : 'border border-amber-200 bg-amber-50 text-amber-700'
                   }`}>
                     {locale === 'zh' ? '需配置' : 'Setup'}
                   </span>
@@ -621,37 +937,84 @@ export default function UnifiedAIPanel({
             ))}
           </div>
 
-          <div className={`mt-4 rounded-xl border px-4 py-3 ${aiStatusMeta.toneClass}`}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold">{aiStatusMeta.title}</div>
-                <div className="mt-1 text-xs opacity-90">{aiStatusMeta.description}</div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(260px,0.85fr)]">
+            <div className={`rounded-xl border px-4 py-4 ${aiStatusMeta.toneClass}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] opacity-70">
+                    {locale === 'zh' ? '配置状态' : 'Configuration'}
+                  </p>
+                  <div className="mt-2 text-base font-semibold">{aiStatusMeta.title}</div>
+                  <div className="mt-1 text-sm leading-6 opacity-90">{aiStatusMeta.description}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={onOpenAIConfig}
+                  className="app-shell-action-button h-9 rounded-xl border-current/10 bg-white/80 px-3 text-xs text-current hover:bg-white"
+                >
+                  {aiStatusMeta.actionLabel}
+                </button>
               </div>
-              <button
-                onClick={onOpenAIConfig}
-                className="rounded-lg border border-current/20 bg-white/70 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white"
-              >
-                {aiConfigStatus.isConfigured
-                  ? (locale === 'zh' ? '重新配置' : 'Reconfigure')
-                  : (locale === 'zh' ? '配置入口' : 'Open Config')}
-              </button>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-lg border border-current/10 bg-white/80 px-3 py-2 text-slate-700">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                    {locale === 'zh' ? '服务商' : 'Provider'}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-slate-800">{aiStatusMeta.providerSummary}</p>
+                </div>
+                <div className="rounded-lg border border-current/10 bg-white/80 px-3 py-2 text-slate-700">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                    {locale === 'zh' ? '模型' : 'Model'}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-slate-800">{aiStatusMeta.modelSummary}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="flex items-start gap-2">
+                <ShieldCheck className="mt-0.5 h-4 w-4 text-slate-700" />
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                    {locale === 'zh' ? '配置说明' : 'Config Notes'}
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-slate-900">
+                    {locale === 'zh'
+                      ? 'JD 匹配可直接使用，优化与生成依赖 AI 配置'
+                      : 'JD match works directly. Optimize and generate depend on AI setup.'}
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                    {locale === 'zh'
+                      ? '配置项只影响模型调用，不会写入简历内容；密钥保持在当前浏览器内。'
+                      : 'These settings only affect model calls, never your resume content. Keys stay in this browser.'}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* 内容区域 */}
-        <div className="flex-1 overflow-y-auto bg-slate-50/80">
+        <div className="no-scrollbar flex-1 overflow-y-auto bg-slate-50/80">
           {errorMessage && (
             <div className="px-6 pt-4">
-              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-600 mt-0.5 shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm text-rose-700">{errorMessage}</p>
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-1 items-start gap-3">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                    <div>
+                      <p className="text-sm font-semibold text-rose-700">
+                        {locale === 'zh' ? '需要先完成 AI 配置' : 'AI setup is required first'}
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-rose-700">{errorMessage}</p>
+                    </div>
+                  </div>
                   <button
+                    type="button"
                     onClick={onOpenAIConfig}
-                    className="mt-2 text-xs font-medium text-rose-700 underline underline-offset-2 hover:text-rose-800"
+                    className="app-shell-action-button h-9 rounded-xl border-rose-200 bg-white px-3 text-xs text-rose-700 hover:bg-white hover:text-rose-800"
                   >
-                    {locale === 'zh' ? '立即前往 AI 配置' : 'Open AI Configuration'}
+                    {locale === 'zh' ? '前往 AI 配置' : 'Open AI Config'}
                   </button>
                 </div>
               </div>
@@ -670,60 +1033,140 @@ export default function UnifiedAIPanel({
               >
                 {!optimizeResult ? (
                   <div className="max-w-3xl mx-auto">
-                    <div className="text-center mb-6">
-                      <h3 className="text-lg font-bold text-gray-900 mb-1">
-                        {locale === 'zh' ? '选择要优化的内容' : 'Select content to optimize'}
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        {locale === 'zh' ? '调用真实 AI 服务，生成高质量候选版本' : 'Use real AI service for practical suggestions'}
-                      </p>
+                    <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                          {locale === 'zh' ? '优化工作流' : 'Optimize Workflow'}
+                        </p>
+                        <h3 className="mt-2 text-lg font-semibold text-slate-900">
+                          {locale === 'zh' ? '选择要优化的内容' : 'Select content to optimize'}
+                        </h3>
+                        <p className="mt-1 text-sm leading-6 text-slate-500">
+                          {locale === 'zh'
+                            ? '先选模块，再生成多条候选版本，最后按需应用到简历。'
+                            : 'Pick a section, generate multiple variants, then apply the one you want.'}
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                            {locale === 'zh' ? '1. 选模块' : '1. Select'}
+                          </span>
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                            {locale === 'zh' ? '2. 看候选版本' : '2. Review'}
+                          </span>
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                            {locale === 'zh' ? '3. 应用到简历' : '3. Apply'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                          {locale === 'zh' ? '使用建议' : 'Suggested Use'}
+                        </p>
+                        <p className="mt-2 text-sm font-medium text-slate-900">
+                          {locale === 'zh'
+                            ? '优先从“工作经历”或“项目经验”开始，收益最高。'
+                            : 'Start with experience or projects first for the biggest gain.'}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-slate-500">
+                          {locale === 'zh'
+                            ? '如果还没完成 AI 配置，也可以先用 JD 匹配查看岗位关键词和缺口。'
+                            : 'If AI is not configured yet, you can still use JD match to review keywords and gaps.'}
+                        </p>
+                      </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                       {sections.map((section) => (
-                        <motion.button
+                        <button
                           key={section.id}
+                          type="button"
                           onClick={() => handleOptimizeSection(section.id)}
                           disabled={isProcessing}
-                          whileHover={{ y: -2 }}
-                          whileTap={{ scale: 0.98 }}
-                          className={`group p-5 rounded-xl text-left transition-all border ${
+                          className={`group rounded-xl border bg-white p-4 text-left transition-colors ${
                             selectedSection === section.id
-                              ? 'border-blue-300 bg-blue-50'
-                              : 'border-gray-200 bg-white hover:border-blue-200 hover:bg-blue-50/50'
-                          } disabled:cursor-not-allowed`}
+                              ? 'border-slate-900 ring-1 ring-slate-200'
+                              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                          } disabled:cursor-not-allowed disabled:opacity-70`}
                         >
-                          <div className="flex items-start space-x-3">
-                            <div className={`p-2 rounded-lg transition-colors ${
+                          <div className="flex items-start justify-between gap-3">
+                            <div className={`rounded-xl border p-2.5 transition-colors ${
                               selectedSection === section.id && isProcessing
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600'
+                                ? 'border-slate-900 bg-slate-900 text-white'
+                                : 'border-slate-200 bg-slate-50 text-slate-600 group-hover:border-slate-300 group-hover:bg-white'
                             }`}>
                               {section.icon}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold text-gray-900 mb-0.5">
-                                {section.name}
-                              </h4>
-                              <p className="text-xs text-gray-500 mb-1">
-                                {section.desc}
-                              </p>
+                            <div className="flex flex-wrap gap-2">
+                              <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                                section.hasContent
+                                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                                  : 'border border-amber-200 bg-amber-50 text-amber-700'
+                              }`}>
+                                {section.hasContent
+                                  ? (locale === 'zh' ? '可直接优化' : 'Ready')
+                                  : (locale === 'zh' ? '建议先补内容' : 'Needs content')}
+                              </span>
                               {!aiConfigStatus.isConfigured && (
-                                <p className="text-[11px] text-slate-500">
-                                  {locale === 'zh' ? '点击后会先引导到 AI 配置。' : 'Clicking will guide you to AI setup first.'}
-                                </p>
-                              )}
-                              {!section.hasContent && (
-                                <p className="text-[11px] text-amber-600">
-                                  {locale === 'zh' ? '该模块内容为空，建议先补充' : 'This section is empty'}
-                                </p>
+                                <span className="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                                  {locale === 'zh' ? '需先配置 AI' : 'Setup Required'}
+                                </span>
                               )}
                             </div>
                             {selectedSection === section.id && isProcessing && (
-                              <Loader2 className="w-4 h-4 text-blue-600 animate-spin flex-shrink-0" />
+                              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-slate-700" />
                             )}
                           </div>
-                        </motion.button>
+
+                          <div className="mt-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <h4 className="text-base font-semibold text-slate-900">
+                                  {section.name}
+                                </h4>
+                                <p className="mt-1 text-sm text-slate-500">
+                                  {section.desc}
+                                </p>
+                              </div>
+                              <ArrowRight className="h-4 w-4 text-slate-300 transition-colors group-hover:text-slate-500" />
+                            </div>
+
+                            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                                  {locale === 'zh' ? '当前内容' : 'Current'}
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-slate-800">
+                                  {section.contentSummary}
+                                </p>
+                              </div>
+                              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                                  {locale === 'zh' ? '优化重点' : 'Focus'}
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-slate-800">
+                                  {section.hasContent
+                                    ? (locale === 'zh' ? '可生成候选版本' : 'Variants available')
+                                    : (locale === 'zh' ? '建议先补充原始内容' : 'Add source content first')}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-3">
+                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                                {locale === 'zh' ? 'AI 会优先处理' : 'AI will focus on'}
+                              </p>
+                              <p className="mt-1 text-sm leading-6 text-slate-600">
+                                {section.focusHint}
+                              </p>
+                              {!aiConfigStatus.isConfigured && (
+                                <p className="mt-2 text-[11px] text-slate-500">
+                                  {locale === 'zh' ? '点击后会先引导到 AI 配置。' : 'Clicking will guide you to AI setup first.'}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -735,87 +1178,191 @@ export default function UnifiedAIPanel({
                   >
                     {!optimizeResult.applied ? (
                       <>
-                        <div className="text-center mb-6">
-                          <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-xl mb-3">
-                            <CheckCircle className="w-6 h-6 text-green-600" />
+                        <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(240px,0.85fr)]">
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                                  {locale === 'zh' ? '候选结果' : 'Generated Variants'}
+                                </p>
+                                <h3 className="mt-2 text-lg font-semibold text-slate-900">
+                                  {locale === 'zh' ? '优化建议已生成' : 'Suggestions Ready'}
+                                </h3>
+                                <p className="mt-1 text-sm leading-6 text-slate-500">
+                                  {locale === 'zh'
+                                    ? '先对比原始内容和候选版本，再把最适合的一版应用到当前模块。'
+                                    : 'Compare the original and generated variants, then apply the best one to this section.'}
+                                </p>
+                              </div>
+                              <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-600">
+                                <CheckCircle className="h-5 w-5" />
+                              </div>
+                            </div>
+                            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                                  {locale === 'zh' ? '当前模块' : 'Section'}
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-slate-800">
+                                  {getSectionLabel(optimizeResult.section, locale)}
+                                </p>
+                              </div>
+                              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                                  {locale === 'zh' ? '候选数量' : 'Variants'}
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-slate-800">
+                                  {locale === 'zh'
+                                    ? `${optimizeResult.suggestions.length} 条可选版本`
+                                    : `${optimizeResult.suggestions.length} generated options`}
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                          <h3 className="text-xl font-bold text-gray-900 mb-1">
-                            {locale === 'zh' ? '优化建议已生成' : 'Suggestions Ready'}
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            {locale === 'zh' ? '请选择一条最适合你的版本并应用' : 'Choose the best version and apply'}
-                          </p>
+
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                              {locale === 'zh' ? '使用建议' : 'Selection Guide'}
+                            </p>
+                            <p className="mt-2 text-sm font-medium text-slate-900">
+                              {locale === 'zh'
+                                ? '优先选最贴近真实经历、但表达更清晰的一版。'
+                                : 'Choose the option that stays truthful but communicates more clearly.'}
+                            </p>
+                            <p className="mt-1 text-sm leading-6 text-slate-500">
+                              {locale === 'zh'
+                                ? '若结果方向不对，可重新生成；已选版本会在下方高亮。'
+                                : 'If the direction is off, regenerate. The selected variant stays highlighted below.'}
+                            </p>
+                          </div>
                         </div>
 
-                        <div className="space-y-3 mb-4">
-                          <div className="p-4 rounded-xl bg-white border border-gray-200">
-                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">
-                              {locale === 'zh' ? '原始' : 'Original'}
+                        <div className="mb-4 space-y-3">
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <div className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+                                {locale === 'zh' ? '原始内容' : 'Original Content'}
+                              </div>
+                              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                                {locale === 'zh' ? '作为对照基线' : 'Baseline'}
+                              </span>
                             </div>
-                            <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                            <div className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
                               {optimizeResult.original}
                             </div>
                           </div>
 
                           <div className="grid gap-3">
-                            {optimizeResult.suggestions.map((item, index) => (
-                              <button
-                                key={`${index}-${item.content.slice(0, 12)}`}
-                                onClick={() => {
-                                  setOptimizeResult((prev) => prev ? { ...prev, selectedIndex: index } : prev)
-                                }}
-                                className={`text-left p-4 rounded-xl border transition-all ${
-                                  optimizeResult.selectedIndex === index
-                                    ? 'border-slate-900 bg-white ring-1 ring-slate-200'
-                                    : 'border-slate-200 bg-white hover:border-slate-300'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between mb-2 gap-2">
-                                  <div className="text-xs font-semibold text-slate-600 uppercase">
-                                    {locale === 'zh' ? `候选版本 ${index + 1}` : `Variant ${index + 1}`}
+                            {optimizeResult.suggestions.map((item, index) => {
+                              const diffSummary = getSuggestionDiffSummary(optimizeResult.original, item.content)
+
+                              return (
+                                <button
+                                  key={`${index}-${item.content.slice(0, 12)}`}
+                                  type="button"
+                                  onClick={() => {
+                                    setOptimizeResult((prev) => prev ? { ...prev, selectedIndex: index } : prev)
+                                  }}
+                                  className={`rounded-xl border bg-white p-4 text-left transition-colors ${
+                                    optimizeResult.selectedIndex === index
+                                      ? 'border-slate-900 ring-1 ring-slate-200'
+                                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <div className="mb-3 flex items-start justify-between gap-3">
+                                    <div className="space-y-1">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">
+                                          {locale === 'zh' ? `候选版本 ${index + 1}` : `Variant ${index + 1}`}
+                                        </span>
+                                        {optimizeResult.selectedIndex === index && (
+                                          <span className="rounded-full border border-slate-900 bg-slate-900 px-2 py-0.5 text-[11px] font-medium text-white">
+                                            {locale === 'zh' ? '当前已选' : 'Selected'}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-sm text-slate-500">
+                                        {locale === 'zh'
+                                          ? '点击可切换为当前准备应用的版本'
+                                          : 'Click to set this as the version to apply.'}
+                                      </p>
+                                    </div>
+                                    <div className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${getScoreClass(item.finalScore)}`}>
+                                      {locale === 'zh' ? `质量 ${item.finalScore}` : `Score ${item.finalScore}`}
+                                    </div>
                                   </div>
-                                  <div className={`px-2 py-1 rounded-md border text-[11px] font-semibold ${getScoreClass(item.finalScore)}`}>
-                                    {locale === 'zh' ? `质量 ${item.finalScore}` : `Score ${item.finalScore}`}
+                                  <div className="whitespace-pre-wrap text-sm leading-7 text-slate-800">
+                                    {item.content}
                                   </div>
-                                </div>
-                                <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
-                                  {item.content}
-                                </div>
-                                {item.quality.issues.length > 0 && (
-                                  <div className="mt-2 text-[11px] text-slate-500">
-                                    {locale === 'zh' ? `可改进：${item.quality.issues[0]}` : `Can improve: ${item.quality.issues[0]}`}
+                                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                                        {locale === 'zh' ? '新增表达' : 'New Phrases'}
+                                      </span>
+                                      <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                        {locale === 'zh'
+                                          ? `保留信息 ${diffSummary.preservedCount} 处`
+                                          : `${diffSummary.preservedCount} preserved`}
+                                      </span>
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                      {diffSummary.addedSegments.length > 0 ? (
+                                        diffSummary.addedSegments.map((segment) => (
+                                          <span
+                                            key={`${index}-${segment}`}
+                                            className="rounded-md border border-sky-100 bg-sky-50 px-2.5 py-1 text-[11px] leading-5 text-sky-700"
+                                          >
+                                            {segment}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <span className="text-[11px] text-slate-500">
+                                          {locale === 'zh'
+                                            ? '当前候选主要是在原内容基础上做顺序和表达优化。'
+                                            : 'This variant mainly refines the original phrasing and structure.'}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                )}
-                              </button>
-                            ))}
+                                  {item.quality.issues.length > 0 && (
+                                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-6 text-amber-700">
+                                      {locale === 'zh' ? `可继续打磨：${item.quality.issues[0]}` : `Further improve: ${item.quality.issues[0]}`}
+                                    </div>
+                                  )}
+                                </button>
+                              )
+                            })}
                           </div>
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex flex-wrap gap-3">
                           <button
+                            type="button"
                             onClick={handleApplyOptimizeSuggestion}
-                            className="flex-1 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors font-medium flex items-center justify-center space-x-2"
+                            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 text-sm font-medium text-white transition-colors hover:bg-slate-800"
                           >
-                            <CheckCircle className="w-4 h-4" />
+                            <CheckCircle className="h-4 w-4" />
                             <span>{locale === 'zh' ? '应用当前版本' : 'Apply Selected'}</span>
                           </button>
                           <button
+                            type="button"
                             onClick={() => {
                               if (optimizeResult) {
                                 handleOptimizeSection(optimizeResult.section)
                               }
                             }}
                             disabled={isProcessing}
-                            className="px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium disabled:opacity-60"
+                            className="app-shell-action-button h-11 rounded-xl px-5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {locale === 'zh' ? '重新生成' : 'Regenerate'}
                           </button>
                           <button
+                            type="button"
                             onClick={() => {
                               setOptimizeResult(null)
                               setSelectedSection(null)
                             }}
-                            className="px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+                            className="app-shell-action-button h-11 rounded-xl px-5 text-sm"
                           >
                             {locale === 'zh' ? '返回选择' : 'Back'}
                           </button>
@@ -825,25 +1372,27 @@ export default function UnifiedAIPanel({
                       <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="text-center py-8"
+                        className="mx-auto max-w-xl py-8"
                       >
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: "spring", stiffness: 200 }}
-                          className="inline-flex items-center justify-center w-16 h-16 bg-emerald-500 rounded-full mb-4"
-                        >
-                          <CheckCircle className="w-8 h-8 text-white" />
-                        </motion.div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                          {locale === 'zh' ? '已应用到简历' : 'Applied to Resume'}
-                        </h3>
-                        <p className="text-gray-600 mb-4">
-                          {locale === 'zh' ? '正在关闭 AI 面板...' : 'Closing AI panel...'}
-                        </p>
-                        <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-                          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                          <span>{locale === 'zh' ? '完成' : 'Done'}</span>
+                        <div className="rounded-xl border border-emerald-200 bg-white p-6 text-center">
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: 'spring', stiffness: 200 }}
+                            className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-600"
+                          >
+                            <CheckCircle className="h-8 w-8" />
+                          </motion.div>
+                          <h3 className="text-2xl font-semibold text-slate-900">
+                            {locale === 'zh' ? '已应用到简历' : 'Applied to Resume'}
+                          </h3>
+                          <p className="mt-2 text-sm leading-6 text-slate-500">
+                            {locale === 'zh' ? '当前建议已写入编辑器，面板会自动收起。' : 'The selected suggestion has been applied and the panel will close automatically.'}
+                          </p>
+                          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
+                            <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-500"></div>
+                            <span>{locale === 'zh' ? '完成' : 'Done'}</span>
+                          </div>
                         </div>
                       </motion.div>
                     )}
@@ -863,41 +1412,107 @@ export default function UnifiedAIPanel({
                 className="p-6"
               >
                 <div className="max-w-3xl mx-auto space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(240px,0.85fr)]">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        {locale === 'zh' ? '职位匹配工作流' : 'JD Match Workflow'}
+                      </p>
+                      <h3 className="mt-2 text-lg font-semibold text-slate-900">
+                        {locale === 'zh' ? '粘贴 JD，查看关键词命中与建议' : 'Paste a JD to review fit and missing keywords'}
+                      </h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">
+                        {locale === 'zh'
+                          ? '职位匹配不依赖 AI 配置，可直接用来检查关键词覆盖和岗位缺口。'
+                          : 'JD match works without AI setup and helps you inspect coverage and role gaps immediately.'}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        {locale === 'zh' ? '建议输入' : 'Suggested Input'}
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-slate-900">
+                        {locale === 'zh'
+                          ? '尽量保留职责、要求、技术栈和加分项，分析会更准确。'
+                          : 'Include responsibilities, requirements, tech stack, and bonus items for better analysis.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <label className="mb-2 block text-sm font-semibold text-slate-900">
                       {locale === 'zh' ? '粘贴职位描述（JD）' : 'Paste Job Description'}
                     </label>
                     <textarea
                       value={jobDescription}
                       onChange={(e) => setJobDescription(e.target.value)}
                       placeholder={locale === 'zh' ? '粘贴目标职位描述后，获取真实匹配度与优化建议...' : 'Paste your target JD for real matching...'}
-                      className="w-full h-44 px-4 py-3 border border-gray-200 rounded-xl focus:border-slate-600 focus:ring-2 focus:ring-slate-100 transition-all resize-none text-sm bg-white"
+                      className="h-44 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 transition-colors focus:border-slate-900 focus:outline-none"
                     />
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      {locale === 'zh'
+                        ? '支持粘贴整段 JD 文本，系统会自动提取关键词、缺失项和优化建议。'
+                        : 'Paste the full JD text and the system will extract keywords, gaps, and suggestions automatically.'}
+                    </p>
                   </div>
 
                   {matchResult && (
                     <div className="space-y-4">
-                      <div className="bg-white rounded-xl p-6 border border-gray-200">
+                      <div className="rounded-xl border border-slate-200 bg-white p-5">
                         <div className="flex flex-wrap items-center justify-between gap-4">
                           <div>
-                            <h4 className="text-lg font-bold text-gray-900 mb-1">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                              {locale === 'zh' ? '匹配分析' : 'Match Analysis'}
+                            </p>
+                            <h4 className="mt-2 text-lg font-semibold text-slate-900">
                               {locale === 'zh' ? '匹配度分析结果' : 'Match Analysis'}
                             </h4>
-                            <p className="text-sm text-gray-500">
+                            <p className="mt-1 text-sm leading-6 text-slate-500">
                               {locale === 'zh'
                                 ? `命中关键词 ${matchResult.matchedKeywords.length} 个，缺失 ${matchResult.missingKeywords.length} 个`
                                 : `${matchResult.matchedKeywords.length} matched, ${matchResult.missingKeywords.length} missing keywords`}
                             </p>
                           </div>
-                          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-slate-900 text-white">
-                            <div className="text-3xl font-bold">{matchResult.score}</div>
+                          <div className="inline-flex h-24 w-24 items-center justify-center rounded-2xl border border-slate-900 bg-slate-900 text-white">
+                            <div className="text-center">
+                              <div className="text-3xl font-bold">{matchResult.score}</div>
+                              <div className="mt-1 text-[11px] uppercase tracking-[0.08em] text-slate-300">
+                                {locale === 'zh' ? '匹配度' : 'Score'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                              {locale === 'zh' ? '命中关键词' : 'Matched'}
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-slate-800">
+                              {matchResult.matchedKeywords.length}
+                            </p>
+                          </div>
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                              {locale === 'zh' ? '缺失关键词' : 'Missing'}
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-slate-800">
+                              {matchResult.missingKeywords.length}
+                            </p>
+                          </div>
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                              {locale === 'zh' ? '建议条数' : 'Suggestions'}
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-slate-800">
+                              {matchResult.suggestions.length}
+                            </p>
                           </div>
                         </div>
                       </div>
 
                       {matchResult.missingKeywords.length > 0 && (
-                        <div className="bg-white rounded-xl p-4 border border-gray-200">
-                          <div className="text-sm font-semibold text-gray-900 mb-2">
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="mb-2 text-sm font-semibold text-slate-900">
                             {locale === 'zh' ? '缺失关键词' : 'Missing Keywords'}
                           </div>
                           <div className="flex flex-wrap gap-2">
@@ -914,19 +1529,86 @@ export default function UnifiedAIPanel({
                       )}
 
                       {matchResult.suggestions.length > 0 && (
-                        <div className="bg-white rounded-xl p-4 border border-gray-200">
-                          <div className="text-sm font-semibold text-gray-900 mb-3">
-                            {locale === 'zh' ? 'AI 建议（可一键应用）' : 'Suggestions (one-click apply)'}
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-semibold text-slate-900">
+                                {locale === 'zh' ? 'AI 建议（可一键应用）' : 'Suggestions (one-click apply)'}
+                              </div>
+                              <p className="mt-1 text-xs leading-5 text-slate-500">
+                                {locale === 'zh'
+                                  ? '可按模块单独应用，也可以一次性全部写回。'
+                                  : 'Apply each suggestion by section or write all suggestions back at once.'}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleApplyAllJDSuggestions}
+                              className="inline-flex h-10 items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+                            >
+                              {locale === 'zh' ? '一键应用全部建议' : 'Apply All Suggestions'}
+                            </button>
                           </div>
-                          <div className="space-y-2 mb-3">
+                          {jdSuggestionGroups.length > 0 && (
+                            <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                                    {locale === 'zh' ? '按模块批量处理' : 'Apply by Section'}
+                                  </p>
+                                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                                    {locale === 'zh'
+                                      ? '先处理最关键的模块，再决定是否全部写回。'
+                                      : 'Apply the most important section first, then decide whether to apply everything.'}
+                                  </p>
+                                </div>
+                                {jdApplyHistory.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={handleUndoLastJDBatch}
+                                    className="app-shell-action-button h-9 rounded-xl px-3 text-xs"
+                                  >
+                                    <RotateCcw className="h-3.5 w-3.5" />
+                                    <span>{locale === 'zh' ? '撤销上一步' : 'Undo Last Apply'}</span>
+                                  </button>
+                                )}
+                              </div>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {jdSuggestionGroups.map((group) => (
+                                  <button
+                                    key={group.section}
+                                    type="button"
+                                    onClick={() => handleApplyJDSectionSuggestions(group.section)}
+                                    disabled={group.unappliedSuggestions.length === 0}
+                                    className="app-shell-action-button h-9 rounded-xl px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    <span>{getSectionLabel(group.section, locale)}</span>
+                                    <span className="rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-500">
+                                      {locale === 'zh'
+                                        ? `待应用 ${group.unappliedSuggestions.length}`
+                                        : `${group.unappliedSuggestions.length} left`}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                              {jdApplyHistory.length > 0 && (
+                                <p className="mt-3 text-xs leading-5 text-slate-500">
+                                  {locale === 'zh'
+                                    ? `最近一次应用：${jdApplyHistory[jdApplyHistory.length - 1].label}`
+                                    : `Last applied: ${jdApplyHistory[jdApplyHistory.length - 1].label}`}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          <div className="space-y-2.5">
                             {matchResult.suggestions.map((suggestion, index) => (
-                              <div key={`${suggestion.section}-${index}`} className="rounded-lg border border-slate-200 p-3">
+                              <div key={`${suggestion.section}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
                                 <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
                                   <div className="space-y-1">
-                                    <div className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                                    <div className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700">
                                       {getSectionLabel(suggestion.section, locale)}
                                     </div>
-                                    <div className="text-xs text-slate-500">
+                                    <div className="text-xs leading-5 text-slate-500">
                                       {suggestion.reason}
                                     </div>
                                   </div>
@@ -934,10 +1616,10 @@ export default function UnifiedAIPanel({
                                     type="button"
                                     onClick={() => handleApplySingleJDSuggestion(suggestion, index)}
                                     disabled={appliedJDSuggestionKeys.includes(getJDSuggestionKey(suggestion, index))}
-                                    className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                                    className={`inline-flex h-9 items-center rounded-xl px-3 text-xs font-medium transition-colors ${
                                       appliedJDSuggestionKeys.includes(getJDSuggestionKey(suggestion, index))
                                         ? 'cursor-not-allowed border border-emerald-200 bg-emerald-50 text-emerald-700'
-                                        : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                        : 'app-shell-action-button text-xs'
                                     }`}
                                   >
                                     {appliedJDSuggestionKeys.includes(getJDSuggestionKey(suggestion, index))
@@ -946,8 +1628,8 @@ export default function UnifiedAIPanel({
                                   </button>
                                 </div>
                                 {suggestion.originalText && (
-                                  <div className="mb-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                                    <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                                  <div className="mb-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                    <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
                                       {locale === 'zh' ? '当前内容' : 'Current Content'}
                                     </div>
                                     <div className="text-xs leading-6 text-slate-600">
@@ -957,7 +1639,7 @@ export default function UnifiedAIPanel({
                                 )}
                                 <div className="text-sm leading-7 text-slate-800">{suggestion.suggestedText}</div>
                                 {suggestion.keywords.length > 0 && (
-                                  <div className="mt-2 flex flex-wrap gap-2">
+                                  <div className="mt-3 flex flex-wrap gap-2">
                                     {suggestion.keywords.slice(0, 6).map((keyword) => (
                                       <span
                                         key={`${suggestion.section}-${keyword}`}
@@ -971,23 +1653,18 @@ export default function UnifiedAIPanel({
                               </div>
                             ))}
                           </div>
-                          <button
-                            onClick={handleApplyAllJDSuggestions}
-                            className="w-full px-5 py-3 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-colors"
-                          >
-                            {locale === 'zh' ? '一键应用全部建议' : 'Apply All Suggestions'}
-                          </button>
                         </div>
                       )}
                     </div>
                   )}
 
                   <button
+                    type="button"
                     onClick={handleAnalyzeJD}
                     disabled={!jobDescription.trim() || isProcessing}
-                    className="w-full px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors font-medium flex items-center justify-center space-x-2 disabled:opacity-50"
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
                   >
-                    {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
+                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
                     <span>{locale === 'zh' ? '开始分析匹配度' : 'Analyze Match'}</span>
                   </button>
                 </div>
@@ -1005,55 +1682,126 @@ export default function UnifiedAIPanel({
                 className="p-6"
               >
                 <div className="max-w-2xl mx-auto space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {locale === 'zh' ? '姓名' : 'Name'}
-                    </label>
-                    <input
-                      type="text"
-                      value={userInfo.name}
-                      onChange={(e) => setUserInfo({ ...userInfo, name: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-slate-600 focus:ring-2 focus:ring-slate-100 transition-all text-sm bg-white"
-                      placeholder={locale === 'zh' ? '例如：张三' : 'e.g. Alex'}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {locale === 'zh' ? '目标职位' : 'Target Position'}
-                    </label>
-                    <input
-                      type="text"
-                      value={userInfo.targetPosition}
-                      onChange={(e) => setUserInfo({ ...userInfo, targetPosition: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-slate-600 focus:ring-2 focus:ring-slate-100 transition-all text-sm bg-white"
-                      placeholder={locale === 'zh' ? '例如：高级前端工程师' : 'e.g. Senior Frontend Engineer'}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {locale === 'zh' ? '工作经验' : 'Experience'}
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { value: 'junior', label: locale === 'zh' ? '1-3年' : '1-3 yrs' },
-                        { value: 'mid', label: locale === 'zh' ? '3-5年' : '3-5 yrs' },
-                        { value: 'senior', label: locale === 'zh' ? '5年+' : '5+ yrs' }
-                      ].map((level) => (
-                        <button
-                          key={level.value}
-                          onClick={() => setUserInfo({ ...userInfo, experienceLevel: level.value as typeof userInfo.experienceLevel })}
-                          className={`px-4 py-3 rounded-xl transition-all font-medium text-sm ${
-                            userInfo.experienceLevel === level.value
-                              ? 'bg-slate-900 text-white'
-                              : 'bg-white border border-gray-200 text-gray-700 hover:border-slate-300'
-                          }`}
-                        >
-                          {level.label}
-                        </button>
-                      ))}
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1.12fr)_minmax(220px,0.88fr)]">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        {locale === 'zh' ? '从零生成工作流' : 'Start-Fresh Workflow'}
+                      </p>
+                      <h3 className="mt-2 text-lg font-semibold text-slate-900">
+                        {locale === 'zh' ? '输入基础信息，生成初始简历草稿' : 'Provide basic info to generate a first draft'}
+                      </h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">
+                        {locale === 'zh'
+                          ? '适合首次搭建简历骨架，生成后仍可回到编辑器继续逐项修改。'
+                          : 'Best for creating the first resume draft, then refining it section by section in the editor.'}
+                      </p>
                     </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        {locale === 'zh' ? '建议输入' : 'Recommended Input'}
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-slate-900">
+                        {locale === 'zh'
+                          ? '至少填写目标职位和经验段位，姓名可稍后回编辑器补全。'
+                          : 'At minimum, fill in the target role and experience level. You can complete the name later.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-900">
+                          {locale === 'zh' ? '姓名' : 'Name'}
+                        </label>
+                        <input
+                          type="text"
+                          value={userInfo.name}
+                          onChange={(e) => setUserInfo({ ...userInfo, name: e.target.value })}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 transition-colors focus:border-slate-900 focus:outline-none"
+                          placeholder={locale === 'zh' ? '例如：张三' : 'e.g. Alex'}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-900">
+                          {locale === 'zh' ? '目标职位' : 'Target Position'}
+                        </label>
+                        <input
+                          type="text"
+                          value={userInfo.targetPosition}
+                          onChange={(e) => setUserInfo({ ...userInfo, targetPosition: e.target.value })}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 transition-colors focus:border-slate-900 focus:outline-none"
+                          placeholder={locale === 'zh' ? '例如：高级前端工程师' : 'e.g. Senior Frontend Engineer'}
+                        />
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {generateRolePresets.map((role) => (
+                            <button
+                              key={role}
+                              type="button"
+                              onClick={() => setUserInfo((currentInfo) => ({ ...currentInfo, targetPosition: role }))}
+                              className="app-shell-action-button h-8 rounded-xl px-3 text-xs"
+                            >
+                              {role}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-900">
+                          {locale === 'zh' ? '工作经验' : 'Experience'}
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { value: 'junior', label: locale === 'zh' ? '1-3年' : '1-3 yrs' },
+                            { value: 'mid', label: locale === 'zh' ? '3-5年' : '3-5 yrs' },
+                            { value: 'senior', label: locale === 'zh' ? '5年+' : '5+ yrs' }
+                          ].map((level) => (
+                            <button
+                              key={level.value}
+                              type="button"
+                              onClick={() => setUserInfo({ ...userInfo, experienceLevel: level.value as typeof userInfo.experienceLevel })}
+                              className={`rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+                                userInfo.experienceLevel === level.value
+                                  ? 'bg-slate-900 text-white'
+                                  : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                              }`}
+                            >
+                              {level.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                          {locale === 'zh' ? '填写完整度' : 'Input Readiness'}
+                        </p>
+                        <p className="mt-2 text-sm font-medium text-slate-900">
+                          {locale === 'zh'
+                            ? `已完成 ${generateReadiness.completedFields}/${generateReadiness.totalFields} 项`
+                            : `${generateReadiness.completedFields}/${generateReadiness.totalFields} required inputs ready`}
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                        {locale === 'zh' ? '经验段位已计入' : 'Experience included'}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      {generateReadiness.missingLabels.length > 0
+                        ? (locale === 'zh'
+                          ? `建议补全：${generateReadiness.missingLabels.join('、')}，生成内容会更准确。`
+                          : `Recommended to complete: ${generateReadiness.missingLabels.join(', ')} for a stronger draft.`)
+                        : (locale === 'zh'
+                          ? '基础信息已经够用，可以直接生成第一版完整简历。'
+                          : 'Your core inputs are ready. You can generate the first full draft now.')}
+                    </p>
                   </div>
 
                   {!generateApplied ? (
@@ -1066,19 +1814,22 @@ export default function UnifiedAIPanel({
                         </div>
                       )}
                       <button
+                        type="button"
                         onClick={handleGenerateResume}
                         disabled={!userInfo.targetPosition.trim() || isProcessing}
-                        className="w-full px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors font-medium flex items-center justify-center space-x-2 disabled:opacity-50"
+                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
                       >
-                        {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
                         <span>{locale === 'zh' ? '开始生成完整简历' : 'Generate Resume'}</span>
-                        <ArrowRight className="w-4 h-4" />
+                        <ArrowRight className="h-4 w-4" />
                       </button>
                     </>
                   ) : (
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4" />
-                      {locale === 'zh' ? '已应用生成结果，正在返回编辑器。' : 'Generated content applied. Returning to editor.'}
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4" />
+                        <span>{locale === 'zh' ? '已应用生成结果，正在返回编辑器。' : 'Generated content applied. Returning to editor.'}</span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1088,29 +1839,28 @@ export default function UnifiedAIPanel({
         </div>
 
         {/* 底部信息 */}
-        <div className="flex-none px-6 py-3 border-t border-slate-100 bg-white">
-          <div className="flex items-center justify-between text-xs">
+        <div className="flex-none border-t border-slate-200 bg-slate-50 px-6 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center space-x-2 text-slate-500">
-              <div className={`w-1.5 h-1.5 rounded-full ${isProcessing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+              <div className={`h-1.5 w-1.5 rounded-full ${isProcessing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`}></div>
               <span>
                 {isProcessing
                   ? (locale === 'zh' ? 'AI 正在处理中...' : 'AI processing...')
-                  : aiConfigStatus.isConfigured
-                    ? (locale === 'zh' ? 'AI 服务就绪' : 'AI service ready')
-                    : aiConfigStatus.isEnabled
-                      ? (locale === 'zh' ? 'AI 待配置' : 'AI needs setup')
-                      : (locale === 'zh' ? 'AI 已停用' : 'AI disabled')}
+                  : aiStatusMeta.footerLabel}
               </span>
             </div>
-            <button className="text-blue-600 hover:text-blue-700 font-medium">
-              {locale === 'zh' ? '使用说明' : 'Guide'}
-            </button>
-            <button
-              onClick={onOpenAIConfig}
-              className="text-slate-600 hover:text-slate-800 font-medium"
-            >
-              {locale === 'zh' ? 'AI 配置' : 'AI Config'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button type="button" className="app-shell-action-button h-8 rounded-xl px-3 text-xs">
+                {locale === 'zh' ? '使用说明' : 'Guide'}
+              </button>
+              <button
+                type="button"
+                onClick={onOpenAIConfig}
+                className="app-shell-action-button h-8 rounded-xl px-3 text-xs"
+              >
+                {locale === 'zh' ? 'AI 配置' : 'AI Config'}
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>

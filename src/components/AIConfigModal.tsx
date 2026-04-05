@@ -9,9 +9,21 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { X, Settings, Key, Globe, AlertCircle, CheckCircle, ExternalLink, Sparkles } from 'lucide-react'
+import {
+  X,
+  Settings,
+  Key,
+  Globe,
+  AlertCircle,
+  CheckCircle,
+  ExternalLink,
+  Sparkles,
+  ShieldCheck,
+  Cpu
+} from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { Locale, Translations } from '@/types/i18n'
+import { useToastContext } from '@/components/Toast'
 
 /**
  * AI配置模态框组件
@@ -169,8 +181,93 @@ const isModelFree = (modelName: string): boolean => {
   return !modelName.startsWith('Pro/')
 }
 
+/**
+ * 压缩模型名称展示
+ * 优先显示模型路径的最后一段，避免状态摘要区域过长。
+ */
+const getCompactModelName = (modelName: string): string => {
+  if (!modelName) {
+    return ''
+  }
+
+  const segments = modelName.split('/')
+  return segments[segments.length - 1] || modelName
+}
+
+/**
+ * 获取提供商类型标签
+ * 用统一短标签描述当前服务商的接入方式和成本属性。
+ */
+const getProviderBadgeLabel = (
+  provider: ReturnType<typeof getAiProviders>[number],
+  locale: Locale
+): string => {
+  if (provider.id === 'free') {
+    return locale === 'zh' ? '免配置' : 'Ready to Use'
+  }
+
+  if (provider.id === 'custom') {
+    return locale === 'zh' ? '自定义端点' : 'Custom Endpoint'
+  }
+
+  if (provider.free) {
+    return locale === 'zh' ? '多模型' : 'Multi-Model'
+  }
+
+  return locale === 'zh' ? '官方 API' : 'Official API'
+}
+
+/**
+ * 获取当前配置状态摘要
+ * 用于弹窗顶部卡片和状态徽标，保持与 AI 面板同一套判断逻辑。
+ */
+const getConfigStatusMeta = (
+  config: AIConfig,
+  providerName: string,
+  locale: Locale
+) => {
+  const hasApiKey = config.provider === 'free' || Boolean(config.apiKey.trim())
+  const isConfigured = config.enabled && hasApiKey
+  const modelLabel = config.modelName ? getCompactModelName(config.modelName) : (locale === 'zh' ? '未选择模型' : 'No model selected')
+
+  if (!config.enabled) {
+    return {
+      title: locale === 'zh' ? 'AI 已停用' : 'AI Disabled',
+      description: locale === 'zh'
+        ? '当前不会调用 AI 服务，可随时重新启用。'
+        : 'AI requests are currently disabled. You can re-enable them anytime.',
+      toneClass: 'border-slate-200 bg-slate-100 text-slate-700',
+      providerSummary: locale === 'zh' ? '未启用' : 'Disabled',
+      modelSummary: modelLabel
+    }
+  }
+
+  if (isConfigured) {
+    return {
+      title: locale === 'zh' ? 'AI 已就绪' : 'AI Ready',
+      description: locale === 'zh'
+        ? `当前使用 ${providerName}，可以直接返回编辑器继续生成和优化。`
+        : `${providerName} is ready. You can continue generating and optimizing from the editor.`,
+      toneClass: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      providerSummary: providerName,
+      modelSummary: modelLabel
+    }
+  }
+
+  return {
+    title: locale === 'zh' ? 'AI 待补全' : 'AI Needs Setup',
+    description: locale === 'zh'
+      ? '已选择服务商，但还需要补充关键连接信息后才能调用。'
+      : 'A provider is selected, but required connection details are still missing.',
+    toneClass: 'border-amber-200 bg-amber-50 text-amber-700',
+    providerSummary: providerName,
+    modelSummary: modelLabel
+  }
+}
+
 export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModalProps) {
   const { t, locale } = useLanguage()
+  const { error: showError } = useToastContext()
   const [config, setConfig] = useState<AIConfig>(defaultConfig)
   const [isValidating, setIsValidating] = useState(false)
   const [validationResult, setValidationResult] = useState<{
@@ -181,6 +278,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
   // 从localStorage加载配置
   useEffect(() => {
     if (isOpen) {
+      setValidationResult(null)
       const savedConfig = localStorage.getItem('ai-config')
       if (savedConfig) {
         try {
@@ -202,6 +300,16 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
       setValidationResult({
         isValid: false,
         message: t.editor.aiConfig.pleaseEnterApiKey
+      })
+      return
+    }
+
+    if (config.provider === 'free') {
+      setValidationResult({
+        isValid: true,
+        message: locale === 'zh'
+          ? '免费模型由服务端托管，当前无需额外验证。'
+          : 'The free model is hosted by the service and needs no extra validation.'
       })
       return
     }
@@ -241,7 +349,10 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
    */
   const handleSave = async () => {
     if (!config.apiKey.trim() && config.provider !== 'free') {
-      alert(t.editor.aiConfig.pleaseEnterApiKey)
+      setValidationResult({
+        isValid: false,
+        message: t.editor.aiConfig.pleaseEnterApiKey
+      })
       return
     }
 
@@ -258,7 +369,6 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
         // 调用回调
         onSave(config)
         
-        alert(t.editor.aiConfig.saveSuccess)
         onClose()
         return
       }
@@ -269,7 +379,10 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
       const result = await aiService.validateConfig(config)
       
       if (!result.isValid) {
-        alert(`${t.editor.aiConfig.validationFailed}: ${result.message}`)
+        setValidationResult({
+          isValid: false,
+          message: `${t.editor.aiConfig.validationFailed}: ${result.message}`
+        })
         return
       }
 
@@ -282,7 +395,6 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
       // 调用回调
       onSave(config)
       
-      alert(t.editor.aiConfig.saveSuccess)
       onClose()
     } catch (error) {
       console.error('保存配置失败:', error)
@@ -300,7 +412,11 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
         }
       }
       
-      alert(errorMessage)
+      setValidationResult({
+        isValid: false,
+        message: errorMessage
+      })
+      showError(errorMessage)
     } finally {
       setIsValidating(false)
     }
@@ -346,105 +462,202 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
 
   const aiProviders = getAiProviders(t, locale)
   const selectedProvider = aiProviders.find(p => p.id === config.provider)
+  const selectedProviderName = selectedProvider?.name || (locale === 'zh' ? '未选择服务商' : 'No provider selected')
+  const statusMeta = getConfigStatusMeta(config, selectedProviderName, locale)
+  const isFreeProvider = config.provider === 'free'
+  const shouldDisableValidation = isValidating || (!isFreeProvider && !config.apiKey.trim())
 
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div
-        className="bg-white border border-gray-200 shadow-2xl rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-      >
-        {/* 头部 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-sm">
-              <Settings className="h-5 w-5 text-white" />
-            </div>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 p-3 sm:p-4">
+      <div className="max-h-[94vh] w-full max-w-5xl overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="flex items-start justify-between border-b border-slate-200 px-4 py-4 sm:px-6">
+          <div className="flex items-start gap-3">
+            <span className="app-shell-brand-mark h-11 w-11 shrink-0">
+              <Settings className="h-5 w-5" />
+            </span>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">{t.editor.aiConfig.title}</h2>
-              <p className="text-sm text-gray-500">{t.editor.aiConfig.subtitle}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-semibold text-slate-900">{t.editor.aiConfig.title}</h2>
+                <div className={`app-shell-status-chip ${statusMeta.toneClass}`}>
+                  {statusMeta.title}
+                </div>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">{t.editor.aiConfig.subtitle}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
+            className="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* 内容 */}
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
-          <div className="space-y-8">
-            {/* 启用开关 */}
-            <div className="flex items-center justify-between p-5 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-1">
-                  <Sparkles className="w-4 h-4 text-blue-500" />
-                  <h3 className="font-semibold text-gray-900 text-base">{t.editor.aiConfig.enableAI}</h3>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            void handleSave()
+          }}
+        >
+          <input
+            type="text"
+            name="provider-account"
+            autoComplete="username"
+            value={selectedProviderName}
+            readOnly
+            tabIndex={-1}
+            aria-hidden="true"
+            className="hidden"
+          />
+          <div className="no-scrollbar max-h-[calc(94vh-152px)] overflow-y-auto p-4 sm:p-6">
+            <div className="space-y-5">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+                      {locale === 'zh' ? '当前状态' : 'Current Status'}
+                    </p>
+                    <h3 className="mt-2 text-base font-semibold text-slate-900">{statusMeta.title}</h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">{statusMeta.description}</p>
+                  </div>
+                  <Sparkles className="h-4 w-4 text-slate-400" />
                 </div>
-                <p className="text-sm text-gray-500 ml-6">{t.editor.aiConfig.enableAIDesc}</p>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                      {locale === 'zh' ? '服务商' : 'Provider'}
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-slate-800">{statusMeta.providerSummary}</p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                      {locale === 'zh' ? '模型' : 'Model'}
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-slate-800">{statusMeta.modelSummary}</p>
+                  </div>
+                </div>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer ml-4">
-                <input
-                  type="checkbox"
-                  checked={config.enabled}
-                  onChange={(e) => updateConfig({ enabled: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-500 peer-checked:to-purple-600"></div>
-              </label>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="flex items-start gap-2">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 text-slate-700" />
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+                      {locale === 'zh' ? '安全与存储' : 'Security & Storage'}
+                    </p>
+                    <p className="mt-2 text-sm font-medium text-slate-900">
+                      {locale === 'zh' ? '密钥仅保存在当前浏览器' : 'Keys stay in this browser only'}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      {locale === 'zh'
+                        ? '免费模型由服务端托管；自定义与官方 API 会把密钥保存到本地浏览器存储，不会展示在简历内容中。'
+                        : 'Free models are service-hosted. Custom and official API keys are stored locally in the browser and never exposed in resume output.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {config.enabled && (
-              <div className="space-y-6">
-                {/* 提供商选择 */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-4 px-1">
-                    {t.editor.aiConfig.selectProvider}
-                  </label>
-                  <div className="grid grid-cols-1 gap-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+                    {locale === 'zh' ? '基础开关' : 'Basic Control'}
+                  </p>
+                  <h3 className="mt-2 text-base font-semibold text-slate-900">{t.editor.aiConfig.enableAI}</h3>
+                  <p className="mt-1 text-sm text-slate-500">{t.editor.aiConfig.enableAIDesc}</p>
+                </div>
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input
+                    type="checkbox"
+                    checked={config.enabled}
+                    onChange={(e) => updateConfig({ enabled: e.target.checked })}
+                    className="peer sr-only"
+                  />
+                  <div className="h-6 w-11 rounded-full bg-slate-200 transition-colors after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-transform after:content-[''] peer-checked:bg-slate-900 peer-checked:after:translate-x-full peer-checked:after:border-white" />
+                </label>
+              </div>
+            </div>
+
+              {config.enabled && (
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+                <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+                      {locale === 'zh' ? '服务商选择' : 'Provider Selection'}
+                    </p>
+                    <h3 className="mt-2 text-base font-semibold text-slate-900">{t.editor.aiConfig.selectProvider}</h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {locale === 'zh'
+                        ? '先确定调用来源，再补充密钥和模型。'
+                        : 'Pick the provider first, then complete key and model settings.'}
+                    </p>
+                  </div>
+                  <div className="grid gap-3 xl:grid-cols-2">
                     {aiProviders.map((provider) => (
                       <div
                         key={provider.id}
-                        className={`relative p-4 border rounded-xl cursor-pointer transition-all duration-300 ${
+                        className={`relative rounded-xl border p-4 transition-colors ${
                           config.provider === provider.id
-                            ? 'border-blue-500 bg-blue-50 shadow-md'
-                            : 'border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm'
+                            ? 'border-slate-900 bg-slate-50'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                         }`}
                         onClick={() => selectProvider(provider.id)}
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <h4 className="font-semibold text-gray-900 text-base">{provider.name}</h4>
-                              {provider.free && (
-                                <span className="px-2.5 py-0.5 bg-green-100/80 text-green-700 text-xs font-medium rounded-full border border-green-200/50">
-                                  {t.editor.aiConfig.freeModel}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="text-base font-semibold text-slate-900">{provider.name}</h4>
+                              <span className={`app-shell-status-chip ${
+                                provider.free
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                  : 'border-slate-200 bg-slate-100 text-slate-700'
+                              }`}>
+                                {getProviderBadgeLabel(provider, locale)}
+                              </span>
+                              {provider.free && provider.id !== 'free' && (
+                                <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                                  {locale === 'zh' ? `${provider.models.length} 个模型` : `${provider.models.length} models`}
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-500 mb-3 leading-relaxed">{provider.description}</p>
+                            <p className="mt-2 text-sm leading-6 text-slate-500">{provider.description}</p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-500">
+                                {provider.id === 'custom'
+                                  ? (locale === 'zh' ? '自定义端点' : 'Custom URL')
+                                  : provider.endpoint}
+                              </span>
+                              {provider.models.length > 0 && (
+                                <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-500">
+                                  <Cpu className="mr-1 inline h-3 w-3" />
+                                  {locale === 'zh' ? `${provider.models.length} 个模型` : `${provider.models.length} models`}
+                                </span>
+                              )}
+                            </div>
                             {provider.docUrl && (
                               <a
                                 href={provider.docUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors group"
+                                className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-slate-700 transition-colors hover:text-slate-900"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <span className="group-hover:underline decoration-blue-300 underline-offset-2">{t.editor.aiConfig.viewDocs}</span>
+                                <span>{t.editor.aiConfig.viewDocs}</span>
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </a>
                             )}
                           </div>
-                          <div className={`w-5 h-5 rounded-full border flex-shrink-0 ml-4 flex items-center justify-center transition-all ${
+                          <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
                             config.provider === provider.id
-                              ? 'border-blue-500 bg-blue-500 shadow-sm'
-                              : 'border-gray-300 bg-white'
+                              ? 'border-slate-900 bg-slate-900'
+                              : 'border-slate-300 bg-white'
                           }`}>
                             {config.provider === provider.id && (
-                              <div className="w-2 h-2 rounded-full bg-white"></div>
+                              <div className="h-2 w-2 rounded-full bg-white"></div>
                             )}
                           </div>
                         </div>
@@ -453,146 +666,172 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                   </div>
                 </div>
 
-                {/* API密钥输入 */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-3 px-1">
-                    <Key className="inline h-4 w-4 mr-2 text-gray-500" />
-                    {t.editor.aiConfig.apiKey}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="password"
-                      value={config.apiKey}
-                      onChange={(e) => updateConfig({ apiKey: e.target.value })}
-                      placeholder={config.provider === 'free' ? t.editor.aiConfig.apiKeyAutoConfigured : t.editor.aiConfig.apiKeyPlaceholder}
-                      disabled={config.provider === 'free'}
-                      className={`w-full px-4 py-3 border rounded-xl text-sm transition-all duration-200 ${
-                        config.provider === 'free' 
-                          ? 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed' 
-                          : 'bg-white border-gray-200 text-gray-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        {locale === 'zh' ? '连接信息' : 'Connection'}
+                      </p>
+                      <h3 className="mt-2 text-base font-semibold text-slate-900">
+                        {locale === 'zh' ? '密钥与端点' : 'Key & Endpoint'}
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {locale === 'zh'
+                          ? '这里只配置调用信息，不影响你的简历内容本身。'
+                          : 'These settings only affect AI calls, not your resume content.'}
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-900">
+                          <Key className="mr-2 inline h-4 w-4 text-slate-500" />
+                          {t.editor.aiConfig.apiKey}
+                        </label>
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          value={config.apiKey}
+                          onChange={(e) => updateConfig({ apiKey: e.target.value })}
+                          placeholder={isFreeProvider ? t.editor.aiConfig.apiKeyAutoConfigured : t.editor.aiConfig.apiKeyPlaceholder}
+                          disabled={isFreeProvider}
+                          className={`w-full rounded-xl border px-4 py-3 text-sm transition-colors ${
+                            isFreeProvider
+                              ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
+                              : 'border-slate-200 bg-white text-slate-900 focus:border-slate-900 focus:outline-none'
+                          }`}
+                        />
+                        <p className="mt-2 text-xs leading-5 text-slate-500">
+                          {isFreeProvider
+                            ? t.editor.aiConfig.freeModelConfigured
+                            : t.editor.aiConfig.apiKeyLocalStorage}
+                        </p>
+                      </div>
+
+                      {config.provider === 'custom' && (
+                        <div>
+                          <label className="mb-2 block text-sm font-semibold text-slate-900">
+                            <Globe className="mr-2 inline h-4 w-4 text-slate-500" />
+                            {t.editor.aiConfig.apiEndpoint}
+                          </label>
+                          <input
+                            type="url"
+                            value={config.customEndpoint || ''}
+                            onChange={(e) => updateConfig({ customEndpoint: e.target.value })}
+                            placeholder="https://api.example.com/v1"
+                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 transition-colors focus:border-slate-900 focus:outline-none"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {selectedProvider && selectedProvider.models.length > 0 && (
+                    <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+                      <div className="mb-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+                          {locale === 'zh' ? '模型选择' : 'Model Selection'}
+                        </p>
+                        <h3 className="mt-2 text-base font-semibold text-slate-900">{t.editor.aiConfig.modelSelect}</h3>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {locale === 'zh'
+                            ? '优先选择你当前岗位最常用、最稳定的模型版本。'
+                            : 'Choose the most stable model that fits your current resume workflow.'}
+                        </p>
+                      </div>
+                      <div className="relative">
+                        <select
+                          value={config.modelName}
+                          onChange={(e) => updateConfig({ modelName: e.target.value })}
+                          className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-sm text-slate-900 transition-colors focus:border-slate-900 focus:outline-none"
+                        >
+                          {selectedProvider.models.map((model) => (
+                            <option key={model} value={model}>
+                              {model} {isModelFree(model) ? `(${t.editor.aiConfig.freeModel})` : `(${t.editor.aiConfig.paidModel})`}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-xs leading-5 text-slate-500">
+                        <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-slate-900" />
+                        {t.editor.aiConfig.freeModelNote}
+                      </p>
+                    </div>
+                  )}
+
+                  {validationResult && (
+                    <div
+                      className={`rounded-xl border px-4 py-3 ${
+                        validationResult.isValid
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : 'border-rose-200 bg-rose-50 text-rose-700'
                       }`}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2 leading-relaxed px-1">
-                    {config.provider === 'free' 
-                      ? t.editor.aiConfig.freeModelConfigured
-                      : t.editor.aiConfig.apiKeyLocalStorage
-                    }
-                  </p>
-                </div>
-
-                {/* 自定义端点 */}
-                {config.provider === 'custom' && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-3 px-1">
-                      <Globe className="inline h-4 w-4 mr-2 text-gray-500" />
-                      {t.editor.aiConfig.apiEndpoint}
-                    </label>
-                    <input
-                      type="url"
-                      value={config.customEndpoint || ''}
-                      onChange={(e) => updateConfig({ customEndpoint: e.target.value })}
-                      placeholder="https://api.example.com/v1"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm transition-all duration-200"
-                    />
-                  </div>
-                )}
-
-                {/* 模型选择 */}
-                {selectedProvider && selectedProvider.models.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-3 px-1">
-                      {t.editor.aiConfig.modelSelect}
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={config.modelName}
-                        onChange={(e) => updateConfig({ modelName: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm appearance-none transition-all duration-200"
-                      >
-                        {selectedProvider.models.map((model) => (
-                          <option key={model} value={model}>
-                            {model} {isModelFree(model) ? `(${t.editor.aiConfig.freeModel})` : `(${t.editor.aiConfig.paidModel})`}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                        </svg>
+                    >
+                      <div className="flex items-start gap-3">
+                        {validationResult.isValid ? (
+                          <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                        ) : (
+                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                        )}
+                        <p className="text-sm leading-6">{validationResult.message}</p>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2 px-1 flex items-center">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
-                      {t.editor.aiConfig.freeModelNote}
-                    </p>
-                  </div>
-                )}
-
-                {/* 验证结果 */}
-                {validationResult && (
-                  <div
-                    className={`flex items-center space-x-3 p-4 rounded-xl border ${
-                      validationResult.isValid
-                        ? 'bg-green-50 text-green-700 border-green-200 shadow-sm'
-                        : 'bg-red-50 text-red-700 border-red-200 shadow-sm'
-                    }`}
-                  >
-                    {validationResult.isValid ? (
-                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
-                    ) : (
-                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                    )}
-                    <span className="text-sm font-medium">{validationResult.message}</span>
-                  </div>
-                )}
-
-                {/* 验证按钮 */}
-                <button
-                  onClick={validateConfig}
-                  disabled={isValidating || !config.apiKey.trim()}
-                  className="w-full flex items-center justify-center space-x-2 py-3 px-4 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-all duration-200 text-sm font-medium text-gray-700 hover:text-gray-900 shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-                >
-                  {isValidating ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-                      <span>{t.editor.aiConfig.validating}</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="h-4 w-4 text-blue-500" />
-                      <span>{t.editor.aiConfig.validateConfig}</span>
-                    </>
                   )}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* 底部按钮 */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
-          <button
-            onClick={handleReset}
-            className="px-4 py-2 text-gray-500 hover:text-gray-700 transition-colors text-sm font-medium hover:bg-white rounded-lg"
-          >
-            {t.editor.aiConfig.resetConfig}
-          </button>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={onClose}
-              className="px-5 py-2.5 text-gray-600 hover:text-gray-800 transition-colors bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 shadow-sm"
-            >
-              {t.common.cancel}
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-md text-sm font-medium"
-            >
-              {t.editor.aiConfig.saveConfig}
-            </button>
+                  <button
+                    type="button"
+                    onClick={validateConfig}
+                    disabled={shouldDisableValidation}
+                    className="app-shell-action-button h-11 w-full justify-center rounded-xl text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isValidating ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
+                        <span>{t.editor.aiConfig.validating}</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        <span>{t.editor.aiConfig.validateConfig}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+
+          <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-4 sm:px-6">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="app-shell-action-button h-10 rounded-xl px-4 text-sm"
+            >
+              {t.editor.aiConfig.resetConfig}
+            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="app-shell-action-button h-10 rounded-xl px-5 text-sm"
+              >
+                {t.common.cancel}
+              </button>
+              <button
+                type="submit"
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-slate-900 px-6 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+              >
+                {t.editor.aiConfig.saveConfig}
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   )

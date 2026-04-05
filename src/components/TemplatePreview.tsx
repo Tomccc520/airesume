@@ -113,6 +113,8 @@ const TemplatePreview = ({
 
     // 招聘市场主流模板（优先精确匹配）
     if (id === 'banner-layout' || id === 'banner-layout-compact') return 'marketBanner'
+    if (id === 'minimal-text') return 'classic'
+    if (id === 'compact-layout') return 'marketBanner'
     if (id === 'card-layout' || id === 'card-layout-executive') return 'marketCard'
     if (id === 'timeline-layout' || id === 'timeline-layout-classic') return 'marketTimeline'
     

@@ -20,16 +20,24 @@ import { Download, FileText, Loader2, CheckCircle, AlertCircle, Image, Camera, L
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { exportResumeFile } from '@/services/resumeExportService'
+import { cn } from '@/lib/utils'
 
 interface ExportButtonProps {
   className?: string
+  buttonClassName?: string
+  panelClassName?: string
   onExport?: (format: 'pdf' | 'png' | 'jpg') => Promise<void>
 }
 
 /**
  * 导出按钮组件
  */
-export default function ExportButton({ className = '', onExport }: ExportButtonProps) {
+export default function ExportButton({
+  className = '',
+  buttonClassName = '',
+  panelClassName = '',
+  onExport
+}: ExportButtonProps) {
   /**
    * 导出调试日志
    * 仅在开发环境输出，避免生产环境产生噪音日志
@@ -169,7 +177,7 @@ export default function ExportButton({ className = '', onExport }: ExportButtonP
       <Button
         onClick={() => setIsOpen(!isOpen)}
         size="sm"
-        className="gap-1.5"
+        className={`gap-1.5 ${buttonClassName}`}
       >
         <Download className="w-4 h-4" />
         <span className="text-sm">{t.editor.toolbar.exportResume}</span>
@@ -182,7 +190,10 @@ export default function ExportButton({ className = '', onExport }: ExportButtonP
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="absolute top-full mt-2 right-0 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 z-[100]"
+            className={cn(
+              'absolute top-full right-0 z-[100] mt-2 w-64 rounded-xl border border-gray-200 bg-white shadow-2xl',
+              panelClassName
+            )}
           >
             <div className="p-4">
               <h3 className="text-sm font-medium text-gray-900 mb-3">{t.editor.toolbar.selectFormat}</h3>

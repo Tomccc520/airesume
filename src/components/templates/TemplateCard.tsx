@@ -183,6 +183,54 @@ export default function TemplateCard({
   }
 
   /**
+   * 获取模板定位文案
+   * 用更接近招聘工具的短句说明该模板最适合的投递场景。
+   */
+  const getPositioningLabel = () => {
+    const labelMap: Record<string, string> = locale === 'en'
+      ? {
+          'banner-layout': 'Best for ATS-first online applications',
+          'minimal-text': 'Best for classic one-page delivery with lower visual risk',
+          'compact-layout': 'Best for content-heavy resumes that still need single-column ATS readability',
+          'card-layout-executive': 'Best for social hiring and side info emphasis',
+          'timeline-layout-classic': 'Best for experienced candidates with long histories'
+        }
+      : {
+          'banner-layout': '适合在线投递和 ATS 优先场景',
+          'minimal-text': '适合稳妥的一页式经典投递简历',
+          'compact-layout': '适合内容较多、仍需保持单栏 ATS 可读性的简历',
+          'card-layout-executive': '适合社招与突出侧栏信息的简历',
+          'timeline-layout-classic': '适合经历较多、强调履历顺序的简历'
+        }
+
+    return labelMap[template.id] || getTemplateDescription()
+  }
+
+  /**
+   * 获取模板主标签
+   * 仅保留一个主标签，避免卡片顶部出现过多噪音信息。
+   */
+  const getPrimaryBadge = () => {
+    const badgeMap: Record<string, string> = locale === 'en'
+      ? {
+          'banner-layout': 'ATS First',
+          'minimal-text': 'Classic',
+          'compact-layout': 'Compact',
+          'card-layout-executive': 'Business',
+          'timeline-layout-classic': 'Timeline'
+        }
+      : {
+          'banner-layout': 'ATS优先',
+          'minimal-text': '经典投递',
+          'compact-layout': '高效紧凑',
+          'card-layout-executive': '商务投递',
+          'timeline-layout-classic': '时间线履历'
+        }
+
+    return badgeMap[template.id] || getStructureLabel()
+  }
+
+  /**
    * 获取模板风格短标签
    * 用于缩略图角标，帮助用户一眼识别模板方向。
    */
@@ -191,18 +239,22 @@ export default function TemplateCard({
       ? {
           'banner-layout': 'Single Column',
           'banner-layout-compact': 'Single Compact',
+          'minimal-text': 'Classic Single',
+          'compact-layout': 'Compact Single',
           'card-layout': 'Dual Column',
-          'card-layout-executive': 'Dual Pro',
+          'card-layout-executive': 'Business Dual',
           'timeline-layout': 'Timeline Compact',
-          'timeline-layout-classic': 'Timeline Pro'
+          'timeline-layout-classic': 'Senior Timeline'
         }
       : {
           'banner-layout': '单栏标准',
           'banner-layout-compact': '单栏紧凑',
+          'minimal-text': '经典单栏',
+          'compact-layout': '紧凑单栏',
           'card-layout': '双栏标准',
-          'card-layout-executive': '双栏专业',
+          'card-layout-executive': '商务双栏',
           'timeline-layout': '时间线紧凑',
-          'timeline-layout-classic': '时间线专业'
+          'timeline-layout-classic': '时间线资深'
         }
     return toneMap[template.id] || (locale === 'en' ? 'General' : '通用')
   }
@@ -213,43 +265,55 @@ export default function TemplateCard({
       tabIndex={0}
       onKeyDown={handleCardKeyDown}
       onClick={onClick}
-      className="relative overflow-hidden rounded-lg border bg-white"
+      className={`relative overflow-hidden rounded-xl border bg-white transition-colors ${
+        isSelected ? 'ring-1 ring-slate-300' : ''
+      }`}
       style={{
         borderColor: isSelected ? '#1f2937' : '#d5dde7'
       }}
       aria-label={`${locale === 'en' ? 'Choose template' : '选择模板'}: ${getTemplateName()}`}
     >
       <div
-        className="relative flex h-44 items-center justify-center overflow-hidden border-b bg-slate-50 px-3 py-3"
+        className="relative flex h-48 items-center justify-center overflow-hidden border-b bg-slate-50 px-4 py-4"
         style={{ borderColor: '#e5e7eb' }}
       >
-        <div className="relative h-full aspect-[3/4] overflow-hidden rounded-md border border-slate-200 bg-white">
+        <div className="relative h-full w-full max-w-[228px] overflow-hidden rounded-md border border-slate-200 bg-white">
           <TemplatePreview template={template} />
         </div>
-        <div className="absolute left-3 top-3 rounded-sm border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
-          {getTemplateToneLabel()}
+        <div className="absolute left-3 top-3 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600">
+          {getPrimaryBadge()}
         </div>
         {isSelected && (
-          <div className="absolute right-2 top-2 rounded-full bg-slate-700 p-1 text-white">
+          <div className="absolute right-3 top-3 rounded-full bg-slate-700 p-1 text-white">
             <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
           </div>
         )}
       </div>
 
-      <div className="p-3">
+      <div className="p-4">
         <div>
-          <h3 className="text-sm font-semibold leading-5 text-slate-900">{getTemplateName()}</h3>
-          <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-xs leading-5 text-slate-500">{getTemplateDescription()}</p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold leading-5 text-slate-900">{getTemplateName()}</h3>
+              <p className="mt-1 text-[11px] font-medium text-slate-500">{getTemplateToneLabel()}</p>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-700">
+              {getRecommendationSummary()}
+            </div>
+          </div>
+          <p className="mt-2 line-clamp-2 min-h-[2.75rem] text-xs leading-5 text-slate-500">
+            {getPositioningLabel()}
+          </p>
         </div>
 
-        <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
-          <div className="rounded border border-slate-200 bg-slate-50 px-2 py-1">
+        <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
             <p className="text-[10px] uppercase tracking-[0.08em] text-slate-400">
               {locale === 'en' ? 'Structure' : '结构'}
             </p>
             <p className="mt-0.5 font-medium text-slate-700">{getStructureLabel()}</p>
           </div>
-          <div className="rounded border border-slate-200 bg-slate-50 px-2 py-1">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
             <p className="text-[10px] uppercase tracking-[0.08em] text-slate-400">
               {locale === 'en' ? 'ATS' : 'ATS'}
             </p>
@@ -257,9 +321,9 @@ export default function TemplateCard({
           </div>
         </div>
 
-        <div className="mt-2 rounded border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600">
-          <span className="font-medium text-slate-500">{locale === 'en' ? 'Recommend' : '推荐场景'}: </span>
-          {getRecommendationSummary()}
+        <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] leading-5 text-slate-600">
+          <span className="font-medium text-slate-500">{locale === 'en' ? 'Fit' : '适合人群'}: </span>
+          {getTemplateDescription()}
         </div>
 
         <div className="mt-3 flex items-center justify-between">

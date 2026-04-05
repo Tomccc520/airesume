@@ -38,24 +38,46 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
   const { colors, fontSize, spacing, fontFamily } = styleConfig
   const { locale, t } = useLanguage()
   const isClassicTimeline = templateId === 'timeline-layout-classic'
+  const hasCustomFontFamily = Boolean(fontFamily && fontFamily !== 'Inter, sans-serif')
+  const hasCustomPrimaryColor = colors.primary !== '#374151'
+  const hasCustomSecondaryColor = colors.secondary !== '#6b7280'
+  const hasCustomTextColor = colors.text !== '#111827'
+  const hasCustomContentSize = Boolean(fontSize?.content && fontSize.content !== 15)
+  const hasCustomSectionSpacing = Boolean(spacing?.section && spacing.section !== 40)
+  const hasCustomLayoutPadding = Boolean(styleConfig.layout?.padding && styleConfig.layout.padding !== 25)
 
-  const fontFamilyStyle = fontFamily || '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif'
-  const pagePadding = Math.max(styleConfig.layout?.padding || (isClassicTimeline ? 36 : 34), isClassicTimeline ? 32 : 30)
-  const baseContentSize = fontSize?.content || 14
-  const metrics = getMarketResumeMetrics({ baseContentSize, sectionSpacing: spacing?.section })
+  const fontFamilyStyle = hasCustomFontFamily
+    ? fontFamily
+    : '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif'
+  const pagePadding = hasCustomLayoutPadding
+    ? Math.max(styleConfig.layout?.padding || (isClassicTimeline ? 36 : 34), isClassicTimeline ? 32 : 30)
+    : (isClassicTimeline ? 36 : 34)
+  const baseContentSize = hasCustomContentSize ? fontSize.content : 14
+  const metrics = getMarketResumeMetrics({
+    baseContentSize,
+    sectionSpacing: hasCustomSectionSpacing ? spacing?.section : undefined
+  })
   const sectionGap = isClassicTimeline ? Math.max(metrics.sectionGap - 1, 17) : metrics.sectionGap
   const timelineDateWidth = isClassicTimeline ? Math.max(metrics.dateColumnWidth + 12, 134) : Math.max(metrics.dateColumnWidth + 6, 124)
   const bodyLineHeight = isClassicTimeline ? 1.52 : metrics.bodyLineHeight
-  const headingColor = colors.primary || '#0f172a'
-  const textColor = colors.text || '#111827'
-  const mutedColor = colors.secondary || '#64748b'
+  const headingColor = hasCustomPrimaryColor ? colors.primary : '#0f172a'
+  const textColor = hasCustomTextColor ? colors.text : '#111827'
+  const mutedColor = hasCustomSecondaryColor ? colors.secondary : '#64748b'
   const borderColor = '#d3dbe6'
   const rowDividerColor = '#e4ebf3'
   const timelineColor = isClassicTimeline ? '#bcc9da' : '#cbd5e1'
   const timelineDotColor = isClassicTimeline ? '#334155' : '#475569'
   const isEnglish = locale === 'en'
   const contactQRCodePayload = resolveContactQRCodePayload(personalInfo)
-  const contactQRCodeUrl = contactQRCodePayload ? createContactQRCodeImageUrl(contactQRCodePayload, 176) : null
+  const showContactQRCode = Boolean(personalInfo.contactQRCode?.trim())
+  const contactQRCodeUrl = showContactQRCode && contactQRCodePayload
+    ? createContactQRCodeImageUrl(contactQRCodePayload, 176)
+    : null
+  const headerAvatarSize = isClassicTimeline ? 70 : 64
+  const headerQRCodeSize = isClassicTimeline ? 54 : 48
+  const headerNameSize = isClassicTimeline ? metrics.nameSize : metrics.nameSize - 1
+  const headerRoleSize = Math.max(metrics.roleSize - 1, baseContentSize + 1)
+  const headerMetaSize = Math.max(metrics.metaSize, 11)
 
   /**
    * 格式化日期文本
@@ -103,14 +125,58 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
   )
 
   /**
-   * 生成联系方式摘要
-   * 使用“·”连接信息，保持页眉紧凑。
+   * 获取联系方式分组行
+   * 时间线模板将联系方式拆成两行，避免与日期列竞争横向空间。
    */
-  const getContactSummary = () => {
+  const getContactRows = () => {
     const websiteLabel = personalInfo.website
       ? personalInfo.website.replace(/^https?:\/\//i, '').replace(/\/$/, '')
       : ''
-    return [personalInfo.phone, personalInfo.email, personalInfo.location, websiteLabel]
+    const contactItems = [personalInfo.phone, personalInfo.email, personalInfo.location, websiteLabel]
+      .filter(Boolean)
+
+    const rows: string[] = []
+    for (let index = 0; index < contactItems.length; index += 2) {
+      rows.push(contactItems.slice(index, index + 2).join(' · '))
+    }
+
+    return rows
+  }
+
+  /**
+   * 获取项目补充信息行
+   * 将技术栈与链接摘要合并，减少时间线正文中的跳读成本。
+   */
+  const getProjectMetaLine = (project: ResumeData['projects'][number]) => {
+    const projectLinkLabel = project.url
+      ? project.url.replace(/^https?:\/\//i, '').replace(/\/$/, '')
+      : ''
+
+    return [
+      project.technologies.length > 0 ? project.technologies.join(' / ') : '',
+      projectLinkLabel
+    ]
+      .filter(Boolean)
+      .join(' · ')
+  }
+
+  /**
+   * 获取教育主信息
+   * 将学历和专业整合为主行，强化时间线右侧正文的层级。
+   */
+  const getEducationPrimaryLine = (educationItem: ResumeData['education'][number]) => {
+    return [educationItem.degree, educationItem.major].filter(Boolean).join(' · ')
+  }
+
+  /**
+   * 获取教育补充信息
+   * 将 GPA 与补充描述收敛到辅助行，减少时间线条目的拥挤感。
+   */
+  const getEducationSupportingLine = (educationItem: ResumeData['education'][number]) => {
+    return [
+      educationItem.gpa ? `GPA ${educationItem.gpa}` : '',
+      educationItem.description || ''
+    ]
       .filter(Boolean)
       .join(' · ')
   }
@@ -131,7 +197,7 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
     }, {})
   }
 
-  const contactSummary = getContactSummary()
+  const contactRows = getContactRows()
   const skillGroupEntries = Object.entries(groupSkillsByCategory())
 
   return (
@@ -159,7 +225,7 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
             <h1
               className="font-semibold tracking-[0.02em]"
               style={{
-                fontSize: `${metrics.nameSize}px`,
+                fontSize: `${headerNameSize}px`,
                 color: headingColor,
                 fontWeight: metrics.nameWeight
               }}
@@ -169,59 +235,77 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
             <p
               className="mt-1 font-medium"
               style={{
-                fontSize: `${metrics.roleSize}px`,
+                fontSize: `${headerRoleSize}px`,
                 color: mutedColor,
                 fontWeight: metrics.roleWeight
               }}
             >
               {personalInfo.title}
             </p>
-            {!!contactSummary && (
-              <p
+            {contactRows.length > 0 && (
+              <div
                 style={{
-                  marginTop: `${metrics.bulletGap + 1}px`,
-                  color: mutedColor,
-                  fontSize: `${metrics.metaSize}px`,
-                  fontWeight: metrics.metaWeight,
-                  lineHeight: 1.45
+                  marginTop: `${metrics.bulletGap + 2}px`,
+                  display: 'grid',
+                  rowGap: '4px'
                 }}
               >
-                {contactSummary}
-              </p>
+                {contactRows.map((row) => (
+                  <p
+                    key={row}
+                    style={{
+                      color: mutedColor,
+                      fontSize: `${headerMetaSize}px`,
+                      fontWeight: metrics.metaWeight,
+                      lineHeight: 1.45
+                    }}
+                  >
+                    {row}
+                  </p>
+                ))}
+              </div>
             )}
           </div>
           {(personalInfo.avatar || contactQRCodeUrl) && (
-            <div className="flex flex-col items-end gap-2">
+            <div className="flex items-start gap-2">
               {personalInfo.avatar && (
                 <Image
                   src={personalInfo.avatar}
                   alt={personalInfo.name}
-                  width={metrics.headerAvatarSize}
-                  height={metrics.headerAvatarSize}
+                  width={headerAvatarSize}
+                  height={headerAvatarSize}
                   unoptimized
-                  className={getAvatarClassName(styleConfig, 'h-[72px] w-[72px]')}
+                  className={getAvatarClassName(styleConfig, 'h-auto w-auto shrink-0')}
                   style={{
                     ...getAvatarInlineStyle(
                       personalInfo.avatarBorderRadius,
                       styleConfig,
-                      metrics.headerAvatarSize
+                      headerAvatarSize,
+                      {
+                        width: `${headerAvatarSize}px`,
+                        height: `${headerAvatarSize}px`
+                      }
                     ),
                     border: `1px solid ${borderColor}`
                   }}
                 />
               )}
               {contactQRCodeUrl && (
-                <div className="rounded border bg-white p-1.5 text-center" style={{ borderColor: rowDividerColor }}>
+                <div className="rounded-md border bg-white p-1.5 text-center" style={{ borderColor: rowDividerColor }}>
                   <Image
                     src={contactQRCodeUrl}
                     alt={isEnglish ? 'Contact QR Code' : '联系方式二维码'}
-                    width={68}
-                    height={68}
+                    width={headerQRCodeSize}
+                    height={headerQRCodeSize}
                     unoptimized
-                    className="h-[68px] w-[68px]"
+                    className="h-auto w-auto"
+                    style={{
+                      width: `${headerQRCodeSize}px`,
+                      height: `${headerQRCodeSize}px`
+                    }}
                   />
-                  <p className="mt-1 text-[10px]" style={{ color: mutedColor }}>
-                    {isEnglish ? 'Contact QR' : '联系二维码'}
+                  <p className="mt-1 text-[9px]" style={{ color: mutedColor, lineHeight: 1.3 }}>
+                    {isEnglish ? 'Scan to contact' : '扫码联系'}
                   </p>
                 </div>
               )}
@@ -360,6 +444,19 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
                   >
                     {project.name}
                   </h3>
+                  {getProjectMetaLine(project) && (
+                    <p
+                      className="mt-1 text-xs"
+                      style={{
+                        color: mutedColor,
+                        fontSize: `${metrics.metaSize}px`,
+                        fontWeight: metrics.metaWeight,
+                        lineHeight: 1.45
+                      }}
+                    >
+                      {getProjectMetaLine(project)}
+                    </p>
+                  )}
                   <p className="mt-1.5">{project.description}</p>
                   {project.highlights.length > 0 && (
                     <ul
@@ -420,13 +517,32 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
                       border: `1.5px solid ${timelineDotColor}`
                     }}
                   />
-                  <h3 className="font-semibold" style={{ color: headingColor, fontWeight: metrics.itemTitleWeight }}>
+                  <h3
+                    className="font-semibold"
+                    style={{
+                      color: headingColor,
+                      fontSize: `${metrics.itemTitleSize}px`,
+                      fontWeight: metrics.itemTitleWeight
+                    }}
+                  >
                     {edu.school}
                   </h3>
-                  <p className="mt-1 text-sm" style={{ color: mutedColor }}>
-                    {edu.degree} · {edu.major}
-                    {edu.gpa && <span> · GPA {edu.gpa}</span>}
+                  <p className="mt-1 text-sm font-medium" style={{ color: headingColor }}>
+                    {getEducationPrimaryLine(edu)}
                   </p>
+                  {getEducationSupportingLine(edu) && (
+                    <p
+                      className="mt-1 text-xs"
+                      style={{
+                        color: mutedColor,
+                        fontSize: `${metrics.metaSize}px`,
+                        fontWeight: metrics.metaWeight,
+                        lineHeight: 1.45
+                      }}
+                    >
+                      {getEducationSupportingLine(edu)}
+                    </p>
+                  )}
                 </div>
               </article>
             ))}
@@ -440,16 +556,23 @@ export const TimelineLayout: React.FC<TemplateProps> = ({
             t.editor.skills.title,
             locale === 'en' ? `${skills.length} skills` : `${skills.length} 项技能`
           )}
-          <div style={{ display: 'grid', rowGap: `${metrics.bulletGap + 2}px` }}>
+          <div style={{ display: 'grid', rowGap: `${metrics.bulletGap + 3}px` }}>
             {skillGroupEntries.map(([category, items]) => (
-              <article key={category}>
+              <article
+                key={category}
+                className="grid items-start gap-3 border-b pb-2 last:border-b-0 last:pb-0"
+                style={{
+                  gridTemplateColumns: `${isClassicTimeline ? 82 : 76}px 1fr`,
+                  borderColor: rowDividerColor
+                }}
+              >
                 <h3
                   className="text-xs font-semibold uppercase tracking-[0.08em]"
-                  style={{ color: mutedColor, fontSize: `${metrics.metaSize}px` }}
+                  style={{ color: mutedColor, fontSize: `${metrics.metaSize}px`, lineHeight: 1.55 }}
                 >
                   {category}
                 </h3>
-                <p className="mt-1" style={{ color: textColor, lineHeight: bodyLineHeight }}>
+                <p className="text-sm" style={{ color: textColor, lineHeight: bodyLineHeight }}>
                   {items.map((skill, index) => (
                     <span key={skill.id}>
                       {skill.name}

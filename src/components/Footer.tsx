@@ -9,6 +9,7 @@
 
 import Link from 'next/link'
 import { useMemo } from 'react'
+import { ArrowRight, FileText } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
 
 interface FooterProps {
@@ -32,7 +33,7 @@ interface FooterLinkGroup {
  * 保留原有文案与链接内容，统一成更轻量的招聘工具风格排版。
  */
 export default function Footer({ className = '' }: FooterProps) {
-  const { t } = useLanguage()
+  const { t, locale } = useLanguage()
 
   /**
    * 工具快捷入口配置
@@ -165,29 +166,52 @@ export default function Footer({ className = '' }: FooterProps) {
   }
 
   return (
-    <footer className={`mt-auto border-t border-slate-200 bg-white ${className}`} role="contentinfo" aria-label="页面底部">
-      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-6 flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-lg font-semibold text-slate-900">UIED-Tools</div>
-            <p className="mt-1 text-sm text-slate-500">AI Resume & Tools Platform</p>
+    <footer className={`mt-auto border-t border-slate-200 bg-slate-50/70 ${className}`} role="contentinfo" aria-label="页面底部">
+      <div className="app-shell-container py-8 sm:py-10">
+        <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="app-shell-brand-mark h-10 w-10 shrink-0">
+              <FileText className="h-5 w-5" />
+            </span>
+            <div>
+              <div className="text-lg font-semibold text-slate-900">UIED-Tools</div>
+              <p className="mt-1 text-sm text-slate-500">AI Resume & Tools Platform</p>
+              <p className="mt-1 text-xs leading-6 text-slate-500">
+                {locale === 'en'
+                  ? 'Resume editing, AI polishing, export delivery, and practical tools in one workspace.'
+                  : '将简历编辑、AI 润色、导出投递与常用工具收在同一套工作台里。'}
+              </p>
+            </div>
           </div>
-          <Link href="/" className="inline-flex items-center rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
-            返回首页
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/" className="app-shell-action-button">
+              <span>{locale === 'en' ? 'Home' : '返回首页'}</span>
+            </Link>
+            <Link href="/editor" className="app-shell-action-button">
+              <span>{locale === 'en' ? 'Open Editor' : '进入编辑器'}</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <section className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-            <h2 className="mb-4 text-sm font-semibold text-slate-900">{t.footer.quickTools}</h2>
+          <section className="app-shell-toolbar-surface p-5">
+            <div className="mb-4">
+              <h2 className="text-sm font-semibold text-slate-900">{t.footer.quickTools}</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                {locale === 'en'
+                  ? 'Keep tool links compact and scannable.'
+                  : '保留工具入口，但降低视觉噪音，方便快速扫读。'}
+              </p>
+            </div>
             <div className="space-y-3">
               {quickToolGroups.map((group) => (
-                <div key={group.key} className="flex flex-col gap-1.5 sm:flex-row sm:items-start">
-                  <span className="w-14 shrink-0 text-xs font-semibold text-slate-500">{group.title}</span>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                <div key={group.key} className="flex flex-col gap-2 border-t border-slate-100 pt-3 first:border-t-0 first:pt-0 sm:flex-row sm:items-start">
+                  <span className="w-16 shrink-0 text-[11px] font-semibold tracking-[0.04em] text-slate-500">{group.title}</span>
+                  <div className="flex flex-wrap gap-x-3 gap-y-2">
                     {group.links.map((link) => (
                       <span key={link.label}>
-                        {renderLink(link, 'text-xs text-slate-600 transition-colors hover:text-slate-900')}
+                        {renderLink(link, 'text-sm text-slate-600 transition-colors hover:text-slate-900')}
                       </span>
                     ))}
                   </div>
@@ -196,16 +220,23 @@ export default function Footer({ className = '' }: FooterProps) {
             </div>
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-            <h2 className="mb-4 text-sm font-semibold text-slate-900">{t.footer.friendLinks}</h2>
+          <section className="app-shell-toolbar-surface p-5">
+            <div className="mb-4">
+              <h2 className="text-sm font-semibold text-slate-900">{t.footer.friendLinks}</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                {locale === 'en'
+                  ? 'External resources and communities stay unchanged.'
+                  : '友情链接与社区入口保持原样，仅统一排版密度。'}
+              </p>
+            </div>
             <div className="space-y-3">
               {friendLinkGroups.map((group) => (
-                <div key={group.key} className="flex flex-col gap-1.5 sm:flex-row sm:items-start">
-                  <span className="w-14 shrink-0 text-xs font-semibold text-slate-500">{group.title}</span>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                <div key={group.key} className="flex flex-col gap-2 border-t border-slate-100 pt-3 first:border-t-0 first:pt-0 sm:flex-row sm:items-start">
+                  <span className="w-16 shrink-0 text-[11px] font-semibold tracking-[0.04em] text-slate-500">{group.title}</span>
+                  <div className="flex flex-wrap gap-x-3 gap-y-2">
                     {group.links.map((link) => (
                       <span key={link.label}>
-                        {renderLink(link, 'text-xs text-slate-600 transition-colors hover:text-slate-900')}
+                        {renderLink(link, 'text-sm text-slate-600 transition-colors hover:text-slate-900')}
                       </span>
                     ))}
                   </div>
@@ -215,9 +246,11 @@ export default function Footer({ className = '' }: FooterProps) {
 
             <div className="mt-5 border-t border-slate-200 pt-4">
               <h3 className="mb-2 text-xs font-semibold text-slate-500">{t.footer.officialMedia}</h3>
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
+              <div className="flex flex-wrap gap-2">
                 {mediaLinks.map((link) => (
-                  <span key={link.label}>{renderLink(link, 'text-xs text-slate-600 transition-colors hover:text-slate-900')}</span>
+                  <span key={link.label}>
+                    {renderLink(link, 'inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:text-slate-900')}
+                  </span>
                 ))}
               </div>
             </div>

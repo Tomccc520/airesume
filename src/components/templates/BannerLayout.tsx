@@ -38,23 +38,45 @@ export const BannerLayout: React.FC<TemplateProps> = ({
   const { colors, fontSize, spacing, fontFamily } = styleConfig
   const { locale, t } = useLanguage()
   const isCompactBanner = templateId === 'banner-layout-compact'
+  const hasCustomFontFamily = Boolean(fontFamily && fontFamily !== 'Inter, sans-serif')
+  const hasCustomPrimaryColor = colors.primary !== '#374151'
+  const hasCustomSecondaryColor = colors.secondary !== '#6b7280'
+  const hasCustomTextColor = colors.text !== '#111827'
+  const hasCustomContentSize = Boolean(fontSize?.content && fontSize.content !== 15)
+  const hasCustomSectionSpacing = Boolean(spacing?.section && spacing.section !== 40)
+  const hasCustomLayoutPadding = Boolean(styleConfig.layout?.padding && styleConfig.layout.padding !== 25)
 
-  const fontFamilyStyle = fontFamily || '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif'
-  const pagePadding = Math.max(styleConfig.layout?.padding || (isCompactBanner ? 32 : 34), isCompactBanner ? 28 : 32)
-  const baseContentSize = fontSize?.content || 14
-  const metrics = getMarketResumeMetrics({ baseContentSize, sectionSpacing: spacing?.section })
+  const fontFamilyStyle = hasCustomFontFamily
+    ? fontFamily
+    : '"Calibri", "Arial", "PingFang SC", "Hiragino Sans GB", sans-serif'
+  const pagePadding = hasCustomLayoutPadding
+    ? Math.max(styleConfig.layout?.padding || (isCompactBanner ? 32 : 34), isCompactBanner ? 28 : 32)
+    : (isCompactBanner ? 32 : 34)
+  const baseContentSize = hasCustomContentSize ? fontSize.content : 14
+  const metrics = getMarketResumeMetrics({
+    baseContentSize,
+    sectionSpacing: hasCustomSectionSpacing ? spacing?.section : undefined
+  })
   const sectionGap = isCompactBanner ? Math.max(metrics.sectionGap - 1, 17) : metrics.sectionGap
   const entryGap = isCompactBanner ? Math.max(metrics.entryGap - 1, 9) : metrics.entryGap
   const timelineDateWidth = isCompactBanner ? Math.max(metrics.dateColumnWidth - 8, 112) : metrics.dateColumnWidth
   const bodyLineHeight = isCompactBanner ? 1.52 : metrics.bodyLineHeight
-  const headingColor = colors.primary || '#0f172a'
-  const textColor = colors.text || '#111827'
-  const mutedColor = colors.secondary || '#64748b'
+  const headingColor = hasCustomPrimaryColor ? colors.primary : '#0f172a'
+  const textColor = hasCustomTextColor ? colors.text : '#111827'
+  const mutedColor = hasCustomSecondaryColor ? colors.secondary : '#64748b'
   const borderColor = '#d3dbe6'
   const rowDividerColor = '#e4ebf3'
   const isEnglish = locale === 'en'
   const contactQRCodePayload = resolveContactQRCodePayload(personalInfo)
-  const contactQRCodeUrl = contactQRCodePayload ? createContactQRCodeImageUrl(contactQRCodePayload, 176) : null
+  const showContactQRCode = Boolean(personalInfo.contactQRCode?.trim())
+  const contactQRCodeUrl = showContactQRCode && contactQRCodePayload
+    ? createContactQRCodeImageUrl(contactQRCodePayload, 176)
+    : null
+  const headerAvatarSize = isCompactBanner ? 68 : 74
+  const headerQRCodeSize = isCompactBanner ? 52 : 58
+  const headerNameSize = isCompactBanner ? metrics.nameSize - 1 : metrics.nameSize
+  const headerRoleSize = Math.max(metrics.roleSize - 1, baseContentSize + 1)
+  const headerMetaSize = Math.max(metrics.metaSize, 11)
 
   /**
    * 格式化日期文本
@@ -102,14 +124,58 @@ export const BannerLayout: React.FC<TemplateProps> = ({
   )
 
   /**
-   * 生成联系方式摘要
-   * 采用“·”分隔的招聘常见展示形式。
+   * 获取联系方式分组行
+   * 按“电话/邮箱、城市/主页”的顺序两两分组，减少首屏横向拥挤感。
    */
-  const getContactSummary = () => {
+  const getContactRows = () => {
     const websiteLabel = personalInfo.website
       ? personalInfo.website.replace(/^https?:\/\//i, '').replace(/\/$/, '')
       : ''
-    return [personalInfo.phone, personalInfo.email, personalInfo.location, websiteLabel]
+    const contactItems = [personalInfo.phone, personalInfo.email, personalInfo.location, websiteLabel]
+      .filter(Boolean)
+
+    const rows: string[] = []
+    for (let index = 0; index < contactItems.length; index += 2) {
+      rows.push(contactItems.slice(index, index + 2).join(' · '))
+    }
+
+    return rows
+  }
+
+  /**
+   * 获取项目补充信息行
+   * 将技术栈与链接摘要压缩到同一行，保持投递简历常见的信息密度。
+   */
+  const getProjectMetaLine = (project: ResumeData['projects'][number]) => {
+    const projectLinkLabel = project.url
+      ? project.url.replace(/^https?:\/\//i, '').replace(/\/$/, '')
+      : ''
+
+    return [
+      project.technologies.length > 0 ? project.technologies.join(' / ') : '',
+      projectLinkLabel
+    ]
+      .filter(Boolean)
+      .join(' · ')
+  }
+
+  /**
+   * 获取教育主信息
+   * 将学历与专业合并为同一行，符合招聘平台 PDF 的常见排版方式。
+   */
+  const getEducationPrimaryLine = (educationItem: ResumeData['education'][number]) => {
+    return [educationItem.degree, educationItem.major].filter(Boolean).join(' · ')
+  }
+
+  /**
+   * 获取教育补充信息
+   * 将 GPA 与附加说明放到辅助行，减少主信息区域的拥挤感。
+   */
+  const getEducationSupportingLine = (educationItem: ResumeData['education'][number]) => {
+    return [
+      educationItem.gpa ? `GPA ${educationItem.gpa}` : '',
+      educationItem.description || ''
+    ]
       .filter(Boolean)
       .join(' · ')
   }
@@ -131,9 +197,8 @@ export const BannerLayout: React.FC<TemplateProps> = ({
   }
 
   const skillGroups = groupSkillsByCategory()
-  const contactSummary = getContactSummary()
+  const contactRows = getContactRows()
   const skillGroupEntries = Object.entries(skillGroups)
-  const skillColumns = isCompactBanner ? '1fr' : (skillGroupEntries.length > 2 ? 'repeat(2, minmax(0, 1fr))' : '1fr')
 
   return (
     <div
@@ -160,7 +225,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
             <h1
               className="font-semibold tracking-[0.02em]"
               style={{
-                fontSize: `${metrics.nameSize}px`,
+                fontSize: `${headerNameSize}px`,
                 color: headingColor,
                 fontWeight: metrics.nameWeight
               }}
@@ -170,59 +235,77 @@ export const BannerLayout: React.FC<TemplateProps> = ({
             <p
               className="mt-1 font-medium"
               style={{
-                fontSize: `${metrics.roleSize}px`,
+                fontSize: `${headerRoleSize}px`,
                 color: mutedColor,
                 fontWeight: metrics.roleWeight
               }}
             >
               {personalInfo.title}
             </p>
-            {!!contactSummary && (
-              <p
+            {contactRows.length > 0 && (
+              <div
                 style={{
-                  marginTop: `${metrics.bulletGap + 1}px`,
-                  color: mutedColor,
-                  fontSize: `${metrics.metaSize}px`,
-                  fontWeight: metrics.metaWeight,
-                  lineHeight: 1.45
+                  marginTop: `${metrics.bulletGap + 2}px`,
+                  display: 'grid',
+                  rowGap: '4px'
                 }}
               >
-                {contactSummary}
-              </p>
+                {contactRows.map((row) => (
+                  <p
+                    key={row}
+                    style={{
+                      color: mutedColor,
+                      fontSize: `${headerMetaSize}px`,
+                      fontWeight: metrics.metaWeight,
+                      lineHeight: 1.45
+                    }}
+                  >
+                    {row}
+                  </p>
+                ))}
+              </div>
             )}
           </div>
           {(personalInfo.avatar || contactQRCodeUrl) && (
-            <div className="flex flex-col items-end gap-2.5">
+            <div className="flex items-start gap-2.5">
               {personalInfo.avatar && (
                 <Image
                   src={personalInfo.avatar}
                   alt={personalInfo.name}
-                  width={metrics.headerAvatarSize}
-                  height={metrics.headerAvatarSize}
+                  width={headerAvatarSize}
+                  height={headerAvatarSize}
                   unoptimized
-                  className={getAvatarClassName(styleConfig, 'h-[72px] w-[72px]')}
+                  className={getAvatarClassName(styleConfig, 'h-auto w-auto shrink-0')}
                   style={{
                     ...getAvatarInlineStyle(
                       personalInfo.avatarBorderRadius,
                       styleConfig,
-                      metrics.headerAvatarSize
+                      headerAvatarSize,
+                      {
+                        width: `${headerAvatarSize}px`,
+                        height: `${headerAvatarSize}px`
+                      }
                     ),
                     border: `1px solid ${borderColor}`
                   }}
                 />
               )}
               {contactQRCodeUrl && (
-                <div className="rounded border bg-white p-1.5 text-center" style={{ borderColor: rowDividerColor }}>
+                <div className="rounded-md border bg-white p-1.5 text-center" style={{ borderColor: rowDividerColor }}>
                   <Image
                     src={contactQRCodeUrl}
                     alt={isEnglish ? 'Contact QR Code' : '联系方式二维码'}
-                    width={68}
-                    height={68}
+                    width={headerQRCodeSize}
+                    height={headerQRCodeSize}
                     unoptimized
-                    className="h-[68px] w-[68px]"
+                    className="h-auto w-auto"
+                    style={{
+                      width: `${headerQRCodeSize}px`,
+                      height: `${headerQRCodeSize}px`
+                    }}
                   />
-                  <p className="mt-1 text-[10px]" style={{ color: mutedColor }}>
-                    {isEnglish ? 'Contact QR' : '联系二维码'}
+                  <p className="mt-1 text-[9px]" style={{ color: mutedColor, lineHeight: 1.3 }}>
+                    {isEnglish ? 'Scan to contact' : '扫码联系'}
                   </p>
                 </div>
               )}
@@ -357,6 +440,19 @@ export const BannerLayout: React.FC<TemplateProps> = ({
                     {formatDateStr(project.startDate)} - {formatDateStr(project.endDate)}
                   </span>
                 </div>
+                {getProjectMetaLine(project) && (
+                  <p
+                    className="mt-1 text-xs"
+                    style={{
+                      color: mutedColor,
+                      fontSize: `${metrics.metaSize}px`,
+                      fontWeight: metrics.metaWeight,
+                      lineHeight: 1.45
+                    }}
+                  >
+                    {getProjectMetaLine(project)}
+                  </p>
+                )}
                 <p className="mt-1.5">{project.description}</p>
                 {project.highlights.length > 0 && (
                   <ul
@@ -401,7 +497,14 @@ export const BannerLayout: React.FC<TemplateProps> = ({
                 }}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h3 className="font-semibold" style={{ color: headingColor, fontWeight: metrics.itemTitleWeight }}>
+                  <h3
+                    className="font-semibold"
+                    style={{
+                      color: headingColor,
+                      fontSize: `${metrics.itemTitleSize}px`,
+                      fontWeight: metrics.itemTitleWeight
+                    }}
+                  >
                     {edu.school}
                   </h3>
                   <span
@@ -417,10 +520,22 @@ export const BannerLayout: React.FC<TemplateProps> = ({
                     {formatDateStr(edu.startDate)} - {formatDateStr(edu.endDate)}
                   </span>
                 </div>
-                <p className="mt-1 text-sm" style={{ color: mutedColor }}>
-                  {edu.degree} · {edu.major}
-                  {edu.gpa && <span> · GPA {edu.gpa}</span>}
+                <p className="mt-1 text-sm font-medium" style={{ color: headingColor }}>
+                  {getEducationPrimaryLine(edu)}
                 </p>
+                {getEducationSupportingLine(edu) && (
+                  <p
+                    className="mt-1 text-xs"
+                    style={{
+                      color: mutedColor,
+                      fontSize: `${metrics.metaSize}px`,
+                      fontWeight: metrics.metaWeight,
+                      lineHeight: 1.45
+                    }}
+                  >
+                    {getEducationSupportingLine(edu)}
+                  </p>
+                )}
               </article>
             ))}
           </div>
@@ -436,20 +551,29 @@ export const BannerLayout: React.FC<TemplateProps> = ({
           <div
             style={{
               display: 'grid',
-              rowGap: `${metrics.bulletGap + 2}px`,
-              columnGap: `${entryGap + 8}px`,
-              gridTemplateColumns: skillColumns
+              rowGap: `${metrics.bulletGap + 3}px`
             }}
           >
             {skillGroupEntries.map(([category, items]) => (
-              <article key={category} className="text-sm">
+              <article
+                key={category}
+                className="grid items-start gap-3 border-b pb-2 last:border-b-0 last:pb-0"
+                style={{
+                  gridTemplateColumns: `${isCompactBanner ? 70 : 82}px 1fr`,
+                  borderColor: rowDividerColor
+                }}
+              >
                 <h3
-                  className="mb-1 font-semibold uppercase tracking-[0.06em]"
-                  style={{ color: mutedColor, fontSize: `${metrics.metaSize}px` }}
+                  className="font-semibold uppercase tracking-[0.06em]"
+                  style={{
+                    color: mutedColor,
+                    fontSize: `${metrics.metaSize}px`,
+                    lineHeight: 1.55
+                  }}
                 >
                   {category}
                 </h3>
-                <p style={{ color: textColor, lineHeight: bodyLineHeight }}>
+                <p className="text-sm" style={{ color: textColor, lineHeight: bodyLineHeight }}>
                   {items.map((skill, index) => (
                     <span key={skill.id}>
                       {skill.name}

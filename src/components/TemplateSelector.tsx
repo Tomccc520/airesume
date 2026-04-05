@@ -64,6 +64,58 @@ export default function TemplateSelector({
   )
 
   /**
+   * 获取模板使用场景文案
+   * 用固定短句解释当前主模板集的主要差异，降低用户选择成本。
+   */
+  const getTemplateUseCase = (template: TemplateStyle) => {
+    const copyMap: Record<string, string> = locale === 'en'
+      ? {
+          'banner-layout': 'For most online applications and ATS-first delivery.',
+          'minimal-text': 'For classic one-page resumes in campus hiring or general delivery.',
+          'compact-layout': 'For experienced candidates who need to fit more content in a single page.',
+          'card-layout-executive': 'For social hiring resumes that need stronger side information.',
+          'timeline-layout-classic': 'For experienced candidates who need a clearer timeline.'
+        }
+      : {
+          'banner-layout': '适合大多数在线投递与 ATS 优先场景。',
+          'minimal-text': '适合校招、通用岗位和偏稳妥的一页式投递简历。',
+          'compact-layout': '适合经验较多、希望尽量压缩到一页的单栏简历。',
+          'card-layout-executive': '适合社招简历，侧栏信息更突出。',
+          'timeline-layout-classic': '适合经历较多、需要清晰展示时间顺序的简历。'
+        }
+
+    return copyMap[template.id] || (locale === 'en'
+      ? 'Choose one style first, then fine-tune content and spacing in editor.'
+      : '先选风格，再在编辑器里微调内容与间距，适合直接导出投递。')
+  }
+
+  /**
+   * 获取模板推荐原因
+   * 在预览侧栏和顶部导引中展示“为什么要选这套”。
+   */
+  const getTemplateReason = (template: TemplateStyle) => {
+    const reasonMap: Record<string, string> = locale === 'en'
+      ? {
+          'banner-layout': 'Stable structure, less risk, easy to parse.',
+          'minimal-text': 'Centered header and classic typography feel safer for broad delivery.',
+          'compact-layout': 'Higher density keeps more highlights on one page without switching to double columns.',
+          'card-layout-executive': 'Information hierarchy is clearer for recruiter scanning.',
+          'timeline-layout-classic': 'Date column is clearer for longer career histories.'
+        }
+      : {
+          'banner-layout': '结构最稳，风险最低，最适合直接投递。',
+          'minimal-text': '居中页眉和经典排版更稳，适合大多数招聘场景。',
+          'compact-layout': '信息密度更高，方便在一页内保留更多核心内容。',
+          'card-layout-executive': '信息层级更明显，方便招聘方快速扫读。',
+          'timeline-layout-classic': '日期列更清晰，适合年限较长的履历展示。'
+        }
+
+    return reasonMap[template.id] || (locale === 'en'
+      ? 'Choose one style first, then fine-tune content and spacing in editor.'
+      : '先选风格，再在编辑器里微调内容与间距，适合直接导出投递。')
+  }
+
+  /**
    * 获取选择器说明文案
    * 用于头部简短说明当前模板集的定位。
    */
@@ -170,18 +222,22 @@ export default function TemplateSelector({
       ? {
           'banner-layout': 'Single Column Standard',
           'banner-layout-compact': 'Single Column Compact',
+          'minimal-text': 'Classic Single Column',
+          'compact-layout': 'Compact Single Column',
           'card-layout': 'Business Dual Column',
-          'card-layout-executive': 'Business Pro',
+          'card-layout-executive': 'Business Dual Column',
           'timeline-layout': 'Timeline Compact',
-          'timeline-layout-classic': 'Timeline Pro'
+          'timeline-layout-classic': 'Senior Timeline'
         }
       : {
           'banner-layout': '单栏标准',
           'banner-layout-compact': '单栏紧凑',
+          'minimal-text': '经典单栏',
+          'compact-layout': '紧凑单栏',
           'card-layout': '商务双栏',
-          'card-layout-executive': '双栏专业',
+          'card-layout-executive': '商务双栏',
           'timeline-layout': '时间线紧凑',
-          'timeline-layout-classic': '时间线专业'
+          'timeline-layout-classic': '时间线资深'
         }
     return toneMap[template.id] || (locale === 'en' ? 'General' : '通用')
   }
@@ -226,6 +282,17 @@ export default function TemplateSelector({
 
     return tips.slice(0, 3)
   }
+
+  /**
+   * 获取模板顶部导引信息
+   * 将模板列表顶部改成更像招聘工具库的“选型建议”。
+   */
+  const templateGuides = coreTemplates.map((template) => ({
+    id: template.id,
+    name: locale === 'en' && template.nameEn ? template.nameEn : template.name,
+    structure: getStructureLabel(template),
+    reason: getTemplateReason(template)
+  }))
 
   /**
    * 处理职业模板应用
@@ -279,20 +346,46 @@ export default function TemplateSelector({
           </Button>
         </div>
 
-        <div className="max-h-[calc(95vh-92px)] overflow-y-auto p-4 sm:p-6">
-          <div className="mb-5 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-            <div>
-              <p className="text-xs font-semibold text-slate-700">
-                {locale === 'en' ? 'Recruiting-ready template library' : '招聘投递模板库'}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">{getSelectorHint()}</p>
+        <div className="no-scrollbar max-h-[calc(95vh-92px)] overflow-y-auto p-4 sm:p-6">
+          <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-slate-700">
+                  {locale === 'en' ? 'Recruiting-ready template library' : '招聘投递模板库'}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">{getSelectorHint()}</p>
+              </div>
+              <div className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600">
+                {locale === 'en' ? `${coreTemplates.length} templates` : `${coreTemplates.length} 套模板`}
+              </div>
             </div>
-            <div className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600">
-              {locale === 'en' ? `${coreTemplates.length} templates` : `${coreTemplates.length} 套模板`}
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              {templateGuides.map((guide) => (
+                <div key={guide.id} className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-900">{guide.name}</p>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                      {guide.structure}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{guide.reason}</p>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mb-4">
+            <p className="text-sm font-semibold text-slate-900">
+              {locale === 'en' ? 'Choose one baseline template' : '选择一套基础模板'}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {locale === 'en'
+                ? 'Keep the template count low and focus on recruiter readability.'
+                : '保留少量模板，优先保证招聘方阅读效率。'}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {coreTemplates.map((template) => (
               <TemplateCard
                 key={template.id}
@@ -338,7 +431,7 @@ export default function TemplateSelector({
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="max-h-[72vh] overflow-auto p-4">
+            <div className="no-scrollbar max-h-[72vh] overflow-auto p-4">
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_320px]">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <div className="mb-3 flex items-center justify-between">
@@ -396,18 +489,18 @@ export default function TemplateSelector({
                       </span>
                       {(previewTemplate.recommendedExperienceLevels || ['1-3']).map(getExperienceLabel).join(' / ')}
                     </div>
-                    {previewTemplate.tags && previewTemplate.tags.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {previewTemplate.tags.slice(0, 3).map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-600"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    <div className="mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                      <span className="font-medium text-slate-500">
+                        {locale === 'en' ? 'Best use: ' : '推荐理由：'}
+                      </span>
+                      {getTemplateReason(previewTemplate)}
+                    </div>
+                    <div className="mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                      <span className="font-medium text-slate-500">
+                        {locale === 'en' ? 'Use case: ' : '适用场景：'}
+                      </span>
+                      {getTemplateUseCase(previewTemplate)}
+                    </div>
                   </div>
 
                   <div className="rounded-xl border border-slate-200 bg-white p-4">
