@@ -1193,7 +1193,7 @@ export default function UnifiedAIPanel({
    * 在 AI 面板内应用轻量预检查修复动作
    * 优先处理无需额外输入的动作，让用户不打开配置弹窗也能完成常见修复。
    */
-  const handleApplyInlinePrecheckAction = (actionId: AIConfigPrecheckActionId) => {
+  const handleApplyInlinePrecheckAction = async (actionId: AIConfigPrecheckActionId) => {
     const currentConfig = aiService.getConfigSnapshot()
 
     if (!currentConfig) {
@@ -1253,15 +1253,75 @@ export default function UnifiedAIPanel({
       return
     }
 
-    setAIConfigStatus(aiService.getConfigStatus())
-    setAIConfigSnapshot(aiService.getConfigSnapshot())
+    const nextStatus = aiService.getConfigStatus()
+    const nextSnapshot = aiService.getConfigSnapshot()
+    setAIConfigStatus(nextStatus)
+    setAIConfigSnapshot(nextSnapshot)
     setErrorMessage('')
+
+    if (!nextStatus.isConfigured || !nextSnapshot) {
+      setPrecheckActionNotice({
+        tone: 'success',
+        message: locale === 'zh'
+          ? '已应用快速修复，但当前配置还未完整可用，请继续补齐缺失项。'
+          : 'Quick fix applied, but the configuration still needs a few required fields.'
+      })
+      return
+    }
+
+    setIsRevalidatingConfig(true)
     setPrecheckActionNotice({
       tone: 'success',
       message: locale === 'zh'
-        ? '已应用快速修复。若仍有历史验证失败，请重新验证一次当前配置。'
-        : 'Quick fix applied. If an old validation failure remains, validate the current setup once more.'
+        ? '已应用快速修复，正在自动重新验证当前配置...'
+        : 'Quick fix applied. Revalidating the current configuration automatically...'
     })
+
+    const previousIssue = latestValidationIssue
+
+    try {
+      const validationResult = await aiService.validateConfig(nextSnapshot)
+      const validatedStatus = aiService.getConfigStatus()
+      setAIConfigStatus(validatedStatus)
+      setAIConfigSnapshot(aiService.getConfigSnapshot())
+
+      if (validationResult.isValid) {
+        setErrorMessage('')
+        setHasFreshConfigValidationSuccess(true)
+        if (previousIssue) {
+          setHistoricalValidationIssue(previousIssue)
+        }
+        setPrecheckActionNotice({
+          tone: 'success',
+          message: locale === 'zh'
+            ? '已应用快速修复，并自动验证通过。现在可以直接使用智能优化和从零生成。'
+            : 'Quick fix applied and validation passed. You can continue with optimize and start-fresh now.'
+        })
+        return
+      }
+
+      setHasFreshConfigValidationSuccess(false)
+      setPrecheckActionNotice({
+        tone: 'error',
+        message: locale === 'zh'
+          ? `已应用快速修复，但自动验证仍失败：${validationResult.message}`
+          : `Quick fix applied, but automatic validation still failed: ${validationResult.message}`
+      })
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : (locale === 'zh' ? '自动重新验证失败，请稍后手动重试。' : 'Automatic validation failed. Please retry manually.')
+
+      setHasFreshConfigValidationSuccess(false)
+      setPrecheckActionNotice({
+        tone: 'error',
+        message: locale === 'zh'
+          ? `已应用快速修复，但自动验证未完成：${message}`
+          : `Quick fix applied, but automatic validation did not complete: ${message}`
+      })
+    } finally {
+      setIsRevalidatingConfig(false)
+    }
   }
 
   /**
@@ -1501,7 +1561,7 @@ export default function UnifiedAIPanel({
                       {primaryPrecheckItem?.actionId && canApplyInlinePrecheckAction(primaryPrecheckItem.actionId) && (
                         <button
                           type="button"
-                          onClick={() => handleApplyInlinePrecheckAction(primaryPrecheckItem.actionId!)}
+                          onClick={() => void handleApplyInlinePrecheckAction(primaryPrecheckItem.actionId!)}
                           className="inline-flex h-8 items-center justify-center rounded-xl bg-slate-900 px-3 text-xs font-medium text-white transition-colors hover:bg-slate-800"
                         >
                           {getInlinePrecheckActionLabel(primaryPrecheckItem.actionId, locale)}
@@ -1599,7 +1659,7 @@ export default function UnifiedAIPanel({
                         {item.actionId && canApplyInlinePrecheckAction(item.actionId) && (
                           <button
                             type="button"
-                            onClick={() => handleApplyInlinePrecheckAction(item.actionId!)}
+                            onClick={() => void handleApplyInlinePrecheckAction(item.actionId!)}
                             className="mt-2 app-shell-action-button h-7 rounded-xl px-3 text-[11px]"
                           >
                             {getInlinePrecheckActionLabel(item.actionId, locale)}
