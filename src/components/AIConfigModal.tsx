@@ -8,7 +8,7 @@
 
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   X,
   Settings,
@@ -24,6 +24,15 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext'
 import { Locale, Translations } from '@/types/i18n'
 import { useToastContext } from '@/components/Toast'
+import { aiService, AIConfigGuidance } from '@/services/aiService'
+import {
+  AIConfigPrecheckActionId,
+  AIConfigPrecheckItem,
+  buildAIConfigPrecheck,
+  getAIConfigPrecheckStatusClass,
+  getAIConfigPrecheckStatusLabel,
+  normalizeCustomEndpointInput
+} from '@/domain/ai/configPrecheck'
 
 /**
  * AI配置模态框组件
@@ -52,6 +61,37 @@ export interface AIConfig {
   modelName: string
   /** 是否启用 */
   enabled: boolean
+}
+
+interface AIValidationDiagnosticsState {
+  provider?: string
+  providerLabel?: string
+  targetHost?: string
+  category?: string
+  code?: string
+  detail?: string
+  suggestion?: string
+}
+
+interface AIConfigQuickFixAction {
+  id: AIConfigPrecheckActionId
+  title: string
+  description: string
+}
+
+/**
+ * 获取 AI 配置引导字段标签
+ * 将聚焦字段转换成更适合在弹窗提示卡里展示的短文案。
+ */
+const getGuidanceFieldLabel = (field: AIConfigGuidance['field'], locale: Locale): string => {
+  const labelMap: Record<AIConfigGuidance['field'], { zh: string; en: string }> = {
+    provider: { zh: '服务商与启用状态', en: 'Provider & enabled state' },
+    apiKey: { zh: 'API 密钥', en: 'API key' },
+    customEndpoint: { zh: '自定义端点', en: 'Custom endpoint' },
+    modelName: { zh: '模型选择', en: 'Model selection' }
+  }
+
+  return labelMap[field][locale]
 }
 
 /**
@@ -265,20 +305,124 @@ const getConfigStatusMeta = (
   }
 }
 
+/**
+ * 获取验证错误分类标题
+ * 将代理层返回的错误类别映射成更易理解的展示标题。
+ */
+const getValidationCategoryLabel = (category?: string, locale?: Locale): string => {
+  const isZh = locale === 'zh'
+
+  switch (category) {
+    case 'timeout':
+      return isZh ? '连接超时' : 'Timeout'
+    case 'ssl':
+      return isZh ? '证书验证失败' : 'SSL Error'
+    case 'dns':
+      return isZh ? '域名解析失败' : 'DNS Error'
+    case 'refused':
+      return isZh ? '连接被拒绝' : 'Connection Refused'
+    case 'reset':
+      return isZh ? '连接被重置' : 'Connection Reset'
+    case 'network':
+      return isZh ? '网络错误' : 'Network Error'
+    default:
+      return isZh ? '未知错误' : 'Unknown Error'
+  }
+}
+
+/**
+ * 获取快速修复动作字段
+ * 将当前引导状态或验证失败场景映射到最值得优先处理的配置字段。
+ */
+const resolveQuickFixField = (
+  config: AIConfig,
+  configGuidance: AIConfigGuidance | null,
+  validationResult: {
+    isValid: boolean
+    diagnostics?: AIValidationDiagnosticsState
+  } | null
+): AIConfigGuidance['field'] | null => {
+  if (configGuidance) {
+    return configGuidance.field
+  }
+
+  if (!validationResult || validationResult.isValid) {
+    return null
+  }
+
+  if (!config.enabled) {
+    return 'provider'
+  }
+
+  if (config.provider !== 'free' && !config.apiKey.trim()) {
+    return 'apiKey'
+  }
+
+  if (config.provider === 'custom') {
+    return 'customEndpoint'
+  }
+
+  if (!config.modelName.trim()) {
+    return 'modelName'
+  }
+
+  return 'provider'
+}
+
 export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModalProps) {
   const { t, locale } = useLanguage()
   const { error: showError } = useToastContext()
   const [config, setConfig] = useState<AIConfig>(defaultConfig)
   const [isValidating, setIsValidating] = useState(false)
+  const [configGuidance, setConfigGuidance] = useState<AIConfigGuidance | null>(null)
   const [validationResult, setValidationResult] = useState<{
     isValid: boolean
     message: string
+    diagnostics?: AIValidationDiagnosticsState
   } | null>(null)
+  const providerSectionRef = useRef<HTMLDivElement | null>(null)
+  const apiKeyInputRef = useRef<HTMLInputElement | null>(null)
+  const customEndpointInputRef = useRef<HTMLInputElement | null>(null)
+  const modelSelectRef = useRef<HTMLSelectElement | null>(null)
 
-  // 从localStorage加载配置
+  /**
+   * 聚焦 AI 配置引导字段
+   * 当配置弹窗由面板错误引导打开时，自动滚动并定位到最需要处理的输入区。
+   */
+  const focusGuidanceField = (field: AIConfigGuidance['field']) => {
+    const focusOptions: FocusOptions = { preventScroll: true }
+
+    switch (field) {
+      case 'provider':
+        providerSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        providerSectionRef.current?.focus()
+        return
+      case 'apiKey':
+        apiKeyInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        apiKeyInputRef.current?.focus(focusOptions)
+        return
+      case 'customEndpoint':
+        customEndpointInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        customEndpointInputRef.current?.focus(focusOptions)
+        return
+      case 'modelName':
+        modelSelectRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        modelSelectRef.current?.focus(focusOptions)
+        return
+      default:
+        return
+    }
+  }
+
+  /**
+   * 打开弹窗时同步配置与引导状态
+   * 既恢复本地 AI 配置，也消费 AI 面板写入的最近一次诊断引导。
+   */
   useEffect(() => {
     if (isOpen) {
       setValidationResult(null)
+      setConfigGuidance(aiService.readConfigGuidance())
+      aiService.clearConfigGuidance()
       const savedConfig = localStorage.getItem('ai-config')
       if (savedConfig) {
         try {
@@ -288,8 +432,29 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
           console.error('Failed to parse AI config:', error)
         }
       }
+      return
     }
+
+    setConfigGuidance(null)
   }, [isOpen])
+
+  /**
+   * 根据引导状态自动聚焦
+   * 等待弹窗内容和对应字段渲染完成后，再执行滚动与 focus。
+   */
+  useEffect(() => {
+    if (!isOpen || !configGuidance) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      focusGuidanceField(configGuidance.field)
+    }, 120)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [config.provider, configGuidance, isOpen])
 
   /**
    * 验证API配置
@@ -299,7 +464,8 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
     if (config.provider !== 'free' && !config.apiKey.trim()) {
       setValidationResult({
         isValid: false,
-        message: t.editor.aiConfig.pleaseEnterApiKey
+        message: t.editor.aiConfig.pleaseEnterApiKey,
+        diagnostics: undefined
       })
       return
     }
@@ -309,7 +475,8 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
         isValid: true,
         message: locale === 'zh'
           ? '免费模型由服务端托管，当前无需额外验证。'
-          : 'The free model is hosted by the service and needs no extra validation.'
+          : 'The free model is hosted by the service and needs no extra validation.',
+        diagnostics: undefined
       })
       return
     }
@@ -318,26 +485,26 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
     setValidationResult(null)
 
     try {
-      const aiProviders = getAiProviders(t, locale)
-      const provider = aiProviders.find(p => p.id === config.provider)
-      const endpoint = config.provider === 'custom' ? config.customEndpoint : provider?.endpoint
-      
-      if (!endpoint) {
-        throw new Error(locale === 'zh' ? 'API端点未配置' : 'API endpoint not configured')
-      }
+      const { aiService } = await import('@/services/aiService')
+      const result = await aiService.validateConfig(config)
 
-      // 这里可以添加实际的API验证逻辑
-      // 暂时模拟验证过程
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
       setValidationResult({
-        isValid: true,
-        message: t.editor.aiConfig.validationSuccess
+        isValid: result.isValid,
+        message: result.isValid
+          ? t.editor.aiConfig.validationSuccess
+          : `${t.editor.aiConfig.validationFailed}: ${result.message}`,
+        diagnostics: result.diagnostics
       })
+      if (result.isValid) {
+        setConfigGuidance(null)
+      }
     } catch (error) {
       setValidationResult({
         isValid: false,
-        message: error instanceof Error ? error.message : t.editor.aiConfig.validationFailed
+        message: error instanceof Error
+          ? `${t.editor.aiConfig.validationFailed}: ${error.message}`
+          : t.editor.aiConfig.validationFailed,
+        diagnostics: undefined
       })
     } finally {
       setIsValidating(false)
@@ -351,7 +518,8 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
     if (!config.apiKey.trim() && config.provider !== 'free') {
       setValidationResult({
         isValid: false,
-        message: t.editor.aiConfig.pleaseEnterApiKey
+        message: t.editor.aiConfig.pleaseEnterApiKey,
+        diagnostics: undefined
       })
       return
     }
@@ -381,7 +549,8 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
       if (!result.isValid) {
         setValidationResult({
           isValid: false,
-          message: `${t.editor.aiConfig.validationFailed}: ${result.message}`
+          message: `${t.editor.aiConfig.validationFailed}: ${result.message}`,
+          diagnostics: result.diagnostics
         })
         return
       }
@@ -394,7 +563,8 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
       
       // 调用回调
       onSave(config)
-      
+
+      setConfigGuidance(null)
       onClose()
     } catch (error) {
       console.error('保存配置失败:', error)
@@ -414,7 +584,8 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
       
       setValidationResult({
         isValid: false,
-        message: errorMessage
+        message: errorMessage,
+        diagnostics: undefined
       })
       showError(errorMessage)
     } finally {
@@ -466,6 +637,234 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
   const statusMeta = getConfigStatusMeta(config, selectedProviderName, locale)
   const isFreeProvider = config.provider === 'free'
   const shouldDisableValidation = isValidating || (!isFreeProvider && !config.apiKey.trim())
+  const quickFixField = resolveQuickFixField(config, configGuidance, validationResult)
+  const normalizedApiKey = config.apiKey.trim()
+  const normalizedCustomEndpoint = normalizeCustomEndpointInput(config.customEndpoint)
+
+  /**
+   * 生成快速修复动作列表
+   * 根据当前诊断场景提供最短路径的可执行修复按钮，避免用户只看到错误却不知道下一步怎么改。
+   */
+  const quickFixActions: AIConfigQuickFixAction[] = (() => {
+    if (!quickFixField) {
+      return []
+    }
+
+    if (!config.enabled) {
+      const actions: AIConfigQuickFixAction[] = [
+        {
+          id: 'enableAI',
+          title: locale === 'zh' ? '重新启用 AI' : 'Enable AI again',
+          description: locale === 'zh'
+            ? '恢复当前配置的启用状态，再继续检查服务商和模型。'
+            : 'Re-enable the current configuration before checking provider and model.'
+        }
+      ]
+
+      if (config.provider !== 'free') {
+        actions.push({
+          id: 'switchToFree',
+          title: locale === 'zh' ? '切换到免费模型' : 'Switch to free model',
+          description: locale === 'zh'
+            ? '无需填写密钥，适合先恢复可用状态。'
+            : 'No API key needed. Best for getting back to a working state quickly.'
+        })
+      }
+
+      return actions
+    }
+
+    switch (quickFixField) {
+      case 'apiKey':
+        return [
+          {
+            id: 'clearApiKey',
+            title: locale === 'zh' ? '清空并重新填写密钥' : 'Clear and re-enter key',
+            description: locale === 'zh'
+              ? '适合旧密钥失效、复制错误或准备更换新密钥时使用。'
+              : 'Useful when the old key is invalid, copied incorrectly, or needs replacement.'
+          },
+          {
+            id: 'switchToFree',
+            title: locale === 'zh' ? '改用免费模型' : 'Use free model instead',
+            description: locale === 'zh'
+              ? '先保证可用，再回头补官方 API 配置。'
+              : 'Recover availability first, then revisit the official API setup later.'
+          }
+        ]
+      case 'customEndpoint':
+        return [
+          {
+            id: 'restoreCustomEndpoint',
+            title: locale === 'zh' ? '恢复推荐端点' : 'Restore recommended endpoint',
+            description: locale === 'zh'
+              ? '回填为系统默认的 SiliconFlow 兼容端点，适合当前地址不可达时快速回退。'
+              : 'Reset to the default SiliconFlow-compatible endpoint when the current one is unreachable.'
+          },
+          {
+            id: 'switchToFree',
+            title: locale === 'zh' ? '切换到免费模型' : 'Switch to free model',
+            description: locale === 'zh'
+              ? '无需继续排查自定义端点，直接恢复可用。'
+              : 'Skip custom endpoint debugging and restore availability immediately.'
+          }
+        ]
+      case 'modelName':
+        return [
+          {
+            id: 'restoreModel',
+            title: locale === 'zh' ? '恢复推荐模型' : 'Restore recommended model',
+            description: locale === 'zh'
+              ? '回到当前服务商的默认推荐模型，适合模型名缺失或版本写错时使用。'
+              : 'Revert to the current provider’s recommended model when the model is missing or incorrect.'
+          },
+          ...(config.provider !== 'free'
+            ? [{
+                id: 'switchToFree' as const,
+                title: locale === 'zh' ? '切换到免费模型' : 'Switch to free model',
+                description: locale === 'zh'
+                  ? '用免密钥模式先完成验证和生成。'
+                  : 'Use the no-key mode to continue validation and generation first.'
+              }]
+            : [])
+        ]
+      case 'provider':
+      default:
+        return [
+          {
+            id: 'switchToFree',
+            title: locale === 'zh' ? '使用免费模型' : 'Use free model',
+            description: locale === 'zh'
+              ? '适合先恢复可用状态，再按需要切回其他服务商。'
+              : 'Good for restoring availability first, then switching back later if needed.'
+          }
+        ]
+    }
+  })()
+
+  /**
+   * 应用快速修复动作
+   * 将常见错误场景收敛成一键可执行的修复步骤，并同步刷新引导提示。
+   */
+  const applyQuickFixAction = (actionId: AIConfigPrecheckActionId) => {
+    const freeProvider = aiProviders.find((provider) => provider.id === 'free')
+    const recommendedModel = selectedProvider?.models[0] || freeProvider?.models[0] || defaultConfig.modelName
+
+    switch (actionId) {
+      case 'enableAI':
+        updateConfig({ enabled: true })
+        setConfigGuidance({
+          field: 'provider',
+          title: locale === 'zh' ? 'AI 已重新启用' : 'AI enabled again',
+          description: locale === 'zh'
+            ? '下一步确认服务商和模型是否符合当前使用场景，然后重新验证。'
+            : 'Confirm the provider and model for your current workflow, then validate again.',
+          provider: config.provider,
+          createdAt: new Date().toISOString()
+        })
+        return
+      case 'switchToFree':
+        setConfig({
+          enabled: true,
+          provider: 'free',
+          apiKey: '',
+          customEndpoint: defaultConfig.customEndpoint,
+          modelName: freeProvider?.models[0] || defaultConfig.modelName
+        })
+        setValidationResult(null)
+        setConfigGuidance({
+          field: 'modelName',
+          title: locale === 'zh' ? '已切换到免费模型' : 'Switched to free model',
+          description: locale === 'zh'
+            ? '当前无需填写 API 密钥。确认模型后可直接保存，或先返回编辑器继续使用。'
+            : 'No API key is needed now. Confirm the model and save, or return to the editor directly.',
+          provider: 'free',
+          createdAt: new Date().toISOString()
+        })
+        return
+      case 'clearApiKey':
+        updateConfig({ apiKey: '' })
+        setConfigGuidance({
+          field: 'apiKey',
+          title: locale === 'zh' ? '请重新填写 API 密钥' : 'Please re-enter the API key',
+          description: locale === 'zh'
+            ? '已清空当前密钥，建议粘贴新的可用密钥后再次验证。'
+            : 'The current key has been cleared. Paste a new valid key and validate again.',
+          provider: config.provider,
+          createdAt: new Date().toISOString()
+        })
+        return
+      case 'trimApiKey':
+        updateConfig({ apiKey: normalizedApiKey })
+        setConfigGuidance({
+          field: 'apiKey',
+          title: locale === 'zh' ? '已清理密钥空格' : 'API key whitespace removed',
+          description: locale === 'zh'
+            ? '已去除首尾空格和换行，可以直接重新验证当前密钥。'
+            : 'Leading and trailing whitespace was removed. You can validate the current key again now.',
+          provider: config.provider,
+          createdAt: new Date().toISOString()
+        })
+        return
+      case 'restoreCustomEndpoint':
+        updateConfig({
+          enabled: true,
+          provider: 'custom',
+          customEndpoint: defaultConfig.customEndpoint,
+          modelName: config.modelName || defaultConfig.modelName
+        })
+        setConfigGuidance({
+          field: 'customEndpoint',
+          title: locale === 'zh' ? '已恢复推荐端点' : 'Recommended endpoint restored',
+          description: locale === 'zh'
+            ? '已经回填为默认兼容端点。若你使用自建服务，可直接改成真实地址后重新验证。'
+            : 'The default compatible endpoint has been restored. Replace it with your real service URL if needed, then validate again.',
+          provider: 'custom',
+          targetHost: defaultConfig.customEndpoint,
+          createdAt: new Date().toISOString()
+        })
+        return
+      case 'normalizeCustomEndpoint':
+        updateConfig({
+          customEndpoint: normalizedCustomEndpoint || defaultConfig.customEndpoint
+        })
+        setConfigGuidance({
+          field: 'customEndpoint',
+          title: locale === 'zh' ? '已规范化端点地址' : 'Endpoint normalized',
+          description: locale === 'zh'
+            ? '已移除多余后缀和尾部斜杠，确认地址后可以直接重新验证。'
+            : 'Extra suffixes and trailing slashes were removed. Validate again after confirming the endpoint.',
+          provider: config.provider,
+          targetHost: normalizedCustomEndpoint || defaultConfig.customEndpoint,
+          createdAt: new Date().toISOString()
+        })
+        return
+      case 'restoreModel':
+        updateConfig({ modelName: recommendedModel })
+        setConfigGuidance({
+          field: 'modelName',
+          title: locale === 'zh' ? '已恢复推荐模型' : 'Recommended model restored',
+          description: locale === 'zh'
+            ? '已切回当前服务商的默认推荐模型，可以直接重新验证。'
+            : 'The provider’s recommended model is restored. You can validate again now.',
+          provider: config.provider,
+          createdAt: new Date().toISOString()
+        })
+        return
+      default:
+        return
+    }
+  }
+
+  /**
+   * 生成 AI 配置本地预检查结果
+   * 在真正发起网络验证前，先提示最可能导致失败的本地配置问题。
+   */
+  const precheckItems: AIConfigPrecheckItem[] = buildAIConfigPrecheck(config, {
+    locale,
+    providerName: selectedProviderName,
+    providerModels: selectedProvider?.models
+  })
 
   if (!isOpen) return null
 
@@ -582,9 +981,92 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
               </div>
             </div>
 
+            {!config.enabled && configGuidance && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-amber-900">{configGuidance.title}</p>
+                      <span className="rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                        {getGuidanceFieldLabel(configGuidance.field, locale)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-amber-800">{configGuidance.description}</p>
+                    {quickFixActions.length > 0 && (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        {quickFixActions.map((action) => (
+                          <button
+                            key={`disabled-${action.id}`}
+                            type="button"
+                            onClick={() => applyQuickFixAction(action.id)}
+                            className="rounded-xl border border-amber-200 bg-white px-3 py-3 text-left transition-colors hover:border-amber-300 hover:bg-amber-100/60"
+                          >
+                            <p className="text-sm font-semibold text-slate-900">{action.title}</p>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">{action.description}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
               {config.enabled && (
+                <>
+                {configGuidance && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-amber-900">{configGuidance.title}</p>
+                          <span className="rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                            {getGuidanceFieldLabel(configGuidance.field, locale)}
+                          </span>
+                          {configGuidance.category && (
+                            <span className="rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                              {getValidationCategoryLabel(configGuidance.category, locale)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-2 text-sm leading-6 text-amber-800">{configGuidance.description}</p>
+                        {configGuidance.targetHost && (
+                          <p className="mt-2 break-all text-xs leading-5 text-amber-700">
+                            {locale === 'zh' ? '目标地址：' : 'Target: '}
+                            {configGuidance.targetHost}
+                          </p>
+                        )}
+                        {quickFixActions.length > 0 && (
+                          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                            {quickFixActions.map((action) => (
+                              <button
+                                key={action.id}
+                                type="button"
+                                onClick={() => applyQuickFixAction(action.id)}
+                                className="rounded-xl border border-amber-200 bg-white px-3 py-3 text-left transition-colors hover:border-amber-300 hover:bg-amber-100/60"
+                              >
+                                <p className="text-sm font-semibold text-slate-900">{action.title}</p>
+                                <p className="mt-1 text-xs leading-5 text-slate-500">{action.description}</p>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-                <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+                <div
+                  ref={providerSectionRef}
+                  tabIndex={-1}
+                  className={`rounded-xl border bg-white p-4 outline-none transition-colors sm:p-5 ${
+                    configGuidance?.field === 'provider'
+                      ? 'border-amber-300 ring-2 ring-amber-100'
+                      : 'border-slate-200'
+                  }`}
+                >
                   <div className="mb-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
                       {locale === 'zh' ? '服务商选择' : 'Provider Selection'}
@@ -667,7 +1149,13 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                 </div>
 
                 <div className="space-y-4">
-                  <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+                  <div
+                    className={`rounded-xl border bg-white p-4 transition-colors sm:p-5 ${
+                      configGuidance?.field === 'apiKey' || configGuidance?.field === 'customEndpoint'
+                        ? 'border-amber-300 ring-2 ring-amber-100'
+                        : 'border-slate-200'
+                    }`}
+                  >
                     <div className="mb-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
                         {locale === 'zh' ? '连接信息' : 'Connection'}
@@ -689,6 +1177,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                           {t.editor.aiConfig.apiKey}
                         </label>
                         <input
+                          ref={apiKeyInputRef}
                           type="password"
                           autoComplete="new-password"
                           value={config.apiKey}
@@ -715,6 +1204,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                             {t.editor.aiConfig.apiEndpoint}
                           </label>
                           <input
+                            ref={customEndpointInputRef}
                             type="url"
                             value={config.customEndpoint || ''}
                             onChange={(e) => updateConfig({ customEndpoint: e.target.value })}
@@ -727,7 +1217,13 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                   </div>
 
                   {selectedProvider && selectedProvider.models.length > 0 && (
-                    <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+                    <div
+                      className={`rounded-xl border bg-white p-4 transition-colors sm:p-5 ${
+                        configGuidance?.field === 'modelName'
+                          ? 'border-amber-300 ring-2 ring-amber-100'
+                          : 'border-slate-200'
+                      }`}
+                    >
                       <div className="mb-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
                           {locale === 'zh' ? '模型选择' : 'Model Selection'}
@@ -741,6 +1237,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                       </div>
                       <div className="relative">
                         <select
+                          ref={modelSelectRef}
                           value={config.modelName}
                           onChange={(e) => updateConfig({ modelName: e.target.value })}
                           className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-sm text-slate-900 transition-colors focus:border-slate-900 focus:outline-none"
@@ -764,9 +1261,54 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                     </div>
                   )}
 
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        {locale === 'zh' ? '本地预检查' : 'Local Precheck'}
+                      </p>
+                      <h3 className="mt-2 text-base font-semibold text-slate-900">
+                        {locale === 'zh' ? '验证前先检查这 4 项' : 'Check these 4 items before validation'}
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {locale === 'zh'
+                          ? '这里只检查本地输入质量，不会发起网络请求。'
+                          : 'These checks only inspect local inputs and do not trigger network requests.'}
+                      </p>
+                    </div>
+                    <div className="space-y-3">
+                      {precheckItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                                <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getAIConfigPrecheckStatusClass(item.status)}`}>
+                                  {getAIConfigPrecheckStatusLabel(item.status, locale)}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-sm leading-6 text-slate-500">{item.detail}</p>
+                            </div>
+                            {item.actionId && (
+                              <button
+                                type="button"
+                                onClick={() => applyQuickFixAction(item.actionId!)}
+                                className="app-shell-action-button h-8 shrink-0 rounded-xl px-3 text-xs"
+                              >
+                                {locale === 'zh' ? '快速修复' : 'Quick Fix'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {validationResult && (
                     <div
-                      className={`rounded-xl border px-4 py-3 ${
+                      className={`space-y-3 rounded-xl border px-4 py-3 ${
                         validationResult.isValid
                           ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                           : 'border-rose-200 bg-rose-50 text-rose-700'
@@ -780,6 +1322,69 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                         )}
                         <p className="text-sm leading-6">{validationResult.message}</p>
                       </div>
+                      {!validationResult.isValid && validationResult.diagnostics && (
+                        <div className="grid gap-2 rounded-xl border border-rose-200/70 bg-white/80 p-3 text-slate-700">
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                                服务商
+                              </p>
+                              <p className="mt-1 text-sm font-medium text-slate-900">
+                                {validationResult.diagnostics.providerLabel || validationResult.diagnostics.provider || '未识别'}
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                                错误类型
+                              </p>
+                              <p className="mt-1 text-sm font-medium text-slate-900">
+                                {getValidationCategoryLabel(validationResult.diagnostics.category, locale)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                              目标地址
+                            </p>
+                            <p className="mt-1 break-all text-sm font-medium text-slate-900">
+                              {validationResult.diagnostics.targetHost || '未识别'}
+                            </p>
+                          </div>
+                          {validationResult.diagnostics.detail && (
+                            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                                底层详情
+                              </p>
+                              <p className="mt-1 break-all text-sm leading-6 text-slate-600">
+                                {validationResult.diagnostics.detail}
+                              </p>
+                            </div>
+                          )}
+                          <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                              建议处理
+                            </p>
+                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                              {validationResult.diagnostics.suggestion || '请检查网络、代理、API 端点和服务商状态后重试。'}
+                            </p>
+                          </div>
+                          {quickFixActions.length > 0 && (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {quickFixActions.map((action) => (
+                                <button
+                                  key={`validation-${action.id}`}
+                                  type="button"
+                                  onClick={() => applyQuickFixAction(action.id)}
+                                  className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
+                                >
+                                  <p className="text-sm font-semibold text-slate-900">{action.title}</p>
+                                  <p className="mt-1 text-xs leading-5 text-slate-500">{action.description}</p>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -803,6 +1408,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                   </button>
                 </div>
                 </div>
+                </>
               )}
             </div>
           </div>

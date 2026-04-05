@@ -26,6 +26,7 @@ import {
   Info
 } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 
 /**
  * 配色方案接口
@@ -70,6 +71,40 @@ export interface ColorSchemeManagerProps {
   onDelete: (schemeId: string) => void
   /** 重命名方案回调 */
   onRename?: (schemeId: string, newName: string) => void
+}
+
+interface PendingDeleteScheme {
+  id: string
+  name: string
+}
+
+interface ColorSchemeTranslations {
+  common: {
+    cancel: string
+    delete: string
+    save: string
+  }
+  styles: {
+    colorScheme: {
+      title: string
+      saveCurrentScheme: string
+      currentColors: string
+      schemeName: string
+      enterName: string
+      deleteConfirm: string
+      presetSchemes: string
+      customSchemes: string
+      noCustomSchemes: string
+      createFirst: string
+      rename: string
+      primary: string
+      secondary: string
+      accent: string
+      text: string
+      background: string
+      createdAt: string
+    }
+  }
 }
 
 /**
@@ -197,7 +232,7 @@ const ColorPreviewThumbnail: React.FC<{
  */
 const ColorSchemeTooltip: React.FC<{
   scheme: ColorScheme
-  t: any
+  t: ColorSchemeTranslations
 }> = ({ scheme, t }) => {
   const labels = {
     primary: t.styles.colorScheme.primary,
@@ -263,7 +298,7 @@ const ColorSchemeItem: React.FC<{
   onSaveEdit?: () => void
   onCancelEdit?: () => void
   onEditNameChange?: (name: string) => void
-  t: any
+  t: ColorSchemeTranslations
 }> = ({
   scheme,
   isSelected,
@@ -437,6 +472,7 @@ export function ColorSchemeManager({
   const [editName, setEditName] = useState('')
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [newSchemeName, setNewSchemeName] = useState('')
+  const [pendingDeleteScheme, setPendingDeleteScheme] = useState<PendingDeleteScheme | null>(null)
 
   // 处理选择配色方案
   const handleSelect = useCallback((scheme: ColorScheme) => {
@@ -464,12 +500,29 @@ export function ColorSchemeManager({
     setShowSaveDialog(false)
   }, [currentScheme, newSchemeName, onSave])
 
-  // 处理删除配色方案
-  const handleDelete = useCallback((schemeId: string) => {
-    if (window.confirm(t.styles.colorScheme.deleteConfirm)) {
-      onDelete(schemeId)
+  /**
+   * 打开删除确认
+   * 记录待删除方案信息，交由统一确认弹层处理。
+   */
+  const handleRequestDelete = useCallback((scheme: ColorScheme) => {
+    setPendingDeleteScheme({
+      id: scheme.id,
+      name: scheme.name
+    })
+  }, [])
+
+  /**
+   * 确认删除自定义配色
+   * 删除成功后立即关闭确认弹层，避免状态残留。
+   */
+  const handleConfirmDelete = useCallback(() => {
+    if (!pendingDeleteScheme) {
+      return
     }
-  }, [onDelete, t.styles.colorScheme.deleteConfirm])
+
+    onDelete(pendingDeleteScheme.id)
+    setPendingDeleteScheme(null)
+  }, [onDelete, pendingDeleteScheme])
 
   // 处理开始编辑
   const handleStartEdit = useCallback((scheme: ColorScheme) => {
@@ -584,6 +637,21 @@ export function ColorSchemeManager({
         )}
       </AnimatePresence>
 
+      <ConfirmDialog
+        isOpen={!!pendingDeleteScheme}
+        title={t.common.delete}
+        message={
+          pendingDeleteScheme
+            ? `${t.styles.colorScheme.deleteConfirm}「${pendingDeleteScheme.name}」`
+            : ''
+        }
+        type="danger"
+        confirmText={t.common.delete}
+        cancelText={t.common.cancel}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setPendingDeleteScheme(null)}
+      />
+
       {/* 预设方案列表 */}
       <div className="space-y-2">
         <button
@@ -646,7 +714,7 @@ export function ColorSchemeManager({
                       isEditing={editingId === scheme.id}
                       editName={editName}
                       onSelect={() => handleSelect(scheme)}
-                      onDelete={() => handleDelete(scheme.id)}
+                      onDelete={() => handleRequestDelete(scheme)}
                       onStartEdit={() => handleStartEdit(scheme)}
                       onSaveEdit={handleSaveEdit}
                       onCancelEdit={handleCancelEdit}

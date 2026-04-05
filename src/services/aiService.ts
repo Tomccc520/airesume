@@ -13,6 +13,12 @@
 
 import { AIConfig } from '@/components/AIConfigModal'
 
+const AI_CONFIG_STORAGE_KEY = 'ai-config'
+const AI_CONFIG_VALIDATION_STORAGE_KEY = 'ai-config-validation'
+const AI_CONFIG_GUIDANCE_STORAGE_KEY = 'ai-config-guidance'
+export const AI_CONFIG_STATUS_EVENT = 'ai-config-status-updated'
+export const AI_CONFIG_GUIDANCE_EVENT = 'ai-config-guidance-updated'
+
 /**
  * AI 生成错误类型
  */
@@ -32,6 +38,184 @@ export interface AIConfigStatus {
   modelName: string | null
   hasApiKey: boolean
   needsApiKey: boolean
+  lastValidation: AIValidationSnapshot | null
+}
+
+export interface AIValidationDiagnostics {
+  provider?: AIConfig['provider'] | string
+  providerLabel?: string
+  targetHost?: string
+  category?: string
+  code?: string
+  detail?: string
+  suggestion?: string
+}
+
+interface AIValidationResponsePayload {
+  success?: boolean
+  error?: string
+  diagnostics?: AIValidationDiagnostics
+}
+
+export interface AIValidationResult {
+  isValid: boolean
+  message: string
+  diagnostics?: AIValidationDiagnostics
+}
+
+export interface AIValidationSnapshot {
+  isValid: boolean
+  message: string
+  provider: AIConfig['provider']
+  modelName: string
+  customEndpoint?: string
+  validatedAt: string
+  diagnostics?: AIValidationDiagnostics
+}
+
+export type AIConfigGuidanceField = 'provider' | 'apiKey' | 'customEndpoint' | 'modelName'
+
+export interface AIConfigGuidance {
+  field: AIConfigGuidanceField
+  title: string
+  description: string
+  provider?: AIConfig['provider'] | string
+  targetHost?: string
+  category?: string
+  createdAt: string
+}
+
+/**
+ * 获取服务商展示名称
+ * 当前端本地请求 `/api/ai` 失败时，仍然可以在错误提示里指出是哪类服务商配置。
+ */
+function getAIProviderLabel(provider: AIConfig['provider']): string {
+  switch (provider) {
+    case 'free':
+      return '免费模型'
+    case 'siliconflow':
+      return 'SiliconFlow'
+    case 'deepseek':
+      return 'DeepSeek'
+    case 'custom':
+      return '自定义接口'
+    default:
+      return 'AI服务'
+  }
+}
+
+/**
+ * 构建本地验证接口失败提示
+ * 当浏览器连 `/api/ai` 都失败时，明确指出是本地开发服务或站点连接异常。
+ */
+function buildLocalValidationErrorMessage(config: AIConfig, error: unknown): string {
+  const providerLabel = getAIProviderLabel(config.provider)
+  const detail = error instanceof Error ? error.message : '未知错误'
+
+  if (detail.toLowerCase().includes('failed to fetch')) {
+    return `无法连接到站内 AI 验证接口 /api/ai，${providerLabel} 配置尚未提交验证。请确认本地站点可访问后重试。`
+  }
+
+  return `无法连接到站内 AI 验证接口 /api/ai。${providerLabel} 验证被中断，底层错误：${detail}`
+}
+
+/**
+ * 构建本地验证接口失败诊断
+ * 当浏览器连 `/api/ai` 都失败时，补充目标接口、错误类别和建议动作。
+ */
+function buildLocalValidationDiagnostics(config: AIConfig, error: unknown): AIValidationDiagnostics {
+  const detail = error instanceof Error ? error.message : '未知错误'
+  const normalizedDetail = detail.toLowerCase()
+  const isFetchFailure = normalizedDetail.includes('failed to fetch')
+  const isTimeout = normalizedDetail.includes('timeout')
+
+  return {
+    provider: config.provider,
+    providerLabel: getAIProviderLabel(config.provider),
+    targetHost: '/api/ai',
+    category: isTimeout ? 'timeout' : isFetchFailure ? 'network' : 'unknown',
+    detail,
+    suggestion: isTimeout
+      ? '请确认本地站点与代理服务正常运行后重试。'
+      : '请确认当前站点可正常访问，并检查浏览器网络拦截、代理或本地开发服务状态。'
+  }
+}
+
+/**
+ * 规范化验证接口返回的错误文案
+ * 优先展示服务端已分类的 provider、目标 host 和底层诊断信息。
+ */
+function normalizeValidationErrorMessage(
+  payload: AIValidationResponsePayload | null | undefined,
+  responseStatus?: number
+): string {
+  if (payload?.error) {
+    const diagnosticSuffix = payload.diagnostics?.code
+      ? `（错误码：${payload.diagnostics.code}）`
+      : ''
+    return `${payload.error}${diagnosticSuffix}`
+  }
+
+  if (typeof responseStatus === 'number') {
+    return `验证失败：请求返回 ${responseStatus}`
+  }
+
+  return '验证失败'
+}
+
+/**
+ * 规范化验证接口返回结果
+ * 将服务端返回的错误文案和诊断结构统一整理成前端可直接消费的结果。
+ */
+function buildValidationFailureResult(
+  payload: AIValidationResponsePayload | null | undefined,
+  responseStatus?: number
+): AIValidationResult {
+  return {
+    isValid: false,
+    message: normalizeValidationErrorMessage(payload, responseStatus),
+    diagnostics: payload?.diagnostics
+  }
+}
+
+/**
+ * 生成验证快照
+ * 将最近一次配置验证结果持久化，供 AI 面板和配置入口读取最近失败原因。
+ */
+function createValidationSnapshot(config: AIConfig, result: AIValidationResult): AIValidationSnapshot {
+  return {
+    isValid: result.isValid,
+    message: result.message,
+    provider: config.provider,
+    modelName: config.modelName,
+    customEndpoint: config.customEndpoint,
+    validatedAt: new Date().toISOString(),
+    diagnostics: result.diagnostics
+  }
+}
+
+/**
+ * 派发 AI 配置状态更新事件
+ * 让同标签页内的 AI 面板在验证结果变化后立刻刷新状态摘要。
+ */
+function dispatchAIConfigStatusUpdated(): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.dispatchEvent(new Event(AI_CONFIG_STATUS_EVENT))
+}
+
+/**
+ * 派发 AI 配置引导更新事件
+ * 让配置弹窗在被动打开时也能收到最新的聚焦意图和提示信息。
+ */
+function dispatchAIConfigGuidanceUpdated(): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.dispatchEvent(new Event(AI_CONFIG_GUIDANCE_EVENT))
 }
 
 /**
@@ -74,7 +258,7 @@ export class AIService {
   private loadConfig() {
     if (typeof window === 'undefined') return
     try {
-      const savedConfig = localStorage.getItem('ai-config')
+      const savedConfig = localStorage.getItem(AI_CONFIG_STORAGE_KEY)
       if (savedConfig) {
         this.config = JSON.parse(savedConfig)
         return
@@ -82,6 +266,148 @@ export class AIService {
       this.config = null
     } catch (error) {
       console.error('加载AI配置失败:', error)
+    }
+  }
+
+  /**
+   * 读取最近一次配置验证快照
+   * 仅返回与当前配置匹配的验证结果，避免旧 provider 的错误干扰当前面板状态。
+   */
+  private readValidationSnapshot(config: AIConfig | null): AIValidationSnapshot | null {
+    if (typeof window === 'undefined' || !config) {
+      return null
+    }
+
+    try {
+      const rawValue = localStorage.getItem(AI_CONFIG_VALIDATION_STORAGE_KEY)
+      if (!rawValue) {
+        return null
+      }
+
+      const snapshot = JSON.parse(rawValue) as Partial<AIValidationSnapshot>
+      if (snapshot.provider !== config.provider) {
+        return null
+      }
+
+      if (config.provider === 'custom' && snapshot.customEndpoint !== config.customEndpoint) {
+        return null
+      }
+
+      return {
+        isValid: Boolean(snapshot.isValid),
+        message: typeof snapshot.message === 'string' ? snapshot.message : '',
+        provider: snapshot.provider as AIConfig['provider'],
+        modelName: typeof snapshot.modelName === 'string' ? snapshot.modelName : '',
+        customEndpoint: typeof snapshot.customEndpoint === 'string' ? snapshot.customEndpoint : undefined,
+        validatedAt: typeof snapshot.validatedAt === 'string' ? snapshot.validatedAt : '',
+        diagnostics: snapshot.diagnostics
+      }
+    } catch (error) {
+      console.error('读取AI验证快照失败:', error)
+      return null
+    }
+  }
+
+  /**
+   * 写入最近一次配置验证快照
+   * 用于在 AI 面板中复用最近一次验证诊断，无需重新打开配置弹窗。
+   */
+  private writeValidationSnapshot(snapshot: AIValidationSnapshot): void {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    try {
+      localStorage.setItem(AI_CONFIG_VALIDATION_STORAGE_KEY, JSON.stringify(snapshot))
+      dispatchAIConfigStatusUpdated()
+    } catch (error) {
+      console.error('写入AI验证快照失败:', error)
+    }
+  }
+
+  /**
+   * 清理最近一次配置验证快照
+   * 在切换到免费模型或停用 AI 时，避免保留旧的失败诊断。
+   */
+  private clearValidationSnapshot(): void {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    try {
+      localStorage.removeItem(AI_CONFIG_VALIDATION_STORAGE_KEY)
+      dispatchAIConfigStatusUpdated()
+    } catch (error) {
+      console.error('清理AI验证快照失败:', error)
+    }
+  }
+
+  /**
+   * 读取 AI 配置引导信息
+   * 在 AI 面板跳转到配置弹窗时，恢复最近一次诊断对应的聚焦字段和说明文案。
+   */
+  readConfigGuidance(): AIConfigGuidance | null {
+    if (typeof window === 'undefined') {
+      return null
+    }
+
+    try {
+      const rawValue = localStorage.getItem(AI_CONFIG_GUIDANCE_STORAGE_KEY)
+      if (!rawValue) {
+        return null
+      }
+
+      const guidance = JSON.parse(rawValue) as Partial<AIConfigGuidance>
+      if (!guidance.field || !guidance.title || !guidance.description || !guidance.createdAt) {
+        return null
+      }
+
+      return {
+        field: guidance.field,
+        title: guidance.title,
+        description: guidance.description,
+        provider: guidance.provider,
+        targetHost: guidance.targetHost,
+        category: guidance.category,
+        createdAt: guidance.createdAt
+      }
+    } catch (error) {
+      console.error('读取AI配置引导失败:', error)
+      return null
+    }
+  }
+
+  /**
+   * 写入 AI 配置引导信息
+   * 供 AI 面板和其他入口在打开配置弹窗前写入当前应聚焦的字段。
+   */
+  setConfigGuidance(guidance: AIConfigGuidance): void {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    try {
+      localStorage.setItem(AI_CONFIG_GUIDANCE_STORAGE_KEY, JSON.stringify(guidance))
+      dispatchAIConfigGuidanceUpdated()
+    } catch (error) {
+      console.error('写入AI配置引导失败:', error)
+    }
+  }
+
+  /**
+   * 清理 AI 配置引导信息
+   * 避免旧的聚焦意图在下一次普通打开配置弹窗时继续残留。
+   */
+  clearConfigGuidance(): void {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    try {
+      localStorage.removeItem(AI_CONFIG_GUIDANCE_STORAGE_KEY)
+      dispatchAIConfigGuidanceUpdated()
+    } catch (error) {
+      console.error('清理AI配置引导失败:', error)
     }
   }
 
@@ -103,7 +429,11 @@ export class AIService {
       return { success: true }
     }
     try {
-      localStorage.setItem('ai-config', JSON.stringify(config))
+      localStorage.setItem(AI_CONFIG_STORAGE_KEY, JSON.stringify(config))
+      if (!config.enabled || config.provider === 'free') {
+        this.clearValidationSnapshot()
+      }
+      dispatchAIConfigStatusUpdated()
       return { success: true }
     } catch (error) {
       console.error('保存AI配置到本地存储失败:', error)
@@ -187,12 +517,14 @@ export class AIService {
         provider: null,
         modelName: null,
         hasApiKey: false,
-        needsApiKey: false
+        needsApiKey: false,
+        lastValidation: null
       }
     }
 
     const needsApiKey = this.config.provider !== 'free'
     const hasApiKey = !needsApiKey || Boolean(this.config.apiKey?.trim())
+    const lastValidation = this.readValidationSnapshot(this.config)
 
     return {
       isConfigured: Boolean(this.config.enabled && hasApiKey),
@@ -200,7 +532,24 @@ export class AIService {
       provider: this.config.provider,
       modelName: this.config.modelName || null,
       hasApiKey,
-      needsApiKey
+      needsApiKey,
+      lastValidation
+    }
+  }
+
+  /**
+   * 获取当前 AI 配置快照
+   * 供 AI 面板和配置弹窗外的轻量状态展示复用当前本地配置。
+   */
+  getConfigSnapshot(): AIConfig | null {
+    this.loadConfig()
+
+    if (!this.config) {
+      return null
+    }
+
+    return {
+      ...this.config
     }
   }
 
@@ -661,7 +1010,7 @@ export class AIService {
   /**
    * 验证API配置
    */
-  async validateConfig(config: AIConfig): Promise<{ isValid: boolean; message: string }> {
+  async validateConfig(config: AIConfig): Promise<AIValidationResult> {
     try {
       // 使用内部API代理路由进行验证
       const response = await fetch('/api/ai', {
@@ -685,24 +1034,31 @@ export class AIService {
       })
 
       if (response.ok) {
-        const data = await response.json()
+        const data = await response.json() as AIValidationResponsePayload
         if (data.success) {
-          return { isValid: true, message: 'API配置验证成功' }
+          const result = { isValid: true, message: 'API配置验证成功' } satisfies AIValidationResult
+          this.writeValidationSnapshot(createValidationSnapshot(config, result))
+          return result
         } else {
-          return { isValid: false, message: data.error || '验证失败' }
+          const result = buildValidationFailureResult(data)
+          this.writeValidationSnapshot(createValidationSnapshot(config, result))
+          return result
         }
       } else {
-        const errorData = await response.json().catch(() => ({}))
-        return { 
-          isValid: false, 
-          message: errorData.error || `验证失败: ${response.status}` 
-        }
+        const errorData = await response.json().catch(() => null) as AIValidationResponsePayload | null
+        const result = buildValidationFailureResult(errorData, response.status)
+        this.writeValidationSnapshot(createValidationSnapshot(config, result))
+        return result
       }
     } catch (error) {
-      return { 
+      const diagnostics = buildLocalValidationDiagnostics(config, error)
+      const result = { 
         isValid: false, 
-        message: error instanceof Error ? error.message : '网络连接失败' 
+        message: buildLocalValidationErrorMessage(config, error),
+        diagnostics
       }
+      this.writeValidationSnapshot(createValidationSnapshot(config, result))
+      return result
     }
   }
 }

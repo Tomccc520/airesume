@@ -13,6 +13,7 @@ import { useState } from 'react'
 import { X, Download, FileText, Image, File } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { useToastContext } from '@/components/Toast'
 
 interface ExportPreviewDialogProps {
   isOpen: boolean
@@ -30,11 +31,13 @@ export default function ExportPreviewDialog({
   onOptionsChange
 }: ExportPreviewDialogProps) {
   const { t, locale } = useLanguage()
+  const { error: showError } = useToastContext()
   const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'png' | 'jpg' | 'json'>('pdf')
   const [isExporting, setIsExporting] = useState(false)
   const [margin, setMargin] = useState(10)
   const [showPageBreaks, setShowPageBreaks] = useState(true)
   const [paper, setPaper] = useState<'a4' | 'letter'>('a4')
+  const [errorMessage, setErrorMessage] = useState('')
 
   const formats = [
     {
@@ -68,6 +71,59 @@ export default function ExportPreviewDialog({
     }
   ]
 
+  /**
+   * 获取导出格式说明
+   * 为当前选中的格式补充导出场景、文件特征和建议用途，降低用户选择成本。
+   */
+  const getFormatGuide = (format: typeof selectedFormat) => {
+    const guideMap = {
+      pdf: {
+        badge: locale === 'zh' ? '投递优先' : 'Best for Delivery',
+        summary: locale === 'zh'
+          ? '适合正式投递、打印和发送给招聘方。'
+          : 'Best for job submission, printing, and recruiter sharing.'
+      },
+      png: {
+        badge: locale === 'zh' ? '高清图片' : 'High Fidelity',
+        summary: locale === 'zh'
+          ? '适合做长图展示或插入到其他文档中。'
+          : 'Great for long-image previews or embedding into other documents.'
+      },
+      jpg: {
+        badge: locale === 'zh' ? '快速分享' : 'Quick Share',
+        summary: locale === 'zh'
+          ? '文件较小，适合临时预览和即时发送。'
+          : 'Smaller file size, suitable for quick previews and fast sharing.'
+      },
+      json: {
+        badge: locale === 'zh' ? '数据备份' : 'Backup Data',
+        summary: locale === 'zh'
+          ? '用于保存完整编辑数据，方便后续重新导入。'
+          : 'Stores full editable data so you can import it again later.'
+      }
+    }
+
+    return guideMap[format]
+  }
+
+  /**
+   * 更新导出参数
+   * 在调整页边距、分页和纸张时同步约束合法范围，避免导出时再报错。
+   */
+  const updateExportOptions = (options: Partial<{ margin: number; showPageBreaks: boolean; paper: 'a4' | 'letter' }>) => {
+    if (typeof options.margin === 'number') {
+      setMargin(Math.min(25, Math.max(5, options.margin)))
+    }
+
+    if (typeof options.showPageBreaks === 'boolean') {
+      setShowPageBreaks(options.showPageBreaks)
+    }
+
+    if (options.paper) {
+      setPaper(options.paper)
+    }
+  }
+
   // 格式提示信息
   const formatTips = {
     pdf: locale === 'zh' ? 'PDF 格式最适合打印和投递简历' : 'PDF format is best for printing and submitting resumes',
@@ -76,8 +132,13 @@ export default function ExportPreviewDialog({
     json: locale === 'zh' ? 'JSON 格式用于备份数据，可以重新导入' : 'JSON format is for data backup and can be re-imported'
   }
 
+  /**
+   * 执行导出
+   * 在导出前同步当前选项，并将失败信息收敛到站内提示，不再静默失败。
+   */
   const handleExport = async () => {
     setIsExporting(true)
+    setErrorMessage('')
     try {
       onOptionsChange?.({ margin, showPageBreaks, paper })
       await onExport(selectedFormat)
@@ -86,6 +147,12 @@ export default function ExportPreviewDialog({
         onClose()
       }, 1000)
     } catch (error) {
+      const message = error instanceof Error ? error.message : (locale === 'zh' ? '导出失败，请稍后重试。' : 'Export failed. Please retry later.')
+      setErrorMessage(message)
+      showError(
+        locale === 'zh' ? '导出失败' : 'Export Failed',
+        message
+      )
       setIsExporting(false)
     }
   }
@@ -94,71 +161,119 @@ export default function ExportPreviewDialog({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 p-4 backdrop-blur-sm">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-white border border-gray-200 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+          className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
         >
           {/* 头部 */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">{t.editor.toolbar.exportResume}</h3>
-              <p className="text-sm text-gray-500 mt-1">{t.editor.toolbar.selectFormat}</p>
+          <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+            <div className="flex items-start gap-3">
+              <span className="app-shell-brand-mark h-10 w-10 shrink-0 rounded-xl">
+                <Download className="h-4 w-4" />
+              </span>
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">{t.editor.toolbar.exportResume}</h3>
+                <p className="mt-1 text-sm text-slate-500">{t.editor.toolbar.selectFormat}</p>
+              </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="rounded-lg p-2 transition-colors hover:bg-slate-100"
             >
-              <X className="w-5 h-5 text-gray-400" />
+              <X className="w-5 h-5 text-slate-400" />
             </button>
           </div>
 
           {/* 内容 */}
           <div className="p-6">
             {/* 文件名预览 */}
-            <div className="mb-6 p-4 bg-gray-50 border border-gray-100 rounded-xl">
-              <p className="text-sm text-gray-500 mb-1">{locale === 'zh' ? '文件名' : 'Filename'}</p>
-              <p className="text-lg font-semibold text-gray-900">
-                {resumeName || (locale === 'zh' ? '简历' : 'Resume')}.{selectedFormat}
+            <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="mb-1 text-sm text-slate-500">{locale === 'zh' ? '文件名' : 'Filename'}</p>
+                  <p className="text-lg font-semibold text-slate-900">
+                    {resumeName || (locale === 'zh' ? '简历' : 'Resume')}.{selectedFormat}
+                  </p>
+                </div>
+                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                  {getFormatGuide(selectedFormat).badge}
+                </span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                {getFormatGuide(selectedFormat).summary}
               </p>
             </div>
 
+            <div className="mb-6 grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(220px,0.9fr)]">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                  {locale === 'zh' ? '导出工作流' : 'Export Workflow'}
+                </p>
+                <h4 className="mt-2 text-base font-semibold text-slate-900">
+                  {locale === 'zh' ? '先选格式，再确认版式参数' : 'Choose a format, then review layout options'}
+                </h4>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  {locale === 'zh'
+                    ? '导出会沿用当前模板和编辑内容，页边距、纸张和分页标记可以在这里临时调整。'
+                    : 'Export uses the current template and content. Margin, paper size, and page breaks can be adjusted here before export.'}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                  {locale === 'zh' ? '当前格式提示' : 'Current Format Tip'}
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-900">
+                  {formatTips[selectedFormat]}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  {selectedFormat === 'pdf'
+                    ? (locale === 'zh' ? '如果是正式投递，优先使用 PDF。' : 'Use PDF first for formal applications.')
+                    : (locale === 'zh' ? '图片和 JSON 更适合展示、分享或备份。' : 'Images and JSON are better for sharing, display, or backup.')}
+                </p>
+              </div>
+            </div>
+
             {/* 格式选择 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+            <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {formats.map((format) => (
                 <button
                   key={format.id}
+                  type="button"
                   onClick={() => setSelectedFormat(format.id)}
-                  className={`relative p-4 rounded-xl border transition-all text-left group ${
+                  className={`relative rounded-xl border p-4 text-left transition-colors ${
                     selectedFormat === format.id
-                      ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-200'
-                      : 'bg-white border-gray-200 hover:border-blue-200 hover:bg-gray-50'
+                      ? 'border-slate-900 bg-slate-50 ring-1 ring-slate-200'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
                   {format.recommended && (
-                    <span className="absolute -top-2 -right-2 px-2 py-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs font-semibold rounded-full">
+                    <span className="absolute right-3 top-3 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
                       {locale === 'zh' ? '推荐' : 'Recommended'}
                     </span>
                   )}
                   <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg transition-colors ${
-                      selectedFormat === format.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500'
+                    <div className={`rounded-xl border p-2 ${
+                      selectedFormat === format.id
+                        ? 'border-slate-900 bg-slate-900 text-white'
+                        : 'border-slate-200 bg-slate-50 text-slate-500'
                     }`}>
-                      <format.icon className="w-5 h-5" />
+                      <format.icon className="h-5 w-5" />
                     </div>
-                    <div className="flex-1">
-                      <h4 className={`font-semibold mb-0.5 ${selectedFormat === format.id ? 'text-blue-700' : 'text-gray-700 group-hover:text-gray-900'}`}>
+                    <div className="min-w-0 flex-1">
+                      <h4 className={`font-semibold ${selectedFormat === format.id ? 'text-slate-900' : 'text-slate-700'}`}>
                         {format.name}
                       </h4>
-                      <p className={`text-xs ${selectedFormat === format.id ? 'text-blue-600/80' : 'text-gray-400 group-hover:text-gray-500'}`}>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
                         {format.description}
                       </p>
                     </div>
                     {selectedFormat === format.id && (
-                      <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-slate-900">
+                        <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       </div>
@@ -168,81 +283,82 @@ export default function ExportPreviewDialog({
               ))}
             </div>
 
-            {/* 提示信息 */}
-            <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl mb-6 flex gap-3">
-              <div className="text-blue-500 flex-shrink-0">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <p className="text-sm text-blue-600 leading-relaxed">
-                <strong className="font-semibold mr-1">{locale === 'zh' ? '提示：' : 'Tip:'}</strong>
-                {formatTips[selectedFormat]}
-              </p>
-            </div>
-
             {/* 导出选项 */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {locale === 'zh' ? '页边距（mm）' : 'Margin (mm)'}
-                </label>
-                <input
-                  type="number"
-                  min={5}
-                  max={25}
-                  value={margin}
-                  onChange={(e) => setMargin(parseInt(e.target.value) || 10)}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {locale === 'zh' ? '显示分页标记' : 'Page Breaks'}
-                </label>
-                <div className="flex items-center gap-3 h-[38px] px-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                {locale === 'zh' ? '导出参数' : 'Export Options'}
+              </p>
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
+                    {locale === 'zh' ? '页边距（mm）' : 'Margin (mm)'}
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={showPageBreaks}
-                    onChange={(e) => setShowPageBreaks(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors"
+                    type="number"
+                    min={5}
+                    max={25}
+                    value={margin}
+                    onChange={(e) => updateExportOptions({ margin: parseInt(e.target.value, 10) || 10 })}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 transition-colors focus:border-slate-900 focus:outline-none"
                   />
-                  <span className="text-sm text-gray-600">{locale === 'zh' ? '启用' : 'Enable'}</span>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
+                    {locale === 'zh' ? '显示分页标记' : 'Page Breaks'}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => updateExportOptions({ showPageBreaks: !showPageBreaks })}
+                    className={`inline-flex h-10 w-full items-center justify-between rounded-xl border px-3 text-sm transition-colors ${
+                      showPageBreaks
+                        ? 'border-slate-900 bg-slate-900 text-white'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>{locale === 'zh' ? '导出中显示分页辅助线' : 'Show page guides on export'}</span>
+                    <span className={`h-2.5 w-2.5 rounded-full ${showPageBreaks ? 'bg-white' : 'bg-slate-300'}`}></span>
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500">
+                    {locale === 'zh' ? '纸张尺寸' : 'Paper Size'}
+                  </label>
+                  <select
+                    value={paper}
+                    onChange={(e) => updateExportOptions({ paper: (e.target.value as 'a4' | 'letter') || 'a4' })}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 transition-colors focus:border-slate-900 focus:outline-none"
+                  >
+                    <option value="a4">A4（210×297mm）</option>
+                    <option value="letter">Letter（216×279mm）</option>
+                  </select>
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {locale === 'zh' ? '纸张尺寸' : 'Paper Size'}
-                </label>
-                <select
-                  value={paper}
-                  onChange={(e) => setPaper((e.target.value as 'a4' | 'letter') || 'a4')}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
-                >
-                  <option value="a4">A4（210×297mm）</option>
-                  <option value="letter">Letter（216×279mm）</option>
-                </select>
-              </div>
             </div>
+
+            {errorMessage && (
+              <div className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {errorMessage}
+              </div>
+            )}
           </div>
 
           {/* 底部按钮 */}
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-100 bg-gray-50">
+          <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
             <button
               onClick={onClose}
               disabled={isExporting}
-              className="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-100 hover:text-gray-900 transition-colors disabled:opacity-50 font-medium"
+              className="app-shell-action-button h-10 rounded-xl px-5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t.common.cancel}
             </button>
             <button
               onClick={handleExport}
               disabled={isExporting}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center gap-2 font-medium"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-900 px-5 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isExporting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   {t.editor.toolbar.exporting}
                 </>
               ) : (

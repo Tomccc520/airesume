@@ -86,24 +86,21 @@ export function ConfirmDialog({
   const typeConfig = {
     warning: {
       icon: AlertTriangle,
-      iconBg: 'bg-yellow-100 dark:bg-yellow-900/30',
-      iconColor: 'text-yellow-500',
-      confirmBg: 'bg-yellow-500 hover:bg-yellow-600',
-      confirmBorder: 'border-yellow-600'
+      iconBg: 'border-amber-200 bg-amber-50',
+      iconColor: 'text-amber-600',
+      confirmBg: 'bg-amber-500 hover:bg-amber-600'
     },
     danger: {
       icon: AlertCircle,
-      iconBg: 'bg-red-100 dark:bg-red-900/30',
-      iconColor: 'text-red-500',
-      confirmBg: 'bg-red-500 hover:bg-red-600',
-      confirmBorder: 'border-red-600'
+      iconBg: 'border-rose-200 bg-rose-50',
+      iconColor: 'text-rose-600',
+      confirmBg: 'bg-rose-500 hover:bg-rose-600'
     },
     info: {
       icon: Info,
-      iconBg: 'bg-blue-100 dark:bg-blue-900/30',
-      iconColor: 'text-blue-500',
-      confirmBg: 'bg-blue-500 hover:bg-blue-600',
-      confirmBorder: 'border-blue-600'
+      iconBg: 'border-sky-200 bg-sky-50',
+      iconColor: 'text-sky-600',
+      confirmBg: 'bg-slate-900 hover:bg-slate-800'
     }
   }
 
@@ -124,29 +121,29 @@ export function ConfirmDialog({
           >
             {/* 对话框 */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700 overflow-hidden shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="dialog-title"
-            >
-              {/* 头部 */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl ${config.iconBg}`}>
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="mx-4 w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dialog-title"
+          >
+            {/* 头部 */}
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+              <div className="flex items-center gap-3">
+                  <div className={`rounded-xl border p-2 ${config.iconBg}`}>
                     <IconComponent className={`w-6 h-6 ${config.iconColor}`} />
                   </div>
-                  <h3 id="dialog-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  <h3 id="dialog-title" className="text-lg font-semibold text-slate-900">
                     {title}
                   </h3>
-                </div>
+              </div>
                 <button
                   onClick={onCancel}
-                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
                   aria-label="关闭"
                 >
                   <X className="w-5 h-5" />
@@ -154,20 +151,20 @@ export function ConfirmDialog({
               </div>
 
               {/* 内容 */}
-              <div className="p-6">
-                <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+              <div className="px-6 py-5">
+                <p className="leading-relaxed text-slate-600">
                   {message}
                 </p>
               </div>
 
               {/* 底部按钮 */}
-              <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+              <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4">
                 {/* 撤销按钮 */}
                 <div>
                   {showUndo && onUndo && (
                     <button
                       onClick={onUndo}
-                      className="flex items-center gap-2 px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      className="app-shell-action-button h-10 rounded-xl px-3 text-sm"
                     >
                       <Undo2 className="w-4 h-4" />
                       {undoText || t.undo}
@@ -179,14 +176,14 @@ export function ConfirmDialog({
                 <div className="flex items-center gap-3">
                   <button
                     onClick={onCancel}
-                    className="px-4 py-2 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium"
+                    className="app-shell-action-button h-10 rounded-xl px-4 text-sm"
                   >
                     {cancelText || t.cancel}
                   </button>
                   <button
                     onClick={onConfirm}
                     disabled={confirmDisabled || confirmLoading}
-                    className={`px-4 py-2 text-white rounded-xl transition-all font-medium flex items-center gap-2 ${config.confirmBg} disabled:opacity-50 disabled:cursor-not-allowed`}
+                    className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-medium text-white transition-colors ${config.confirmBg} disabled:cursor-not-allowed disabled:opacity-50`}
                   >
                     {confirmLoading && (
                       <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">

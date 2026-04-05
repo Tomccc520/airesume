@@ -48,6 +48,7 @@ export function OptimizedImageUpload({
 }: OptimizedImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(currentImage || null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [validationMessage, setValidationMessage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { optimizeImage, optimizing, result, error } = useImageOptimization({
@@ -59,6 +60,7 @@ export function OptimizedImageUpload({
       // 设置预览
       setPreview(result.dataUrl);
       setUploadProgress(100);
+      setValidationMessage('');
       
       // 调用上传回调
       if (onUpload) {
@@ -79,16 +81,20 @@ export function OptimizedImageUpload({
 
     // 验证文件类型
     if (!file.type.startsWith('image/')) {
-      alert('请选择图片文件');
+      setValidationMessage('请选择 JPG、PNG 或 WebP 图片文件');
+      e.target.value = '';
       return;
     }
 
     // 验证文件大小
     if (file.size > maxFileSize) {
       const maxSizeMB = (maxFileSize / (1024 * 1024)).toFixed(0);
-      alert(`图片文件过大，请选择小于 ${maxSizeMB}MB 的图片`);
+      setValidationMessage(`图片文件过大，请选择小于 ${maxSizeMB}MB 的图片`);
+      e.target.value = '';
       return;
     }
+
+    setValidationMessage('');
 
     // 模拟压缩进度
     setUploadProgress(0);
@@ -106,7 +112,7 @@ export function OptimizedImageUpload({
     try {
       await optimizeImage(file);
       clearInterval(progressInterval);
-    } catch (err) {
+    } catch (_err) {
       clearInterval(progressInterval);
       setUploadProgress(0);
     }
@@ -116,6 +122,7 @@ export function OptimizedImageUpload({
    * 触发文件选择
    */
   const handleClick = () => {
+    setValidationMessage('');
     fileInputRef.current?.click();
   };
 
@@ -124,6 +131,7 @@ export function OptimizedImageUpload({
    */
   const handleRemove = () => {
     setPreview(null);
+    setValidationMessage('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -219,6 +227,10 @@ export function OptimizedImageUpload({
         </div>
       )}
 
+      <p className="text-xs text-slate-500">
+        支持 JPG / PNG / WebP，单张不超过 {(maxFileSize / (1024 * 1024)).toFixed(0)}MB
+      </p>
+
       {/* 优化信息 */}
       {showOptimizationInfo && result && (
         <div className="text-xs space-y-1 bg-green-50/50 border border-green-100 rounded-xl p-3 backdrop-blur-sm">
@@ -246,6 +258,16 @@ export function OptimizedImageUpload({
               <span>{result.compressionRatio.toFixed(1)}%</span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 校验提示 */}
+      {validationMessage && (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-sm text-amber-700 backdrop-blur-sm">
+          <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 4h.01M4.93 19h14.14c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.2 16c-.77 1.33.19 3 1.73 3z" />
+          </svg>
+          <span>{validationMessage}</span>
         </div>
       )}
 

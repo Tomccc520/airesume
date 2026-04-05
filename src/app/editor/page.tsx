@@ -42,7 +42,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { JDSuggestion } from '@/services/jdMatcher'
 import { PreviewPanel } from '@/components/preview'
 import { ExportProgressIndicator } from '@/components/export/ExportProgressIndicator'
-import { ImportExportDialog, ImportedData } from '@/components/data/ImportExportDialog'
+import ImportExportBridge from '@/components/data/ImportExportBridge'
 import { useStorageMonitor } from '@/hooks/useStorageMonitor'
 import { ContextMenu } from '@/components/editor/ContextMenu'
 import { BatchEditToolbar } from '@/components/editor/BatchEditToolbar'
@@ -613,20 +613,6 @@ export default function EditorPage() {
   const [globalLoading, _setGlobalLoading] = useState(false)
   const [globalLoadingMessage, _setGlobalLoadingMessage] = useState('')
   
-  // 处理数据导入
-  const handleDataImport = useCallback((data: ImportedData, mode: 'replace' | 'merge') => {
-    if (data.resumeData) {
-      if (mode === 'replace') {
-        setResumeData(data.resumeData as unknown as ResumeData)
-      } else {
-        // 合并模式：简单覆盖
-        setResumeData(data.resumeData as unknown as ResumeData)
-      }
-    }
-    showSuccess(t.editor.messages.exportSuccess || '数据导入成功')
-    refreshStorageUsage()
-  }, [showSuccess, t, refreshStorageUsage])
-  
   // 批量删除工作经历
   const handleBatchDeleteExperiences = useCallback(() => {
     if (experienceSelectionCount === 0) return
@@ -683,6 +669,17 @@ export default function EditorPage() {
   const handleSave = useCallback(async () => {
     await saveNow()
   }, [saveNow])
+
+  /**
+   * 应用导入后的简历数据
+   * 导入成功后立即写回本地存储，避免刷新页面后仍停留在旧数据。
+   */
+  const handleImportedResumeData = useCallback((nextResumeData: ResumeData) => {
+    setResumeData(nextResumeData)
+    void saveResumeData(nextResumeData).catch((error) => {
+      logEditorDebug('导入后的数据持久化失败:', error)
+    })
+  }, [logEditorDebug, saveResumeData])
 
   /**
    * 从本地存储加载简历数据 - 增强错误恢复
@@ -1355,55 +1352,12 @@ export default function EditorPage() {
 
         {/* 数据导入导出对话框 - 仅在打开时渲染 */}
         {showImportExportDialog && (
-          <ImportExportDialog
+          <ImportExportBridge
             isOpen={showImportExportDialog}
             onClose={() => setShowImportExportDialog(false)}
-            resumeData={{
-              personalInfo: resumeData.personalInfo,
-              experience: resumeData.experience.map(exp => ({
-                company: exp.company,
-                position: exp.position,
-                startDate: exp.startDate,
-                endDate: exp.endDate,
-                description: Array.isArray(exp.description) ? exp.description.join('\n') : exp.description
-              })),
-              education: resumeData.education.map(edu => ({
-                school: edu.school,
-                degree: edu.degree,
-                major: edu.major,
-                startDate: edu.startDate,
-                endDate: edu.endDate
-              })),
-              skills: resumeData.skills.map(skill => ({
-                name: skill.name,
-                level: skill.level
-              })),
-              projects: resumeData.projects.map(proj => ({
-                name: proj.name,
-                description: proj.description,
-                technologies: proj.technologies?.join(', '),
-                link: proj.url
-              }))
-            }}
-            styleConfig={{
-              colors: {
-                primary: '#2563eb',
-                secondary: '#4b5563',
-                accent: '#3b82f6'
-              },
-              fontFamily: 'Inter',
-              fontSize: {
-                content: 14,
-                title: 18,
-                name: 28
-              },
-              spacing: {
-                section: 24,
-                item: 16,
-                line: 22
-              }
-            }}
-            onImport={handleDataImport}
+            resumeData={resumeData}
+            onResumeDataImport={handleImportedResumeData}
+            onImportApplied={refreshStorageUsage}
           />
         )}
 

@@ -53,6 +53,8 @@ export interface UseColorSchemesReturn {
   renameScheme: (schemeId: string, newName: string) => void
   /** 导入方案 */
   importScheme: (scheme: ColorScheme) => void
+  /** 批量导入方案 */
+  importSchemes: (schemes: ColorScheme[], mode?: 'replace' | 'merge') => void
   /** 是否正在加载 */
   isLoading: boolean
 }
@@ -153,6 +155,26 @@ const DEFAULT_PRESET_SCHEMES: ColorScheme[] = [
  */
 function generateId(): string {
   return `custom-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+}
+
+/**
+ * 生成可用的导入方案名称
+ * 避免与现有方案重名，同时保持用户可识别的原始名称。
+ */
+function buildImportedSchemeName(existingNames: Set<string>, preferredName: string): string {
+  const baseName = preferredName.trim() || '导入配色'
+  if (!existingNames.has(baseName)) {
+    return baseName
+  }
+
+  let suffix = 1
+  let nextName = `${baseName} (导入)`
+  while (existingNames.has(nextName)) {
+    suffix += 1
+    nextName = `${baseName} (导入${suffix})`
+  }
+
+  return nextName
 }
 
 /**
@@ -352,47 +374,49 @@ export function useColorSchemes(): UseColorSchemesReturn {
   }, [])
 
   /**
-   * 导入配色方案
-   * @description 从其他来源导入配色方案，支持从其他简历导入
-   * @param scheme 要导入的配色方案
+   * 批量导入配色方案
+   * 支持覆盖或合并导入，并自动为导入方案生成新的自定义 ID。
    */
-  const importScheme = useCallback((scheme: ColorScheme) => {
-    // 验证导入的方案
-    if (!isValidColorScheme(scheme)) {
+  const importSchemes = useCallback((schemes: ColorScheme[], mode: 'replace' | 'merge' = 'merge') => {
+    const validSchemes = schemes.filter(isValidColorScheme)
+    if (validSchemes.length === 0) {
       console.warn('导入的配色方案格式无效')
       return
     }
 
-    // 创建新的自定义方案（基于导入的数据）
-    const importedScheme: ColorScheme = {
-      id: generateId(), // 生成新 ID 避免冲突
-      name: scheme.name,
-      primary: scheme.primary,
-      secondary: scheme.secondary,
-      accent: scheme.accent,
-      text: scheme.text,
-      background: scheme.background,
-      isPreset: false, // 导入的方案作为自定义方案
-      createdAt: new Date()
-    }
-
     setCustomSchemes(prev => {
-      // 检查是否已存在相同名称的方案
-      const existingIndex = prev.findIndex(s => s.name === importedScheme.name)
-      
-      let updated: ColorScheme[]
-      if (existingIndex !== -1) {
-        // 如果存在同名方案，添加后缀
-        importedScheme.name = `${importedScheme.name} (导入)`
-        updated = [...prev, importedScheme]
-      } else {
-        updated = [...prev, importedScheme]
-      }
-      
+      const baseSchemes = mode === 'replace' ? [] : prev
+      const existingNames = new Set(baseSchemes.map((scheme) => scheme.name))
+      const importedSchemes = validSchemes.map((scheme) => {
+        const nextName = buildImportedSchemeName(existingNames, scheme.name)
+        existingNames.add(nextName)
+
+        return {
+          id: generateId(),
+          name: nextName,
+          primary: scheme.primary,
+          secondary: scheme.secondary,
+          accent: scheme.accent,
+          text: scheme.text,
+          background: scheme.background,
+          isPreset: false,
+          createdAt: new Date()
+        }
+      })
+
+      const updated = [...baseSchemes, ...importedSchemes]
       saveCustomSchemes(updated)
       return updated
     })
   }, [])
+
+  /**
+   * 导入单个配色方案
+   * 复用批量导入逻辑，保持单条和批量导入结果一致。
+   */
+  const importScheme = useCallback((scheme: ColorScheme) => {
+    importSchemes([scheme], 'merge')
+  }, [importSchemes])
 
   return {
     presetSchemes,
@@ -401,6 +425,7 @@ export function useColorSchemes(): UseColorSchemesReturn {
     deleteScheme,
     renameScheme,
     importScheme,
+    importSchemes,
     isLoading
   }
 }

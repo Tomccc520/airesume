@@ -30,6 +30,31 @@ interface ExportButtonProps {
 }
 
 /**
+ * 获取快速导出格式说明
+ * 将格式标签、推荐场景和提示收敛为统一结构，供快速导出面板复用。
+ */
+function getQuickExportGuide(format: 'pdf' | 'png' | 'jpg', locale: 'zh' | 'en') {
+  const isZh = locale === 'zh'
+
+  const guideMap = {
+    pdf: {
+      badge: isZh ? '投递优先' : 'Best for Delivery',
+      summary: isZh ? '正式投递、打印和发送给招聘方时优先选择。' : 'Use this first for job delivery, printing, and recruiter sharing.'
+    },
+    png: {
+      badge: isZh ? '高清长图' : 'High Fidelity',
+      summary: isZh ? '适合长图展示、发社媒或嵌入其他文档中。' : 'Good for long-image previews, social sharing, or embedding into other documents.'
+    },
+    jpg: {
+      badge: isZh ? '轻量分享' : 'Quick Share',
+      summary: isZh ? '文件更小，适合即时发送和快速预览。' : 'Smaller file size for quick previews and fast sharing.'
+    }
+  }
+
+  return guideMap[format]
+}
+
+/**
  * 导出按钮组件
  */
 export default function ExportButton({
@@ -48,7 +73,7 @@ export default function ExportButton({
     }
   }, [])
 
-  const { t } = useLanguage()
+  const { t, locale } = useLanguage()
   const [isOpen, setIsOpen] = useState(false)
   const [isExporting, setIsExporting] = useState<'pdf' | 'png' | 'jpg' | null>(null)
   const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null)
@@ -171,10 +196,35 @@ export default function ExportButton({
     }
   ]
 
+  /**
+   * 获取状态提示文案
+   * 根据当前导出状态返回头部摘要，减少用户对导出进度的不确定感。
+   */
+  const getExportStatusSummary = () => {
+    if (isExporting) {
+      return locale === 'zh'
+        ? `正在导出 ${isExporting.toUpperCase()}，请稍候...`
+        : `Exporting ${isExporting.toUpperCase()}, please wait...`
+    }
+
+    if (exportStatus?.type === 'success') {
+      return locale === 'zh' ? '导出完成，文件已开始下载。' : 'Export completed and download has started.'
+    }
+
+    if (exportStatus?.type === 'error') {
+      return locale === 'zh' ? '导出失败，请检查预览内容后重试。' : 'Export failed. Please verify the preview content and retry.'
+    }
+
+    return locale === 'zh'
+      ? '当前模板与内容会按所选格式直接导出。'
+      : 'The current template and content will be exported directly in the chosen format.'
+  }
+
   return (
     <div className={`relative ${className}`}>
       {/* 主按钮 - 调整为更小的尺寸 */}
       <Button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         size="sm"
         className={`gap-1.5 ${buttonClassName}`}
@@ -191,54 +241,79 @@ export default function ExportButton({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             className={cn(
-              'absolute top-full right-0 z-[100] mt-2 w-64 rounded-xl border border-gray-200 bg-white shadow-2xl',
+              'absolute top-full right-0 z-[100] mt-2 w-80 rounded-2xl border border-slate-200 bg-white shadow-2xl',
               panelClassName
             )}
           >
             <div className="p-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">{t.editor.toolbar.selectFormat}</h3>
-              
-              <div className="space-y-2">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                      {locale === 'zh' ? '快速导出' : 'Quick Export'}
+                    </p>
+                    <h3 className="mt-2 text-base font-semibold text-slate-900">
+                      {t.editor.toolbar.selectFormat}
+                    </h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      {getExportStatusSummary()}
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                    {locale === 'zh' ? '当前模板导出' : 'Current Template'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2.5">
                 {exportOptions.map((option) => {
                   const Icon = option.icon
                   const isCurrentlyExporting = isExporting === option.format
+                  const guide = getQuickExportGuide(option.format, locale)
                   
                   return (
-                    <motion.button
+                    <button
                       key={option.format}
+                      type="button"
                       onClick={() => handleExport(option.format)}
                       disabled={isExporting !== null}
-                      className={`btn btn-outline btn-md w-full ${option.bgColor} transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md`}
-                      whileHover={{ scale: isExporting ? 1 : 1.02 }}
-                      whileTap={{ scale: isExporting ? 1 : 0.98 }}
+                      className={`w-full rounded-xl border bg-white p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                        isCurrentlyExporting
+                          ? 'border-slate-900 ring-1 ring-slate-200'
+                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-lg ${option.bgColor}`}>
+                      <div className="flex items-start gap-3">
+                        <div className={`rounded-xl border p-2.5 ${
+                          isCurrentlyExporting
+                            ? 'border-slate-900 bg-slate-900 text-white'
+                            : 'border-slate-200 bg-slate-50 text-slate-600'
+                        }`}>
                           {isCurrentlyExporting ? (
-                            <motion.div
-                              animate={{ rotate: 360, scale: [1, 1.1, 1] }}
-                              transition={{ 
-                                rotate: { duration: 1, repeat: Infinity, ease: "linear" },
-                                scale: { duration: 0.5, repeat: Infinity, repeatType: "reverse" }
-                              }}
-                            >
-                              <Loader2 className={`icon icon-md ${option.color}`} />
-                            </motion.div>
+                            <Loader2 className="h-5 w-5 animate-spin" />
                           ) : (
-                            <motion.div
-                              whileHover={{ rotate: 10, scale: 1.1 }}
-                              transition={{ type: "spring", stiffness: 300 }}
-                            >
-                              <Icon className={`icon icon-md ${option.color}`} />
-                            </motion.div>
+                            <Icon className={`h-5 w-5 ${option.color}`} />
                           )}
                         </div>
-                        <div className="flex-1 text-left">
-                          <div className="font-medium text-gray-900">{option.label}</div>
-                          <div className="text-xs text-gray-500">{option.description}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="font-medium text-slate-900">{option.label}</div>
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                              {guide.badge}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">{option.description}</div>
+                          <div className="mt-2 text-xs leading-5 text-slate-500">
+                            {guide.summary}
+                          </div>
                         </div>
+                        {isCurrentlyExporting && (
+                          <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                            {locale === 'zh' ? '导出中' : 'Exporting'}
+                          </span>
+                        )}
                       </div>
-                    </motion.button>
+                    </button>
                   )
                 })}
               </div>
@@ -250,20 +325,20 @@ export default function ExportButton({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className={`mt-3 p-3 rounded-lg ${
+                    className={`mt-3 rounded-xl border px-4 py-3 ${
                       exportStatus.type === 'success' 
-                        ? 'bg-green-50 border border-green-200' 
-                        : 'bg-red-50 border border-red-200'
+                        ? 'border-emerald-200 bg-emerald-50' 
+                        : 'border-rose-200 bg-rose-50'
                     }`}
                   >
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-2">
                       {exportStatus.type === 'success' ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <CheckCircle className="h-4 w-4 text-emerald-600" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <AlertCircle className="h-4 w-4 text-rose-600" />
                       )}
                       <span className={`text-sm font-medium ${
-                        exportStatus.type === 'success' ? 'text-green-700' : 'text-red-700'
+                        exportStatus.type === 'success' ? 'text-emerald-700' : 'text-rose-700'
                       }`}>
                         {exportStatus.message}
                       </span>
@@ -273,8 +348,8 @@ export default function ExportButton({
               </AnimatePresence>
 
               {/* 提示信息 */}
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                <p className="text-xs text-gray-500 flex items-center gap-1">
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                <p className="flex items-center gap-1 text-xs text-slate-500">
                   <Lightbulb className="w-3 h-3" /> {t.editor.toolbar.exportTip}
                 </p>
               </div>

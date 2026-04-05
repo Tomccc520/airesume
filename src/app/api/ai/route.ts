@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 type AIProvider = 'openai' | 'claude' | 'free' | 'siliconflow' | 'deepseek' | 'custom'
+type ProxyFetchErrorCategory = 'timeout' | 'ssl' | 'dns' | 'refused' | 'reset' | 'network' | 'unknown'
 
 /**
  * 规范化自定义 API 端点
@@ -22,7 +23,234 @@ function normalizeEndpoint(endpoint?: string): string {
   return (endpoint || '').trim().replace(/\/+$/, '')
 }
 
+/**
+ * 获取服务商展示名称
+ * 用于在代理报错时返回更容易理解的连接目标说明。
+ */
+function getProviderLabel(provider: AIProvider): string {
+  switch (provider) {
+    case 'free':
+      return '免费模型'
+    case 'siliconflow':
+      return 'SiliconFlow'
+    case 'deepseek':
+      return 'DeepSeek'
+    case 'openai':
+      return 'OpenAI'
+    case 'claude':
+      return 'Claude'
+    case 'custom':
+      return '自定义接口'
+    default:
+      return 'AI服务'
+  }
+}
+
+/**
+ * 获取请求目标主机名
+ * 统一从完整 URL 中提取 host，便于在错误提示中直接说明连接目标。
+ */
+function getTargetHost(apiUrl: string): string {
+  try {
+    return new URL(apiUrl).host
+  } catch {
+    return apiUrl
+  }
+}
+
+/**
+ * 提取底层请求错误详情
+ * Node fetch 常见会把真实错误挂在 cause 上，这里统一展开 message 和 code 方便分类。
+ */
+function extractFetchErrorDetails(error: unknown): { code?: string; detail: string } {
+  const messages = new Set<string>()
+  let code: string | undefined
+  let current: unknown = error
+  let depth = 0
+
+  while (current && typeof current === 'object' && depth < 5) {
+    const currentError = current as { message?: unknown; code?: unknown; cause?: unknown }
+    if (typeof currentError.message === 'string' && currentError.message.trim()) {
+      messages.add(currentError.message.trim())
+    }
+    if (!code && typeof currentError.code === 'string' && currentError.code.trim()) {
+      code = currentError.code.trim()
+    }
+    if (!currentError.cause || currentError.cause === current) {
+      break
+    }
+    current = currentError.cause
+    depth += 1
+  }
+
+  return {
+    code,
+    detail: Array.from(messages).join(' | ')
+  }
+}
+
+/**
+ * 分类代理请求失败原因
+ * 将底层网络错误归一为更明确的超时、DNS、证书或连接类问题。
+ */
+function classifyProxyFetchError(error: unknown): { category: ProxyFetchErrorCategory; code?: string; detail: string } {
+  const { code, detail } = extractFetchErrorDetails(error)
+  const normalizedDetail = detail.toLowerCase()
+  const normalizedCode = (code || '').toUpperCase()
+
+  if ((error instanceof Error && error.name === 'AbortError') || normalizedCode === 'ETIMEDOUT' || normalizedDetail.includes('timeout')) {
+    return { category: 'timeout', code, detail }
+  }
+
+  if (
+    normalizedDetail.includes('unable_to_get_issuer_cert_locally') ||
+    normalizedDetail.includes('self signed certificate') ||
+    normalizedDetail.includes('certificate') ||
+    normalizedCode.includes('CERT')
+  ) {
+    return { category: 'ssl', code, detail }
+  }
+
+  if (normalizedCode === 'ENOTFOUND' || normalizedCode === 'EAI_AGAIN' || normalizedDetail.includes('enotfound')) {
+    return { category: 'dns', code, detail }
+  }
+
+  if (normalizedCode === 'ECONNREFUSED' || normalizedDetail.includes('econnrefused')) {
+    return { category: 'refused', code, detail }
+  }
+
+  if (normalizedCode === 'ECONNRESET' || normalizedDetail.includes('econnreset')) {
+    return { category: 'reset', code, detail }
+  }
+
+  if (normalizedDetail.includes('fetch failed') || normalizedDetail.includes('network')) {
+    return { category: 'network', code, detail }
+  }
+
+  return { category: 'unknown', code, detail }
+}
+
+/**
+ * 构建代理请求失败提示
+ * 在配置验证时直接返回“服务商 + 目标 host + 错误类别 + 处理建议”。
+ */
+function buildProxyFetchErrorResponse(provider: AIProvider, apiUrl: string, error: unknown): {
+  error: string
+  status: number
+  diagnostics: {
+    provider: AIProvider
+    providerLabel: string
+    targetHost: string
+    category: ProxyFetchErrorCategory
+    code?: string
+    detail: string
+    suggestion: string
+  }
+} {
+  const providerLabel = getProviderLabel(provider)
+  const targetHost = getTargetHost(apiUrl)
+  const { category, code, detail } = classifyProxyFetchError(error)
+  const codeSuffix = code ? `（${code}）` : ''
+
+  if (category === 'timeout') {
+    return {
+      error: `${providerLabel} 连接超时：请求 ${targetHost} 超过 60 秒未返回，请稍后重试或更换网络环境。`,
+      status: 504,
+      diagnostics: {
+        provider,
+        providerLabel,
+        targetHost,
+        category,
+        code,
+        detail,
+        suggestion: '建议稍后重试，或切换网络/VPN 后再次验证。'
+      }
+    }
+  }
+
+  if (category === 'ssl') {
+    return {
+      error: `${providerLabel} 证书验证失败：无法安全连接到 ${targetHost}${codeSuffix}，请检查系统证书、代理或网络环境。`,
+      status: 502,
+      diagnostics: {
+        provider,
+        providerLabel,
+        targetHost,
+        category,
+        code,
+        detail,
+        suggestion: '建议检查系统时间、代理证书、公司网络中间人证书或切换到无代理网络。'
+      }
+    }
+  }
+
+  if (category === 'dns') {
+    return {
+      error: `${providerLabel} 域名解析失败：无法解析 ${targetHost}${codeSuffix}，请检查 DNS、代理或自定义端点配置。`,
+      status: 502,
+      diagnostics: {
+        provider,
+        providerLabel,
+        targetHost,
+        category,
+        code,
+        detail,
+        suggestion: '建议检查 DNS、VPN、代理设置，以及自定义端点域名是否填写正确。'
+      }
+    }
+  }
+
+  if (category === 'refused') {
+    return {
+      error: `${providerLabel} 连接被拒绝：${targetHost}${codeSuffix} 未接受连接，请检查端点地址或服务状态。`,
+      status: 502,
+      diagnostics: {
+        provider,
+        providerLabel,
+        targetHost,
+        category,
+        code,
+        detail,
+        suggestion: '建议检查目标服务是否已启动，或自定义端点是否填写到了基础地址而不是错误端口。'
+      }
+    }
+  }
+
+  if (category === 'reset') {
+    return {
+      error: `${providerLabel} 连接被重置：与 ${targetHost} 的连接中断${codeSuffix}，请检查代理、VPN 或稍后重试。`,
+      status: 502,
+      diagnostics: {
+        provider,
+        providerLabel,
+        targetHost,
+        category,
+        code,
+        detail,
+        suggestion: '建议检查代理、VPN、公司网络策略，或稍后重试。'
+      }
+    }
+  }
+
+  return {
+    error: `${providerLabel} 连接失败：无法访问 ${targetHost}${codeSuffix}。请检查网络、代理或服务状态。底层错误：${detail || '未知错误'}`,
+    status: 502,
+    diagnostics: {
+      provider,
+      providerLabel,
+      targetHost,
+      category,
+      code,
+      detail,
+      suggestion: '建议确认网络可访问该服务商域名，并检查代理、自定义端点和服务状态。'
+    }
+  }
+}
+
 export async function POST(request: NextRequest) {
+  let providerForError: AIProvider = 'custom'
+  let apiUrlForError = 'unknown'
+
   try {
     const body = await request.json()
     const { provider, apiKey, model, messages, stream = false, ...otherParams } = body as {
@@ -35,6 +263,7 @@ export async function POST(request: NextRequest) {
       temperature?: number
       max_tokens?: number
     }
+    providerForError = provider
 
     if (!provider || !model || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json(
@@ -149,6 +378,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
     }
+    apiUrlForError = apiUrl
 
     // 发送请求到AI API
     const timeoutController = new AbortController()
@@ -199,28 +429,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('AI API代理错误:', error)
-    
-    // 提供更详细的错误信息
-    let errorMessage = '服务器内部错误'
-    let status = 500
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        errorMessage = '请求超时，请稍后重试'
-        status = 504
-      } else if (error.message.includes('UNABLE_TO_GET_ISSUER_CERT_LOCALLY')) {
-        errorMessage = 'SSL证书验证失败，请检查网络连接或联系管理员'
-      } else if (error.message.includes('ENOTFOUND')) {
-        errorMessage = '无法连接到AI服务，请检查网络连接'
-      } else if (error.message.includes('timeout')) {
-        errorMessage = '请求超时，请稍后重试'
-      } else {
-        errorMessage = `请求失败: ${error.message}`
-      }
-    }
-    
+    const fallbackResponse = buildProxyFetchErrorResponse(providerForError, apiUrlForError, error)
+
     return NextResponse.json(
-      { error: errorMessage },
-      { status }
+      {
+        error: fallbackResponse.error,
+        diagnostics: fallbackResponse.diagnostics
+      },
+      { status: fallbackResponse.status }
     )
   }
 }

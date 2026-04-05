@@ -7,7 +7,7 @@
 
 'use client'
 
-import React, { createContext, useContext, useState, ReactNode } from 'react'
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 
 /**
  * 样式配置接口定义
@@ -136,6 +136,7 @@ export const defaultStyleConfig: StyleConfig = {
 interface StyleContextType {
   styleConfig: StyleConfig
   updateStyleConfig: (updates: DeepPartial<StyleConfig>) => void
+  replaceStyleConfig: (config: Partial<StyleConfig>) => void
   resetStyleConfig: () => void
   activeElement: string | null
   setActiveElement: (element: string | null) => void
@@ -152,6 +153,7 @@ export type DeepPartial<T> = {
  * 样式上下文
  */
 const StyleContext = createContext<StyleContextType | undefined>(undefined)
+const STYLE_CONFIG_STORAGE_KEY = 'style-config'
 
 /**
  * 验证并修复 spacing.line 值
@@ -177,11 +179,67 @@ function validateSpacingLine(config: StyleConfig): StyleConfig {
 }
 
 /**
+ * 规范化样式配置
+ * 将外部输入或本地存储中的部分样式配置补齐为完整结构，避免导入旧数据时缺字段。
+ */
+function normalizeStyleConfig(config?: Partial<StyleConfig> | null): StyleConfig {
+  if (!config) {
+    return validateSpacingLine(defaultStyleConfig)
+  }
+
+  const normalizedConfig: StyleConfig = {
+    ...defaultStyleConfig,
+    ...config,
+    fontSize: {
+      ...defaultStyleConfig.fontSize,
+      ...config.fontSize
+    },
+    colors: {
+      ...defaultStyleConfig.colors,
+      ...config.colors
+    },
+    spacing: {
+      ...defaultStyleConfig.spacing,
+      ...config.spacing
+    },
+    avatar: {
+      ...defaultStyleConfig.avatar,
+      ...config.avatar
+    },
+    layout: {
+      ...defaultStyleConfig.layout,
+      ...config.layout,
+      sectionOrder: config.layout?.sectionOrder
+        ? config.layout.sectionOrder.filter(
+            (item): item is 'personal' | 'experience' | 'education' | 'skills' | 'projects' => item !== undefined
+          )
+        : defaultStyleConfig.layout.sectionOrder
+    },
+    skills: {
+      ...defaultStyleConfig.skills,
+      ...config.skills
+    }
+  }
+
+  return validateSpacingLine(normalizedConfig)
+}
+
+/**
  * 样式提供者组件
  */
 export function StyleProvider({ children }: { children: ReactNode }) {
   const [styleConfig, setStyleConfig] = useState<StyleConfig>(() => {
-    // 初始化时验证默认配置
+    if (typeof window !== 'undefined') {
+      try {
+        const storedStyleConfig = window.localStorage.getItem(STYLE_CONFIG_STORAGE_KEY)
+        if (storedStyleConfig) {
+          return normalizeStyleConfig(JSON.parse(storedStyleConfig) as Partial<StyleConfig>)
+        }
+      } catch {
+        // 忽略损坏的本地样式缓存，回退到默认配置
+      }
+    }
+
     return validateSpacingLine(defaultStyleConfig)
   })
   const [activeElement, setActiveElement] = useState<string | null>(null)
@@ -232,8 +290,16 @@ export function StyleProvider({ children }: { children: ReactNode }) {
         newConfig.skills = { ...prev.skills, ...updates.skills }
       }
       
-      return newConfig
+      return normalizeStyleConfig(newConfig)
     })
+  }
+
+  /**
+   * 直接替换整套样式配置
+   * 主要用于模板切换、导入恢复等需要一次性覆盖完整样式的场景。
+   */
+  const replaceStyleConfig = (config: Partial<StyleConfig>) => {
+    setStyleConfig(normalizeStyleConfig(config))
   }
 
   /**
@@ -250,9 +316,26 @@ export function StyleProvider({ children }: { children: ReactNode }) {
     }))
   }
 
+  /**
+   * 持久化当前样式配置
+   * 让样式设置、导入恢复和存储监控都基于同一份真实本地数据。
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    try {
+      window.localStorage.setItem(STYLE_CONFIG_STORAGE_KEY, JSON.stringify(styleConfig))
+    } catch {
+      // 忽略本地存储写入失败，避免影响编辑主流程
+    }
+  }, [styleConfig])
+
   const value: StyleContextType = {
     styleConfig,
     updateStyleConfig,
+    replaceStyleConfig,
     resetStyleConfig,
     activeElement,
     setActiveElement

@@ -14,6 +14,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
   ArrowRight,
+  BookOpen,
   Bot,
   CheckCircle,
   Loader2,
@@ -27,7 +28,24 @@ import {
 } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { ResumeData } from '@/types/resume'
-import { aiService, AIConfigStatus } from '@/services/aiService'
+import {
+  aiService,
+  AIConfigGuidance,
+  AIConfigStatus,
+  AI_CONFIG_STATUS_EVENT
+} from '@/services/aiService'
+import {
+  AIConfigPrecheckActionId,
+  AIConfigPrecheckItem,
+  buildAIConfigPrecheck,
+  DEFAULT_HOSTED_AI_ENDPOINT,
+  getAIConfigPrecheckStatusClass,
+  getAIConfigPrecheckStatusLabel,
+  getRecommendedAIModelForProvider,
+  getPrimaryAIConfigPrecheckItem
+  ,
+  normalizeCustomEndpointInput
+} from '@/domain/ai/configPrecheck'
 import { aiSuggestionRanker } from '@/services/aiSuggestionRanker'
 import { aiQualityChecker, QualityScore } from '@/services/aiQualityChecker'
 import { jdMatcherService, JDSuggestion } from '@/services/jdMatcher'
@@ -220,6 +238,170 @@ function getAIStatusMeta(aiConfigStatus: AIConfigStatus, locale: 'zh' | 'en') {
 }
 
 /**
+ * 获取验证错误分类标题
+ * 将最近一次验证的错误类别转成统一的工作台展示文案。
+ */
+function getValidationCategoryLabel(category?: string, locale?: 'zh' | 'en'): string {
+  const isZh = locale === 'zh'
+
+  switch (category) {
+    case 'timeout':
+      return isZh ? '连接超时' : 'Timeout'
+    case 'ssl':
+      return isZh ? '证书验证失败' : 'SSL Error'
+    case 'dns':
+      return isZh ? '域名解析失败' : 'DNS Error'
+    case 'refused':
+      return isZh ? '连接被拒绝' : 'Connection Refused'
+    case 'reset':
+      return isZh ? '连接被重置' : 'Connection Reset'
+    case 'network':
+      return isZh ? '网络错误' : 'Network Error'
+    default:
+      return isZh ? '未知错误' : 'Unknown Error'
+  }
+}
+
+/**
+ * 格式化最近验证时间
+ * 让 AI 面板直接展示最近一次失败发生在什么时候，避免误判为当前瞬时状态。
+ */
+function formatValidationTime(value?: string): string {
+  if (!value) {
+    return '时间未记录'
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return '时间未记录'
+  }
+
+  return date.toLocaleString('zh-CN')
+}
+
+/**
+ * 生成 AI 配置引导标题
+ * 将聚焦字段转换成配置弹窗里更明确的下一步动作描述。
+ */
+function getAIConfigGuidanceTitle(field: AIConfigGuidance['field'], locale: 'zh' | 'en'): string {
+  const titleMap: Record<AIConfigGuidance['field'], { zh: string; en: string }> = {
+    provider: { zh: '先确认服务商与启用状态', en: 'Check provider and enabled status' },
+    apiKey: { zh: '先补齐 API 密钥', en: 'Complete the API key first' },
+    customEndpoint: { zh: '先检查自定义端点', en: 'Review the custom endpoint first' },
+    modelName: { zh: '先确认模型选择', en: 'Review the model selection first' }
+  }
+
+  return titleMap[field][locale]
+}
+
+/**
+ * 解析当前应聚焦的 AI 配置字段
+ * 根据最近一次验证诊断和当前状态，决定打开配置弹窗后优先落到哪里。
+ */
+function resolveAIConfigGuidanceField(
+  aiConfigStatus: AIConfigStatus,
+  latestValidationIssue: AIConfigStatus['lastValidation'] | null
+): AIConfigGuidance['field'] {
+  if (!aiConfigStatus.isEnabled || !aiConfigStatus.provider) {
+    return 'provider'
+  }
+
+  if (aiConfigStatus.needsApiKey && !aiConfigStatus.hasApiKey) {
+    return 'apiKey'
+  }
+
+  if (latestValidationIssue?.provider === 'custom') {
+    return 'customEndpoint'
+  }
+
+  if (!aiConfigStatus.modelName) {
+    return 'modelName'
+  }
+
+  return 'provider'
+}
+
+/**
+ * 构建 AI 配置引导信息
+ * 让 AI 面板在不同错误场景下打开配置弹窗时，带着明确的聚焦字段和说明文案进入。
+ */
+function buildAIConfigGuidance(
+  aiConfigStatus: AIConfigStatus,
+  latestValidationIssue: AIConfigStatus['lastValidation'] | null,
+  locale: 'zh' | 'en',
+  fallbackMessage?: string
+): AIConfigGuidance {
+  const field = resolveAIConfigGuidanceField(aiConfigStatus, latestValidationIssue)
+  const description = latestValidationIssue?.diagnostics?.suggestion
+    || fallbackMessage
+    || (locale === 'zh'
+      ? '请先补齐当前 AI 配置，再继续执行智能优化或从零生成。'
+      : 'Complete the AI setup first before running optimize or generate.')
+
+  return {
+    field,
+    title: getAIConfigGuidanceTitle(field, locale),
+    description,
+    provider: latestValidationIssue?.provider || aiConfigStatus.provider || undefined,
+    targetHost: latestValidationIssue?.diagnostics?.targetHost,
+    category: latestValidationIssue?.diagnostics?.category,
+    createdAt: new Date().toISOString()
+  }
+}
+
+/**
+ * 将预检查项映射到配置字段
+ * 让 AI 面板里的“当前卡在哪一项”可以直接打开配置弹窗并聚焦到对应字段。
+ */
+function mapPrecheckItemToGuidanceField(item: AIConfigPrecheckItem): AIConfigGuidance['field'] {
+  switch (item.id) {
+    case 'apiKey':
+      return 'apiKey'
+    case 'endpoint':
+      return 'customEndpoint'
+    case 'model':
+      return 'modelName'
+    case 'enabled':
+    default:
+      return 'provider'
+  }
+}
+
+/**
+ * 判断预检查动作是否支持在 AI 面板内直接执行
+ * 仅开放不需要额外输入的轻量修复，避免把面板做成完整配置表单。
+ */
+function canApplyInlinePrecheckAction(actionId?: AIConfigPrecheckActionId): boolean {
+  return actionId === 'enableAI'
+    || actionId === 'switchToFree'
+    || actionId === 'trimApiKey'
+    || actionId === 'restoreCustomEndpoint'
+    || actionId === 'normalizeCustomEndpoint'
+    || actionId === 'restoreModel'
+}
+
+/**
+ * 获取预检查动作按钮文案
+ * 让 AI 面板里的轻量修复按钮保持简洁、可扫读。
+ */
+function getInlinePrecheckActionLabel(
+  actionId: AIConfigPrecheckActionId,
+  locale: 'zh' | 'en'
+): string {
+  const labelMap: Record<AIConfigPrecheckActionId, { zh: string; en: string }> = {
+    enableAI: { zh: '重新启用', en: 'Enable' },
+    switchToFree: { zh: '切换免费模型', en: 'Use Free Model' },
+    clearApiKey: { zh: '去配置', en: 'Open Config' },
+    trimApiKey: { zh: '清理空格', en: 'Trim Key' },
+    restoreCustomEndpoint: { zh: '恢复端点', en: 'Restore Endpoint' },
+    normalizeCustomEndpoint: { zh: '规范地址', en: 'Normalize Endpoint' },
+    restoreModel: { zh: '恢复模型', en: 'Restore Model' }
+  }
+
+  return labelMap[actionId][locale]
+}
+
+/**
  * 判断错误是否需要引导到配置
  * 将配置、密钥、鉴权、端点类异常统一收敛到配置入口。
  */
@@ -363,6 +545,57 @@ function getSuggestionDiffSummary(original: string, suggestion: string) {
 }
 
 /**
+ * 获取当前 AI 模式说明
+ * 将优化、匹配、生成三条链路的操作步骤收敛为统一指引，供面板内说明弹层复用。
+ */
+function getAIModeGuide(mode: AIMode, locale: 'zh' | 'en', isConfigured: boolean) {
+  const isZh = locale === 'zh'
+
+  if (mode === 'optimize') {
+    return {
+      title: isZh ? '智能优化怎么用' : 'How Smart Optimize Works',
+      description: isZh
+        ? '先选择模块，再对比候选版本，最后把最合适的一版应用到当前简历。'
+        : 'Select a section, compare generated variants, then apply the most suitable one to your resume.',
+      steps: isZh
+        ? ['先从工作经历或项目经验开始，收益通常最高。', '确认当前模块已经有原始内容，再点击生成候选版本。', '优先选择保留真实经历、但表达更紧凑的一版。']
+        : ['Start with experience or projects for the highest impact.', 'Make sure the current section already has source content before generating variants.', 'Choose the option that stays truthful while communicating more clearly.'],
+      tips: isZh
+        ? [isConfigured ? '候选卡里的“新增表达”可以快速看出 AI 新补了什么。' : '当前模式依赖 AI 配置，点击模块会先引导你完成配置。']
+        : [isConfigured ? 'Use the “new phrases” summary to see what the AI added at a glance.' : 'This mode requires AI setup. Clicking a section will guide you to configuration first.']
+    }
+  }
+
+  if (mode === 'match') {
+    return {
+      title: isZh ? '职位匹配怎么用' : 'How JD Match Works',
+      description: isZh
+        ? '粘贴完整 JD 后，系统会分析关键词命中、缺失项以及可以直接应用的模块建议。'
+        : 'Paste a complete JD and the system will analyze matched keywords, missing items, and section-level suggestions you can apply directly.',
+      steps: isZh
+        ? ['尽量保留职责、要求、技术栈和加分项，分析会更准。', '先看缺失关键词，再按模块批量应用最关键的建议。', '如果一次改动过大，可用“撤销上一步”回退最近一次应用。']
+        : ['Keep responsibilities, requirements, tech stack, and bonus items for better analysis.', 'Review missing keywords first, then batch-apply the most important section suggestions.', 'If a change batch is too aggressive, use “Undo Last Apply” to revert the latest action.'],
+      tips: isZh
+        ? ['职位匹配不依赖 AI 配置，可以直接先用来找岗位缺口。']
+        : ['JD Match does not require AI setup, so you can use it immediately to inspect gaps.']
+    }
+  }
+
+  return {
+    title: isZh ? '从零生成怎么用' : 'How Start-Fresh Works',
+    description: isZh
+      ? '输入姓名、目标职位和经验段位，生成一版可继续编辑的初始简历草稿。'
+      : 'Provide your name, target role, and experience level to generate a first resume draft you can keep editing.',
+    steps: isZh
+      ? ['目标职位越具体，生成结果越贴近真实投递场景。', '可先使用岗位预设快速填入常见职位名称。', '生成完成后，回到编辑器继续逐项补充真实项目和成果。']
+      : ['The more specific the target role is, the more relevant the generated draft becomes.', 'Use role presets to fill common target roles faster.', 'After generation, return to the editor to refine projects and measurable outcomes.'],
+    tips: isZh
+      ? [isConfigured ? '填写完整度卡会提示你还缺哪些字段。' : '当前模式依赖 AI 配置，但已填写的职位和经验段位会被保留。']
+      : [isConfigured ? 'The readiness card shows which inputs are still missing.' : 'This mode requires AI setup, but your filled target role and experience level will be kept.']
+  }
+}
+
+/**
  * 构建 JD 建议回退载荷
  * 将已应用建议还原为原始内容，支持最近一次单条或批量撤销。
  */
@@ -408,9 +641,40 @@ export default function UnifiedAIPanel({
   })
   const [generateApplied, setGenerateApplied] = useState(false)
   const [aiConfigStatus, setAIConfigStatus] = useState<AIConfigStatus>(() => aiService.getConfigStatus())
+  const [aiConfigSnapshot, setAIConfigSnapshot] = useState(() => aiService.getConfigSnapshot())
+  const [precheckActionNotice, setPrecheckActionNotice] = useState<{
+    tone: 'success' | 'error'
+    message: string
+  } | null>(null)
   const [appliedJDSuggestionKeys, setAppliedJDSuggestionKeys] = useState<string[]>([])
   const [jdApplyHistory, setJdApplyHistory] = useState<JDBatchHistoryEntry[]>([])
+  const [showGuidePanel, setShowGuidePanel] = useState(false)
   const aiStatusMeta = useMemo(() => getAIStatusMeta(aiConfigStatus, locale), [aiConfigStatus, locale])
+  const latestValidationIssue = useMemo(() => {
+    if (aiConfigStatus.lastValidation?.isValid) {
+      return null
+    }
+
+    return aiConfigStatus.lastValidation || null
+  }, [aiConfigStatus.lastValidation])
+  const aiConfigPrecheckItems = useMemo(() => {
+    if (!aiConfigSnapshot) {
+      return []
+    }
+
+    return buildAIConfigPrecheck(aiConfigSnapshot, {
+      locale,
+      providerName: aiStatusMeta.providerSummary
+    })
+  }, [aiConfigSnapshot, aiStatusMeta.providerSummary, locale])
+  const primaryPrecheckItem = useMemo(
+    () => getPrimaryAIConfigPrecheckItem(aiConfigPrecheckItems),
+    [aiConfigPrecheckItems]
+  )
+  const activeModeGuide = useMemo(
+    () => getAIModeGuide(activeMode, locale, aiConfigStatus.isConfigured),
+    [activeMode, aiConfigStatus.isConfigured, locale]
+  )
 
   /**
    * 刷新 AI 配置状态
@@ -422,7 +686,29 @@ export default function UnifiedAIPanel({
     }
 
     setAIConfigStatus(aiService.getConfigStatus())
+    setAIConfigSnapshot(aiService.getConfigSnapshot())
+    setPrecheckActionNotice(null)
   }, [configVersion, isOpen])
+
+  /**
+   * 监听 AI 配置状态更新事件
+   * 当配置弹窗验证失败或保存成功时，面板在不关闭的情况下也能同步刷新诊断信息。
+   */
+  useEffect(() => {
+    if (!isOpen || typeof window === 'undefined') {
+      return
+    }
+
+    const handleStatusUpdate = () => {
+      setAIConfigStatus(aiService.getConfigStatus())
+      setAIConfigSnapshot(aiService.getConfigSnapshot())
+    }
+
+    window.addEventListener(AI_CONFIG_STATUS_EVENT, handleStatusUpdate)
+    return () => {
+      window.removeEventListener(AI_CONFIG_STATUS_EVENT, handleStatusUpdate)
+    }
+  }, [isOpen])
 
   /**
    * 根据外部入口预选优化模块
@@ -442,8 +728,22 @@ export default function UnifiedAIPanel({
    * 统一触发 AI 配置入口
    * 在配置缺失或鉴权失败时给出闭环引导
    */
-  const openConfigWithHint = (message: string) => {
-    setErrorMessage(message)
+  const openConfigWithHint = (message?: string, guidanceField?: AIConfigGuidance['field']) => {
+    if (message) {
+      setErrorMessage(message)
+    }
+
+    const baseGuidance = buildAIConfigGuidance(aiConfigStatus, latestValidationIssue, locale, message)
+    aiService.setConfigGuidance(
+      guidanceField
+        ? {
+            ...baseGuidance,
+            field: guidanceField,
+            title: getAIConfigGuidanceTitle(guidanceField, locale),
+            description: message || baseGuidance.description
+          }
+        : baseGuidance
+    )
     onOpenAIConfig()
   }
 
@@ -569,7 +869,9 @@ export default function UnifiedAIPanel({
   const handleSwitchMode = (mode: AIMode) => {
     setActiveMode(mode)
     setErrorMessage('')
+    setPrecheckActionNotice(null)
     setIsProcessing(false)
+    setShowGuidePanel(false)
     if (mode !== 'optimize') {
       setOptimizeResult(null)
       setSelectedSection(null)
@@ -641,7 +943,7 @@ export default function UnifiedAIPanel({
       const message = error instanceof Error ? error.message : (locale === 'zh' ? '优化失败，请稍后重试。' : 'Optimization failed, please retry later.')
       setErrorMessage(message)
       if (shouldGuideToConfig(message)) {
-        onOpenAIConfig()
+        openConfigWithHint(message)
       }
     } finally {
       setIsProcessing(false)
@@ -850,11 +1152,85 @@ export default function UnifiedAIPanel({
       const message = error instanceof Error ? error.message : (locale === 'zh' ? '生成失败，请稍后重试。' : 'Generation failed, please retry.')
       setErrorMessage(message)
       if (shouldGuideToConfig(message)) {
-        onOpenAIConfig()
+        openConfigWithHint(message)
       }
     } finally {
       setIsProcessing(false)
     }
+  }
+
+  /**
+   * 在 AI 面板内应用轻量预检查修复动作
+   * 优先处理无需额外输入的动作，让用户不打开配置弹窗也能完成常见修复。
+   */
+  const handleApplyInlinePrecheckAction = (actionId: AIConfigPrecheckActionId) => {
+    const currentConfig = aiService.getConfigSnapshot()
+
+    if (!currentConfig) {
+      openConfigWithHint()
+      return
+    }
+
+    let nextConfig = { ...currentConfig }
+
+    switch (actionId) {
+      case 'enableAI':
+        nextConfig.enabled = true
+        break
+      case 'switchToFree':
+        nextConfig = {
+          ...currentConfig,
+          enabled: true,
+          provider: 'free',
+          apiKey: '',
+          customEndpoint: DEFAULT_HOSTED_AI_ENDPOINT,
+          modelName: getRecommendedAIModelForProvider('free')
+        }
+        break
+      case 'trimApiKey':
+        nextConfig.apiKey = currentConfig.apiKey.trim()
+        break
+      case 'restoreCustomEndpoint':
+        nextConfig = {
+          ...currentConfig,
+          enabled: true,
+          provider: 'custom',
+          customEndpoint: DEFAULT_HOSTED_AI_ENDPOINT,
+          modelName: currentConfig.modelName || getRecommendedAIModelForProvider('custom')
+        }
+        break
+      case 'normalizeCustomEndpoint':
+        nextConfig.customEndpoint = normalizeCustomEndpointInput(currentConfig.customEndpoint) || DEFAULT_HOSTED_AI_ENDPOINT
+        break
+      case 'restoreModel':
+        nextConfig.modelName = getRecommendedAIModelForProvider(currentConfig.provider)
+        break
+      default:
+        openConfigWithHint(undefined, primaryPrecheckItem ? mapPrecheckItemToGuidanceField(primaryPrecheckItem) : undefined)
+        return
+    }
+
+    const result = aiService.updateConfig(nextConfig)
+
+    if (!result.success) {
+      const message = result.error || (locale === 'zh' ? '快速修复失败，请打开配置继续处理。' : 'Quick fix failed. Open configuration to continue.')
+      setPrecheckActionNotice({
+        tone: 'error',
+        message
+      })
+      setErrorMessage(message)
+      return
+    }
+
+    setAIConfigStatus(aiService.getConfigStatus())
+    setAIConfigSnapshot(aiService.getConfigSnapshot())
+    setErrorMessage('')
+    setPrecheckActionNotice({
+      tone: 'success',
+      message: locale === 'zh'
+        ? '已应用快速修复。若仍有历史验证失败，请重新验证一次当前配置。'
+        : 'Quick fix applied. If an old validation failure remains, validate the current setup once more.'
+    })
   }
 
   if (!isOpen) return null
@@ -949,7 +1325,7 @@ export default function UnifiedAIPanel({
                 </div>
                 <button
                   type="button"
-                  onClick={onOpenAIConfig}
+                  onClick={() => openConfigWithHint()}
                   className="app-shell-action-button h-9 rounded-xl border-current/10 bg-white/80 px-3 text-xs text-current hover:bg-white"
                 >
                   {aiStatusMeta.actionLabel}
@@ -990,6 +1366,124 @@ export default function UnifiedAIPanel({
                   </p>
                 </div>
               </div>
+              {primaryPrecheckItem && (
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-700">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        {locale === 'zh' ? '本地预检查' : 'Local Precheck'}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium text-slate-900">
+                          {locale === 'zh' ? `当前卡在：${primaryPrecheckItem.title}` : `Current blocker: ${primaryPrecheckItem.title}`}
+                        </p>
+                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getAIConfigPrecheckStatusClass(primaryPrecheckItem.status)}`}>
+                          {getAIConfigPrecheckStatusLabel(primaryPrecheckItem.status, locale)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">{primaryPrecheckItem.detail}</p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                      {primaryPrecheckItem.actionId && canApplyInlinePrecheckAction(primaryPrecheckItem.actionId) && (
+                        <button
+                          type="button"
+                          onClick={() => handleApplyInlinePrecheckAction(primaryPrecheckItem.actionId!)}
+                          className="inline-flex h-8 items-center justify-center rounded-xl bg-slate-900 px-3 text-xs font-medium text-white transition-colors hover:bg-slate-800"
+                        >
+                          {getInlinePrecheckActionLabel(primaryPrecheckItem.actionId, locale)}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => openConfigWithHint(primaryPrecheckItem.detail, mapPrecheckItemToGuidanceField(primaryPrecheckItem))}
+                        className="app-shell-action-button h-8 rounded-xl px-3 text-xs"
+                      >
+                        {locale === 'zh' ? '去处理' : 'Review'}
+                      </button>
+                    </div>
+                  </div>
+                  {precheckActionNotice && (
+                    <div className={`mt-3 rounded-lg border px-3 py-2 text-sm ${
+                      precheckActionNotice.tone === 'success'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : 'border-rose-200 bg-rose-50 text-rose-700'
+                    }`}>
+                      {precheckActionNotice.message}
+                    </div>
+                  )}
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {aiConfigPrecheckItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium text-slate-800">{item.title}</p>
+                          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getAIConfigPrecheckStatusClass(item.status)}`}>
+                            {getAIConfigPrecheckStatusLabel(item.status, locale)}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">{item.detail}</p>
+                        {item.actionId && canApplyInlinePrecheckAction(item.actionId) && (
+                          <button
+                            type="button"
+                            onClick={() => handleApplyInlinePrecheckAction(item.actionId!)}
+                            className="mt-2 app-shell-action-button h-7 rounded-xl px-3 text-[11px]"
+                          >
+                            {getInlinePrecheckActionLabel(item.actionId, locale)}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {latestValidationIssue && (
+                <div className="mt-3 rounded-xl border border-current/10 bg-white/85 p-3 text-slate-700">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        {locale === 'zh' ? '最近一次验证诊断' : 'Latest Validation Diagnostics'}
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-slate-900">
+                        {latestValidationIssue.message}
+                      </p>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                            {locale === 'zh' ? '错误类型' : 'Error Type'}
+                          </p>
+                          <p className="mt-1 text-sm font-medium text-slate-800">
+                            {getValidationCategoryLabel(latestValidationIssue.diagnostics?.category, locale)}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                            {locale === 'zh' ? '最近验证' : 'Last Checked'}
+                          </p>
+                          <p className="mt-1 text-sm font-medium text-slate-800">
+                            {formatValidationTime(latestValidationIssue.validatedAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                          {locale === 'zh' ? '目标地址' : 'Target'}
+                        </p>
+                        <p className="mt-1 break-all text-sm font-medium text-slate-800">
+                          {latestValidationIssue.diagnostics?.targetHost || '/api/ai'}
+                        </p>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        {latestValidationIssue.diagnostics?.suggestion || (locale === 'zh'
+                          ? '请检查网络、代理、API 端点和服务商状态后重试。'
+                          : 'Check your network, proxy, endpoint, and provider status before retrying.')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1007,11 +1501,18 @@ export default function UnifiedAIPanel({
                         {locale === 'zh' ? '需要先完成 AI 配置' : 'AI setup is required first'}
                       </p>
                       <p className="mt-1 text-sm leading-6 text-rose-700">{errorMessage}</p>
+                      {latestValidationIssue && (
+                        <p className="mt-2 text-xs leading-5 text-rose-600">
+                          {locale === 'zh'
+                            ? `最近验证：${getValidationCategoryLabel(latestValidationIssue.diagnostics?.category, locale)} / ${latestValidationIssue.diagnostics?.targetHost || '/api/ai'}`
+                            : `Latest validation: ${getValidationCategoryLabel(latestValidationIssue.diagnostics?.category, locale)} / ${latestValidationIssue.diagnostics?.targetHost || '/api/ai'}`}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={onOpenAIConfig}
+                    onClick={() => openConfigWithHint(errorMessage)}
                     className="app-shell-action-button h-9 rounded-xl border-rose-200 bg-white px-3 text-xs text-rose-700 hover:bg-white hover:text-rose-800"
                   >
                     {locale === 'zh' ? '前往 AI 配置' : 'Open AI Config'}
@@ -1838,6 +2339,112 @@ export default function UnifiedAIPanel({
           </AnimatePresence>
         </div>
 
+        <AnimatePresence>
+          {showGuidePanel && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-20 flex items-end justify-center bg-slate-900/20 p-4 sm:items-center"
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                transition={{ duration: 0.18 }}
+                className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl"
+              >
+                <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                  <div className="flex items-start gap-3">
+                    <span className="app-shell-brand-mark h-10 w-10 shrink-0">
+                      <BookOpen className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        {locale === 'zh' ? '使用说明' : 'Guide'}
+                      </p>
+                      <h3 className="mt-1 text-lg font-semibold text-slate-900">{activeModeGuide.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">{activeModeGuide.description}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowGuidePanel(false)}
+                    className="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="grid gap-4 px-5 py-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(240px,0.95fr)]">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                      {locale === 'zh' ? '推荐步骤' : 'Recommended Steps'}
+                    </p>
+                    <div className="mt-3 space-y-3">
+                      {activeModeGuide.steps.map((step, index) => (
+                        <div key={`${activeMode}-${index}`} className="flex items-start gap-3">
+                          <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-700">
+                            {index + 1}
+                          </span>
+                          <p className="text-sm leading-6 text-slate-600">{step}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        {locale === 'zh' ? '当前提示' : 'Current Tips'}
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        {activeModeGuide.tips.map((tip) => (
+                          <div key={tip} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-600">
+                            {tip}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        {locale === 'zh' ? '下一步' : 'Next Action'}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        {aiConfigStatus.isConfigured || activeMode === 'match'
+                          ? (locale === 'zh' ? '说明已对齐当前模式，可以直接返回继续操作。' : 'The guide is aligned with the current mode. You can close it and continue.')
+                          : (locale === 'zh' ? '当前模式还依赖 AI 配置，建议先完成配置再继续。' : 'This mode still depends on AI setup. Configure it before continuing.')}
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {!aiConfigStatus.isConfigured && activeMode !== 'match' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowGuidePanel(false)
+                              openConfigWithHint()
+                            }}
+                            className="inline-flex h-10 items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+                          >
+                            {locale === 'zh' ? '前往 AI 配置' : 'Open AI Config'}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setShowGuidePanel(false)}
+                          className="app-shell-action-button h-10 rounded-xl px-4 text-sm"
+                        >
+                          {locale === 'zh' ? '知道了，继续操作' : 'Continue'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* 底部信息 */}
         <div className="flex-none border-t border-slate-200 bg-slate-50 px-6 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -1850,12 +2457,16 @@ export default function UnifiedAIPanel({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" className="app-shell-action-button h-8 rounded-xl px-3 text-xs">
+              <button
+                type="button"
+                onClick={() => setShowGuidePanel(true)}
+                className="app-shell-action-button h-8 rounded-xl px-3 text-xs"
+              >
                 {locale === 'zh' ? '使用说明' : 'Guide'}
               </button>
               <button
                 type="button"
-                onClick={onOpenAIConfig}
+                onClick={() => openConfigWithHint()}
                 className="app-shell-action-button h-8 rounded-xl px-3 text-xs"
               >
                 {locale === 'zh' ? 'AI 配置' : 'AI Config'}

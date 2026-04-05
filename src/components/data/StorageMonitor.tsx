@@ -27,6 +27,7 @@ import {
   RefreshCw,
   Check
 } from 'lucide-react'
+import { useToastContext } from '@/components/Toast'
 
 /**
  * 存储使用情况
@@ -92,12 +93,60 @@ function formatBytes(bytes: number): string {
 }
 
 /**
- * 获取进度条颜色
+ * 获取存储状态元信息
+ * 将百分比转换成统一的标题、提示文案和视觉状态，便于主卡片和清理建议共用。
  */
-function getProgressColor(percentage: number, warningThreshold: number): string {
-  if (percentage >= 90) return 'bg-red-500'
-  if (percentage >= warningThreshold) return 'bg-amber-500'
-  return 'bg-blue-500'
+function getStorageStatusMeta(percentage: number, warningThreshold: number) {
+  if (percentage >= 90) {
+    return {
+      chipLabel: '高风险',
+      chipClassName: 'border-rose-200 bg-rose-50 text-rose-700',
+      progressClassName: 'bg-rose-500',
+      panelClassName: 'border-rose-200 bg-rose-50 text-rose-700',
+      title: '存储空间即将用尽',
+      description: '建议立即导出备份，并清理版本历史或未使用配色方案。'
+    }
+  }
+
+  if (percentage >= warningThreshold) {
+    return {
+      chipLabel: '需清理',
+      chipClassName: 'border-amber-200 bg-amber-50 text-amber-700',
+      progressClassName: 'bg-amber-500',
+      panelClassName: 'border-amber-200 bg-amber-50 text-amber-700',
+      title: '存储空间接近上限',
+      description: '建议预先清理旧数据，避免编辑过程中的保存和备份受影响。'
+    }
+  }
+
+  return {
+    chipLabel: '健康',
+    chipClassName: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    progressClassName: 'bg-slate-900',
+    panelClassName: 'border-slate-200 bg-slate-50 text-slate-700',
+    title: '存储空间状态稳定',
+    description: '当前容量充足，建议在大改版前后各导出一份数据备份。'
+  }
+}
+
+/**
+ * 获取空间管理建议
+ * 根据当前占用情况生成更适合展示在维护卡片中的下一步操作提示。
+ */
+function getStorageRecommendation(usage: StorageUsage, warningThreshold: number): string {
+  if (usage.percentage >= 90) {
+    return '优先清理版本历史，并保留最近 1 到 3 份快照。'
+  }
+
+  if (usage.percentage >= warningThreshold) {
+    return '如果近期频繁调整模板和样式，建议先导出备份，再做选择性清理。'
+  }
+
+  if (usage.breakdown.versionHistory > usage.breakdown.resumes) {
+    return '当前版本历史占用偏高，可定期删除旧快照，保持本地空间轻量。'
+  }
+
+  return '当前主要用于内容编辑，可继续正常使用，建议按里程碑导出备份。'
 }
 
 /**
@@ -108,18 +157,30 @@ const StorageBreakdownItem: React.FC<{
   label: string
   bytes: number
   percentage: number
-  color: string
-}> = ({ icon, label, bytes, percentage, color }) => (
-  <div className="flex items-center justify-between py-2">
-    <div className="flex items-center gap-2">
-      <div className={`p-1.5 rounded ${color}`}>
-        {icon}
+  iconClassName: string
+  progressClassName: string
+}> = ({ icon, label, bytes, percentage, iconClassName, progressClassName }) => (
+  <div className="rounded-xl border border-slate-200 bg-white p-3">
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-9 w-9 items-center justify-center rounded-xl border ${iconClassName}`}>
+          {icon}
+        </div>
+        <div>
+          <p className="text-sm font-medium text-slate-800">{label}</p>
+          <p className="mt-1 text-xs text-slate-500">占当前本地缓存的 {percentage.toFixed(1)}%</p>
+        </div>
       </div>
-      <span className="text-sm text-gray-700">{label}</span>
+      <div className="text-right">
+        <span className="text-sm font-semibold text-slate-900">{formatBytes(bytes)}</span>
+      </div>
     </div>
-    <div className="text-right">
-      <span className="text-sm font-medium text-gray-800">{formatBytes(bytes)}</span>
-      <span className="text-xs text-gray-400 ml-1">({percentage.toFixed(1)}%)</span>
+
+    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+      <div
+        className={`h-full rounded-full ${progressClassName}`}
+        style={{ width: `${Math.min(percentage, 100)}%` }}
+      />
     </div>
   </div>
 )
@@ -150,78 +211,105 @@ const CleanupDialog: React.FC<{
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden"
+        className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-800">清理存储空间</h3>
-          <p className="text-sm text-gray-500 mt-1">选择要清理的数据类型</p>
+        <div className="flex items-start gap-3 border-b border-slate-200 px-6 py-5">
+          <span className="app-shell-brand-mark h-10 w-10 shrink-0 rounded-xl">
+            <Trash2 className="h-4 w-4" />
+          </span>
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">清理存储空间</h3>
+            <p className="mt-1 text-sm text-slate-500">选择要清理的数据类型，释放本地编辑器缓存空间。</p>
+          </div>
         </div>
 
-        <div className="p-5 space-y-4">
-          {/* 版本历史 */}
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={options.versionHistory}
-              onChange={(e) => setOptions(prev => ({ ...prev, versionHistory: e.target.checked }))}
-              className="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-            />
-            <div>
-              <span className="text-sm font-medium text-gray-700">清理版本历史</span>
-              <p className="text-xs text-gray-500 mt-0.5">保留最近的版本，删除旧版本</p>
-              {options.versionHistory && (
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xs text-gray-500">保留最近</span>
-                  <select
-                    value={options.keepRecentVersions}
-                    onChange={(e) => setOptions(prev => ({ ...prev, keepRecentVersions: Number(e.target.value) }))}
-                    className="text-xs border border-gray-200 rounded px-2 py-1"
-                  >
-                    <option value={1}>1 个</option>
-                    <option value={3}>3 个</option>
-                    <option value={5}>5 个</option>
-                  </select>
-                  <span className="text-xs text-gray-500">版本</span>
+        <div className="space-y-4 p-6">
+          <div className="grid gap-3">
+            <label className="rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={options.versionHistory}
+                  onChange={(e) => setOptions(prev => ({ ...prev, versionHistory: e.target.checked }))}
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-900">清理版本历史</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                    删除旧版本快照，仅保留近期需要回滚的版本记录。
+                  </p>
+                  {options.versionHistory && (
+                    <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span className="text-xs font-medium text-slate-500">保留最近</span>
+                      <select
+                        value={options.keepRecentVersions}
+                        onChange={(e) => setOptions(prev => ({ ...prev, keepRecentVersions: Number(e.target.value) }))}
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-slate-900 focus:outline-none"
+                      >
+                        <option value={1}>1 个</option>
+                        <option value={3}>3 个</option>
+                        <option value={5}>5 个</option>
+                      </select>
+                      <span className="text-xs font-medium text-slate-500">版本</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </label>
+              </div>
+            </label>
 
-          {/* 未使用的配色方案 */}
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={options.unusedColorSchemes}
-              onChange={(e) => setOptions(prev => ({ ...prev, unusedColorSchemes: e.target.checked }))}
-              className="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-            />
-            <div>
-              <span className="text-sm font-medium text-gray-700">清理未使用的配色方案</span>
-              <p className="text-xs text-gray-500 mt-0.5">删除未被任何简历使用的自定义配色</p>
-            </div>
-          </label>
+            <label className="rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={options.unusedColorSchemes}
+                  onChange={(e) => setOptions(prev => ({ ...prev, unusedColorSchemes: e.target.checked }))}
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-900">清理未使用的配色方案</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                    删除没有被当前简历引用的自定义色板，减少样式缓存占用。
+                  </p>
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+              清理建议
+            </p>
+            <p className="mt-2 text-sm font-medium text-slate-900">
+              建议在清理前先导出一份数据备份，避免误删历史版本。
+            </p>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              清理不会影响当前编辑中的内容，但被删除的旧版本和未使用配色无法直接恢复。
+            </p>
+          </div>
         </div>
 
-        <div className="px-5 py-4 bg-gray-50 flex justify-end gap-3">
+        <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
           <button
+            type="button"
             onClick={onClose}
             disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            className="app-shell-action-button h-10 rounded-xl px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
           >
             取消
           </button>
           <button
+            type="button"
             onClick={handleConfirm}
             disabled={isLoading || (!options.versionHistory && !options.unusedColorSchemes)}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-rose-500 px-4 text-sm font-medium text-white transition-colors hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? (
               <>
@@ -263,14 +351,16 @@ export function StorageMonitor({
   onRefresh,
   className = ''
 }: StorageMonitorProps) {
+  const { success: showSuccess, error: showError } = useToastContext()
   const [isExpanded, setIsExpanded] = useState(false)
   const [showCleanupDialog, setShowCleanupDialog] = useState(false)
   const [isCleaningUp, setIsCleaningUp] = useState(false)
   const [cleanupResult, setCleanupResult] = useState<{ success: boolean; freedBytes: number } | null>(null)
 
   const isNearLimit = usage.percentage >= warningThreshold
-  const isCritical = usage.percentage >= 90
-  const progressColor = getProgressColor(usage.percentage, warningThreshold)
+  const statusMeta = getStorageStatusMeta(usage.percentage, warningThreshold)
+  const remainingBytes = Math.max(usage.total - usage.used, 0)
+  const recommendation = getStorageRecommendation(usage, warningThreshold)
 
   // 计算各类数据的百分比
   const breakdownPercentages = {
@@ -281,7 +371,10 @@ export function StorageMonitor({
     other: usage.used > 0 ? (usage.breakdown.other / usage.used) * 100 : 0
   }
 
-  // 处理清理
+  /**
+   * 处理清理
+   * 清理完成后同步展示站内 toast 和内联结果提示，反馈更明确。
+   */
   const handleCleanup = useCallback(async (options: CleanupOptions) => {
     if (!onCleanup) return
 
@@ -292,30 +385,45 @@ export function StorageMonitor({
       const freedBytes = await onCleanup(options)
       setCleanupResult({ success: true, freedBytes })
       setShowCleanupDialog(false)
+      showSuccess('存储清理完成', `已释放 ${formatBytes(freedBytes)} 空间。`)
       
       // 3秒后清除结果提示
       setTimeout(() => setCleanupResult(null), 3000)
-    } catch (error) {
+    } catch {
       setCleanupResult({ success: false, freedBytes: 0 })
+      showError('存储清理失败', '请稍后重试，或先导出备份后再进行清理。')
     } finally {
       setIsCleaningUp(false)
     }
-  }, [onCleanup])
+  }, [onCleanup, showError, showSuccess])
 
   return (
-    <div className={`bg-white rounded-xl border border-gray-200 overflow-hidden ${className}`}>
+    <div className={`app-shell-toolbar-surface overflow-hidden ${className}`}>
       {/* 头部 */}
-      <div className="px-4 py-3 border-b border-gray-100">
+      <div className="border-b border-slate-200 px-4 py-4 sm:px-5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <HardDrive size={16} className="text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">存储空间</span>
+          <div className="flex items-start gap-3">
+            <span className="app-shell-brand-mark h-10 w-10 shrink-0 rounded-xl">
+              <HardDrive className="h-4 w-4" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-slate-900">本地存储空间</span>
+                <span className={`app-shell-status-chip ${statusMeta.chipClassName}`}>
+                  {statusMeta.chipLabel}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                管理简历缓存、版本历史和样式数据，保持编辑器运行稳定。
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {onRefresh && (
               <button
+                type="button"
                 onClick={onRefresh}
-                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                className="app-shell-toolbar-button h-9 w-9 px-0"
                 title="刷新"
               >
                 <RefreshCw size={14} />
@@ -323,8 +431,9 @@ export function StorageMonitor({
             )}
             {showDetails && (
               <button
+                type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                className={`h-9 w-9 px-0 ${isExpanded ? 'app-shell-toolbar-button app-shell-toolbar-button-active' : 'app-shell-toolbar-button'}`}
               >
                 {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
@@ -334,27 +443,23 @@ export function StorageMonitor({
       </div>
 
       {/* 主要内容 */}
-      <div className="p-4">
+      <div className="space-y-4 p-4 sm:p-5">
         {/* 警告提示 */}
-        {isNearLimit && (
+        <div className={`rounded-xl border p-4 ${statusMeta.panelClassName}`}>
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`flex items-start gap-2 p-3 rounded-lg mb-4 ${
-              isCritical ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'
-            }`}
+            className="flex items-start gap-3"
           >
-            <AlertTriangle size={16} className={isCritical ? 'text-red-500' : 'text-amber-500'} />
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
             <div>
-              <p className={`text-sm font-medium ${isCritical ? 'text-red-700' : 'text-amber-700'}`}>
-                {isCritical ? '存储空间即将用尽' : '存储空间不足'}
-              </p>
-              <p className={`text-xs mt-0.5 ${isCritical ? 'text-red-600' : 'text-amber-600'}`}>
-                建议导出数据备份或清理旧数据以释放空间
+              <p className="text-sm font-semibold">{statusMeta.title}</p>
+              <p className="mt-1 text-sm leading-6 opacity-90">
+                {statusMeta.description}
               </p>
             </div>
           </motion.div>
-        )}
+        </div>
 
         {/* 清理成功提示 */}
         <AnimatePresence>
@@ -363,48 +468,65 @@ export function StorageMonitor({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className={`flex items-center gap-2 p-3 rounded-lg mb-4 ${
-                cleanupResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+              className={`flex items-center gap-2 rounded-xl border px-4 py-3 ${
+                cleanupResult.success ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'
               }`}
             >
               {cleanupResult.success ? (
                 <>
-                  <Check size={16} className="text-green-500" />
-                  <span className="text-sm text-green-700">
+                  <Check size={16} className="text-emerald-500" />
+                  <span className="text-sm text-emerald-700">
                     清理完成，释放了 {formatBytes(cleanupResult.freedBytes)} 空间
                   </span>
                 </>
               ) : (
                 <>
-                  <AlertTriangle size={16} className="text-red-500" />
-                  <span className="text-sm text-red-700">清理失败，请稍后重试</span>
+                  <AlertTriangle size={16} className="text-rose-500" />
+                  <span className="text-sm text-rose-700">清理失败，请稍后重试</span>
                 </>
               )}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* 使用量显示 */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-600">
-              已使用 {formatBytes(usage.used)} / {formatBytes(usage.total)}
-            </span>
-            <span className={`text-sm font-medium ${
-              isCritical ? 'text-red-600' : isNearLimit ? 'text-amber-600' : 'text-gray-700'
-            }`}>
-              {usage.percentage.toFixed(1)}%
-            </span>
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(240px,0.9fr)]">
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+              容量概览
+            </p>
+            <div className="mt-3 flex items-end justify-between gap-3">
+              <div>
+                <p className="text-2xl font-semibold text-slate-900">{usage.percentage.toFixed(1)}%</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  已使用 {formatBytes(usage.used)} / {formatBytes(usage.total)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-slate-900">{formatBytes(remainingBytes)}</p>
+                <p className="mt-1 text-xs font-medium uppercase tracking-[0.08em] text-slate-400">剩余可用</p>
+              </div>
+            </div>
+
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(usage.percentage, 100)}%` }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+                className={`h-full rounded-full ${statusMeta.progressClassName}`}
+              />
+            </div>
           </div>
-          
-          {/* 进度条 */}
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${Math.min(usage.percentage, 100)}%` }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-              className={`h-full ${progressColor} rounded-full`}
-            />
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+              维护建议
+            </p>
+            <p className="mt-2 text-sm font-medium text-slate-900">
+              {isNearLimit ? '建议优先做一次清理和备份' : '当前可以继续正常编辑'}
+            </p>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              {recommendation}
+            </p>
           </div>
         </div>
 
@@ -415,35 +537,47 @@ export function StorageMonitor({
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="border-t border-gray-100 pt-4 mt-4 space-y-1"
+              className="space-y-3 border-t border-slate-200 pt-4"
             >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">占用明细</p>
+                  <p className="mt-1 text-sm text-slate-500">按数据类型查看当前本地缓存的占用分布。</p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
               <StorageBreakdownItem
                 icon={<FileText size={12} className="text-blue-600" />}
                 label="简历数据"
                 bytes={usage.breakdown.resumes}
                 percentage={breakdownPercentages.resumes}
-                color="bg-blue-100"
+                iconClassName="border-blue-200 bg-blue-50"
+                progressClassName="bg-blue-500"
               />
               <StorageBreakdownItem
                 icon={<History size={12} className="text-purple-600" />}
                 label="版本历史"
                 bytes={usage.breakdown.versionHistory}
                 percentage={breakdownPercentages.versionHistory}
-                color="bg-purple-100"
+                iconClassName="border-purple-200 bg-purple-50"
+                progressClassName="bg-purple-500"
               />
               <StorageBreakdownItem
                 icon={<Palette size={12} className="text-pink-600" />}
                 label="配色方案"
                 bytes={usage.breakdown.colorSchemes}
                 percentage={breakdownPercentages.colorSchemes}
-                color="bg-pink-100"
+                iconClassName="border-pink-200 bg-pink-50"
+                progressClassName="bg-pink-500"
               />
               <StorageBreakdownItem
                 icon={<Settings size={12} className="text-gray-600" />}
                 label="设置"
                 bytes={usage.breakdown.settings}
                 percentage={breakdownPercentages.settings}
-                color="bg-gray-100"
+                iconClassName="border-slate-200 bg-slate-50"
+                progressClassName="bg-slate-500"
               />
               {usage.breakdown.other > 0 && (
                 <StorageBreakdownItem
@@ -451,22 +585,31 @@ export function StorageMonitor({
                   label="其他"
                   bytes={usage.breakdown.other}
                   percentage={breakdownPercentages.other}
-                  color="bg-gray-100"
+                  iconClassName="border-slate-200 bg-slate-50"
+                  progressClassName="bg-slate-400"
                 />
               )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* 清理按钮 */}
         {onCleanup && (
-          <button
-            onClick={() => setShowCleanupDialog(true)}
-            className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <Trash2 size={14} />
-            清理存储空间
-          </button>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">释放本地空间</p>
+              <p className="mt-1 text-sm text-slate-500">建议在导出备份后定期清理旧版本和闲置配色。</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCleanupDialog(true)}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+            >
+              <Trash2 size={14} />
+              清理存储空间
+            </button>
+          </div>
         )}
       </div>
 
