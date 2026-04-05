@@ -42,8 +42,7 @@ import {
   getAIConfigPrecheckStatusClass,
   getAIConfigPrecheckStatusLabel,
   getRecommendedAIModelForProvider,
-  getPrimaryAIConfigPrecheckItem
-  ,
+  getPrimaryAIConfigPrecheckItem,
   normalizeCustomEndpointInput
 } from '@/domain/ai/configPrecheck'
 import { aiSuggestionRanker } from '@/services/aiSuggestionRanker'
@@ -642,6 +641,8 @@ export default function UnifiedAIPanel({
   const [generateApplied, setGenerateApplied] = useState(false)
   const [aiConfigStatus, setAIConfigStatus] = useState<AIConfigStatus>(() => aiService.getConfigStatus())
   const [aiConfigSnapshot, setAIConfigSnapshot] = useState(() => aiService.getConfigSnapshot())
+  const [isRevalidatingConfig, setIsRevalidatingConfig] = useState(false)
+  const [hasFreshConfigValidationSuccess, setHasFreshConfigValidationSuccess] = useState(false)
   const [precheckActionNotice, setPrecheckActionNotice] = useState<{
     tone: 'success' | 'error'
     message: string
@@ -687,6 +688,8 @@ export default function UnifiedAIPanel({
 
     setAIConfigStatus(aiService.getConfigStatus())
     setAIConfigSnapshot(aiService.getConfigSnapshot())
+    setIsRevalidatingConfig(false)
+    setHasFreshConfigValidationSuccess(false)
     setPrecheckActionNotice(null)
   }, [configVersion, isOpen])
 
@@ -700,8 +703,13 @@ export default function UnifiedAIPanel({
     }
 
     const handleStatusUpdate = () => {
-      setAIConfigStatus(aiService.getConfigStatus())
+      const nextStatus = aiService.getConfigStatus()
+      setAIConfigStatus(nextStatus)
       setAIConfigSnapshot(aiService.getConfigSnapshot())
+
+      if (!nextStatus.isConfigured || !nextStatus.lastValidation?.isValid) {
+        setHasFreshConfigValidationSuccess(false)
+      }
     }
 
     window.addEventListener(AI_CONFIG_STATUS_EVENT, handleStatusUpdate)
@@ -869,6 +877,7 @@ export default function UnifiedAIPanel({
   const handleSwitchMode = (mode: AIMode) => {
     setActiveMode(mode)
     setErrorMessage('')
+    setIsRevalidatingConfig(false)
     setPrecheckActionNotice(null)
     setIsProcessing(false)
     setShowGuidePanel(false)
@@ -1211,6 +1220,7 @@ export default function UnifiedAIPanel({
     }
 
     const result = aiService.updateConfig(nextConfig)
+    setHasFreshConfigValidationSuccess(false)
 
     if (!result.success) {
       const message = result.error || (locale === 'zh' ? '快速修复失败，请打开配置继续处理。' : 'Quick fix failed. Open configuration to continue.')
@@ -1231,6 +1241,60 @@ export default function UnifiedAIPanel({
         ? '已应用快速修复。若仍有历史验证失败，请重新验证一次当前配置。'
         : 'Quick fix applied. If an old validation failure remains, validate the current setup once more.'
     })
+  }
+
+  /**
+   * 在 AI 面板内重新验证当前配置
+   * 让用户在完成轻量修复后，不离开面板也能立即确认当前配置是否恢复可用。
+   */
+  const handleRevalidateCurrentConfig = async () => {
+    const currentConfig = aiService.getConfigSnapshot()
+
+    if (!currentConfig) {
+      openConfigWithHint()
+      return
+    }
+
+    setIsRevalidatingConfig(true)
+    setPrecheckActionNotice(null)
+
+    try {
+      const result = await aiService.validateConfig(currentConfig)
+      setAIConfigStatus(aiService.getConfigStatus())
+      setAIConfigSnapshot(aiService.getConfigSnapshot())
+
+      if (result.isValid) {
+        setErrorMessage('')
+        setHasFreshConfigValidationSuccess(true)
+        setPrecheckActionNotice({
+          tone: 'success',
+          message: locale === 'zh'
+            ? '当前配置验证通过，可以继续使用智能优化和从零生成。'
+            : 'The current configuration passed validation and is ready to use.'
+        })
+        return
+      }
+
+      setHasFreshConfigValidationSuccess(false)
+      setPrecheckActionNotice({
+        tone: 'error',
+        message: locale === 'zh'
+          ? `重新验证失败：${result.message}`
+          : `Validation failed: ${result.message}`
+      })
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : (locale === 'zh' ? '重新验证失败，请稍后重试。' : 'Validation failed, please retry later.')
+
+      setPrecheckActionNotice({
+        tone: 'error',
+        message
+      })
+      setHasFreshConfigValidationSuccess(false)
+    } finally {
+      setIsRevalidatingConfig(false)
+    }
   }
 
   if (!isOpen) return null
@@ -1295,7 +1359,9 @@ export default function UnifiedAIPanel({
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
                   activeMode === mode.id
                     ? 'app-shell-toolbar-button app-shell-toolbar-button-active'
-                    : 'app-shell-toolbar-button border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    : hasFreshConfigValidationSuccess && aiConfigStatus.isConfigured && mode.requiresConfig
+                      ? 'app-shell-toolbar-button border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      : 'app-shell-toolbar-button border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 }`}
               >
                 {mode.icon}
@@ -1307,6 +1373,15 @@ export default function UnifiedAIPanel({
                       : 'border border-amber-200 bg-amber-50 text-amber-700'
                   }`}>
                     {locale === 'zh' ? '需配置' : 'Setup'}
+                  </span>
+                )}
+                {mode.requiresConfig && aiConfigStatus.isConfigured && hasFreshConfigValidationSuccess && (
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    activeMode === mode.id
+                      ? 'bg-white/15 text-white'
+                      : 'border border-emerald-200 bg-white/80 text-emerald-700'
+                  }`}>
+                    {locale === 'zh' ? '已可用' : 'Ready'}
                   </span>
                 )}
               </button>
@@ -1366,7 +1441,7 @@ export default function UnifiedAIPanel({
                   </p>
                 </div>
               </div>
-              {primaryPrecheckItem && (
+              {aiConfigPrecheckItems.length > 0 && (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-700">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
@@ -1375,16 +1450,30 @@ export default function UnifiedAIPanel({
                       </p>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <p className="text-sm font-medium text-slate-900">
-                          {locale === 'zh' ? `当前卡在：${primaryPrecheckItem.title}` : `Current blocker: ${primaryPrecheckItem.title}`}
+                          {primaryPrecheckItem
+                            ? (locale === 'zh' ? `当前卡在：${primaryPrecheckItem.title}` : `Current blocker: ${primaryPrecheckItem.title}`)
+                            : (locale === 'zh' ? '本地检查已通过，可直接重新验证当前配置。' : 'Local checks passed. You can validate the current configuration now.')}
                         </p>
-                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getAIConfigPrecheckStatusClass(primaryPrecheckItem.status)}`}>
-                          {getAIConfigPrecheckStatusLabel(primaryPrecheckItem.status, locale)}
+                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                          primaryPrecheckItem
+                            ? getAIConfigPrecheckStatusClass(primaryPrecheckItem.status)
+                            : getAIConfigPrecheckStatusClass('ready')
+                        }`}>
+                          {primaryPrecheckItem
+                            ? getAIConfigPrecheckStatusLabel(primaryPrecheckItem.status, locale)
+                            : getAIConfigPrecheckStatusLabel('ready', locale)}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm leading-6 text-slate-500">{primaryPrecheckItem.detail}</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">
+                        {primaryPrecheckItem
+                          ? primaryPrecheckItem.detail
+                          : (locale === 'zh'
+                            ? '如果最近做过轻量修复，可以直接在这里重新验证，不必打开配置弹窗。'
+                            : 'If you have already applied a quick fix, revalidate here without opening the configuration modal.')}
+                      </p>
                     </div>
                     <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                      {primaryPrecheckItem.actionId && canApplyInlinePrecheckAction(primaryPrecheckItem.actionId) && (
+                      {primaryPrecheckItem?.actionId && canApplyInlinePrecheckAction(primaryPrecheckItem.actionId) && (
                         <button
                           type="button"
                           onClick={() => handleApplyInlinePrecheckAction(primaryPrecheckItem.actionId!)}
@@ -1395,11 +1484,31 @@ export default function UnifiedAIPanel({
                       )}
                       <button
                         type="button"
-                        onClick={() => openConfigWithHint(primaryPrecheckItem.detail, mapPrecheckItemToGuidanceField(primaryPrecheckItem))}
-                        className="app-shell-action-button h-8 rounded-xl px-3 text-xs"
+                        onClick={() => void handleRevalidateCurrentConfig()}
+                        disabled={isRevalidatingConfig}
+                        className="app-shell-action-button h-8 rounded-xl px-3 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {locale === 'zh' ? '去处理' : 'Review'}
+                        {isRevalidatingConfig ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <span>{locale === 'zh' ? '验证中' : 'Validating'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-3.5 w-3.5" />
+                            <span>{locale === 'zh' ? '重新验证' : 'Revalidate'}</span>
+                          </>
+                        )}
                       </button>
+                      {primaryPrecheckItem && (
+                        <button
+                          type="button"
+                          onClick={() => openConfigWithHint(primaryPrecheckItem.detail, mapPrecheckItemToGuidanceField(primaryPrecheckItem))}
+                          className="app-shell-action-button h-8 rounded-xl px-3 text-xs"
+                        >
+                          {locale === 'zh' ? '去处理' : 'Review'}
+                        </button>
+                      )}
                     </div>
                   </div>
                   {precheckActionNotice && (
@@ -1409,6 +1518,44 @@ export default function UnifiedAIPanel({
                         : 'border-rose-200 bg-rose-50 text-rose-700'
                     }`}>
                       {precheckActionNotice.message}
+                    </div>
+                  )}
+                  {hasFreshConfigValidationSuccess && aiConfigStatus.isConfigured && (
+                    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/90 p-3 text-emerald-800">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-emerald-600" />
+                            <p className="text-sm font-semibold">
+                              {locale === 'zh' ? 'AI 配置已恢复可用' : 'AI is ready again'}
+                            </p>
+                            <span className="rounded-full border border-emerald-200 bg-white/70 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                              {aiStatusMeta.providerSummary} · {aiStatusMeta.modelSummary}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-emerald-700">
+                            {locale === 'zh'
+                              ? '智能优化和从零生成已经解锁，你可以直接切到对应模式继续处理，不必再回到配置弹窗。'
+                              : 'Optimize and start-fresh are now unlocked. Continue directly from here without reopening the config modal.'}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSwitchMode('optimize')}
+                            className="inline-flex h-9 items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+                          >
+                            {locale === 'zh' ? '去智能优化' : 'Open Optimize'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSwitchMode('generate')}
+                            className="app-shell-action-button h-9 rounded-xl px-4 text-sm"
+                          >
+                            {locale === 'zh' ? '去从零生成' : 'Open Start Fresh'}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
