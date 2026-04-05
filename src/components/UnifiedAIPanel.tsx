@@ -643,6 +643,7 @@ export default function UnifiedAIPanel({
   const [aiConfigSnapshot, setAIConfigSnapshot] = useState(() => aiService.getConfigSnapshot())
   const [isRevalidatingConfig, setIsRevalidatingConfig] = useState(false)
   const [hasFreshConfigValidationSuccess, setHasFreshConfigValidationSuccess] = useState(false)
+  const [historicalValidationIssue, setHistoricalValidationIssue] = useState<AIConfigStatus['lastValidation'] | null>(null)
   const [precheckActionNotice, setPrecheckActionNotice] = useState<{
     tone: 'success' | 'error'
     message: string
@@ -658,6 +659,9 @@ export default function UnifiedAIPanel({
 
     return aiConfigStatus.lastValidation || null
   }, [aiConfigStatus.lastValidation])
+  const hasValidatedCurrentConfig = Boolean(aiConfigStatus.isConfigured && aiConfigStatus.lastValidation?.isValid)
+  const shouldShowBlockingError = Boolean(errorMessage) && !hasValidatedCurrentConfig
+  const shouldShowHistoricalValidationInfo = Boolean(historicalValidationIssue && hasValidatedCurrentConfig)
   const aiConfigPrecheckItems = useMemo(() => {
     if (!aiConfigSnapshot) {
       return []
@@ -687,10 +691,17 @@ export default function UnifiedAIPanel({
       return
     }
 
-    setAIConfigStatus(aiService.getConfigStatus())
+    const nextStatus = aiService.getConfigStatus()
+    setAIConfigStatus(nextStatus)
     setAIConfigSnapshot(aiService.getConfigSnapshot())
     setIsRevalidatingConfig(false)
-    setHasFreshConfigValidationSuccess(false)
+    setHasFreshConfigValidationSuccess(Boolean(nextStatus.lastValidation?.isValid))
+    if (!nextStatus.lastValidation?.isValid) {
+      setHistoricalValidationIssue(null)
+    }
+    if (nextStatus.lastValidation?.isValid) {
+      setErrorMessage('')
+    }
     setPrecheckActionNotice(null)
   }, [configVersion, isOpen])
 
@@ -708,6 +719,15 @@ export default function UnifiedAIPanel({
       setAIConfigStatus(nextStatus)
       setAIConfigSnapshot(aiService.getConfigSnapshot())
 
+      if (nextStatus.lastValidation?.isValid) {
+        if (latestValidationIssue) {
+          setHistoricalValidationIssue(latestValidationIssue)
+        }
+        setHasFreshConfigValidationSuccess(true)
+        setErrorMessage('')
+        return
+      }
+
       if (!nextStatus.isConfigured || !nextStatus.lastValidation?.isValid) {
         setHasFreshConfigValidationSuccess(false)
       }
@@ -717,7 +737,7 @@ export default function UnifiedAIPanel({
     return () => {
       window.removeEventListener(AI_CONFIG_STATUS_EVENT, handleStatusUpdate)
     }
-  }, [isOpen])
+  }, [isOpen, latestValidationIssue])
 
   /**
    * 根据外部入口预选优化模块
@@ -1258,6 +1278,7 @@ export default function UnifiedAIPanel({
 
     setIsRevalidatingConfig(true)
     setPrecheckActionNotice(null)
+    const previousIssue = latestValidationIssue
 
     try {
       const result = await aiService.validateConfig(currentConfig)
@@ -1267,6 +1288,9 @@ export default function UnifiedAIPanel({
       if (result.isValid) {
         setErrorMessage('')
         setHasFreshConfigValidationSuccess(true)
+        if (previousIssue) {
+          setHistoricalValidationIssue(previousIssue)
+        }
         setPrecheckActionNotice({
           tone: 'success',
           message: locale === 'zh'
@@ -1632,13 +1656,51 @@ export default function UnifiedAIPanel({
                   </div>
                 </div>
               )}
+              {shouldShowHistoricalValidationInfo && historicalValidationIssue && (
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/90 p-3 text-slate-700">
+                  <div className="flex items-start gap-2">
+                    <RotateCcw className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                        {locale === 'zh' ? '上一轮失败诊断（历史参考）' : 'Previous Failure Diagnostics'}
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-slate-900">
+                        {historicalValidationIssue.message}
+                      </p>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                            {locale === 'zh' ? '错误类型' : 'Error Type'}
+                          </p>
+                          <p className="mt-1 text-sm font-medium text-slate-800">
+                            {getValidationCategoryLabel(historicalValidationIssue.diagnostics?.category, locale)}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                            {locale === 'zh' ? '失败时间' : 'Failed At'}
+                          </p>
+                          <p className="mt-1 text-sm font-medium text-slate-800">
+                            {formatValidationTime(historicalValidationIssue.validatedAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        {locale === 'zh'
+                          ? '当前配置已经恢复可用，这条信息仅保留为排查参考，不会阻塞你继续使用智能优化和从零生成。'
+                          : 'The current configuration is now healthy. This record is kept only as a reference and no longer blocks optimize or start-fresh.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* 内容区域 */}
         <div className="no-scrollbar flex-1 overflow-y-auto bg-slate-50/80">
-          {errorMessage && (
+          {shouldShowBlockingError && (
             <div className="px-6 pt-4">
               <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-4">
                 <div className="flex items-start justify-between gap-4">
