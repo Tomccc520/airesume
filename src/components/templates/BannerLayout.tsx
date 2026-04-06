@@ -267,7 +267,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
             )}
           </div>
           {(personalInfo.avatar || contactQRCodeUrl) && (
-            <div className="flex items-start gap-2.5">
+            <div className="flex flex-col items-end gap-2">
               {personalInfo.avatar && (
                 <Image
                   src={personalInfo.avatar}
@@ -314,12 +314,11 @@ export const BannerLayout: React.FC<TemplateProps> = ({
         </div>
         {personalInfo.summary && (
           <div
-            className="whitespace-pre-line border-t pt-2"
+            className="whitespace-pre-line"
             style={{
-              marginTop: `${entryGap - 2}px`,
+              marginTop: `${entryGap}px`,
               color: textColor,
-              lineHeight: metrics.summaryLineHeight,
-              borderColor: rowDividerColor
+              lineHeight: metrics.summaryLineHeight
             }}
           >
             {personalInfo.summary}
@@ -333,10 +332,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
           onClick={() => onSectionClick?.('experience')}
           style={{ marginBottom: `${sectionGap}px` }}
         >
-          {renderSectionTitle(
-            t.editor.experience.title,
-            locale === 'en' ? `${experience.length} records` : `${experience.length} 条记录`
-          )}
+          {renderSectionTitle(t.editor.experience.title)}
           <div style={{ display: 'grid', rowGap: `${entryGap}px` }}>
             {experience.map((exp, index) => (
               <article
@@ -403,10 +399,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
           onClick={() => onSectionClick?.('projects')}
           style={{ marginBottom: `${sectionGap}px` }}
         >
-          {renderSectionTitle(
-            t.editor.projects.title,
-            locale === 'en' ? `${projects.length} projects` : `${projects.length} 个项目`
-          )}
+          {renderSectionTitle(t.editor.projects.title)}
           <div style={{ display: 'grid', rowGap: `${entryGap}px` }}>
             {projects.map((project, index) => (
               <article
@@ -483,10 +476,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
           onClick={() => onSectionClick?.('education')}
           style={{ marginBottom: `${sectionGap}px` }}
         >
-          {renderSectionTitle(
-            t.editor.education.title,
-            locale === 'en' ? `${education.length} records` : `${education.length} 条记录`
-          )}
+          {renderSectionTitle(t.editor.education.title)}
           <div style={{ display: 'grid', rowGap: `${entryGap - 2}px` }}>
             {education.map((edu, index) => (
               <article
@@ -544,10 +534,7 @@ export const BannerLayout: React.FC<TemplateProps> = ({
 
       {skills.length > 0 && (
         <section className="cursor-pointer" onClick={() => onSectionClick?.('skills')}>
-          {renderSectionTitle(
-            t.editor.skills.title,
-            locale === 'en' ? `${skills.length} skills` : `${skills.length} 项技能`
-          )}
+          {renderSectionTitle(t.editor.skills.title)}
           <div
             style={{
               display: 'grid',

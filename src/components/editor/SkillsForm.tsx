@@ -7,7 +7,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { Code, GripVertical, Palette, Plus, SlidersHorizontal, ArrowDownWideNarrow, Sparkles, RotateCcw, Lock, Unlock } from 'lucide-react'
+import { ChevronDown, ChevronUp, Code, GripVertical, Palette, Plus, SlidersHorizontal, ArrowDownWideNarrow, Sparkles, RotateCcw, Lock, Unlock } from 'lucide-react'
 import { AnimatePresence, Reorder } from 'framer-motion'
 import { Skill } from '@/types/resume'
 import { EditableCard } from './EditableCard'
@@ -80,6 +80,7 @@ export function SkillsForm({
   const { styleConfig, updateStyleConfig } = useStyle()
   const { success: showSuccess, info: showInfo } = useToastContext()
   const [showAdvancedStyles, setShowAdvancedStyles] = useState(false)
+  const [showSkillTools, setShowSkillTools] = useState(false)
   const [showLockedOnly, setShowLockedOnly] = useState(false)
   const [quickInput, setQuickInput] = useState('')
   const [expandedSkillId, setExpandedSkillId] = useState<string | null>(skills[0]?.id || null)
@@ -121,6 +122,10 @@ export function SkillsForm({
     }
     return skills.filter((skill) => skill.categoryLocked)
   }, [showLockedOnly, skills])
+  const currentDisplayStyleLabel = [
+    ...mainstreamStyles,
+    ...advancedStyles
+  ].find((item) => item.value === styleConfig.skills.displayStyle)?.label || styleConfig.skills.displayStyle
 
   /**
    * 常见岗位技能包
@@ -198,6 +203,16 @@ export function SkillsForm({
       setExpandedSkillId(visibleSkills[0].id)
     }
   }, [expandedSkillId, visibleSkills])
+
+  /**
+   * 自动展开技能工具区
+   * 当出现整理结果或筛选状态时，优先露出对应控制与反馈。
+   */
+  useEffect(() => {
+    if (reclassificationPreview || cleanupPreview || undoState || showLockedOnly) {
+      setShowSkillTools(true)
+    }
+  }, [cleanupPreview, reclassificationPreview, showLockedOnly, undoState])
 
   /**
    * 清理技能整理状态
@@ -608,70 +623,6 @@ export function SkillsForm({
         />
       )}
 
-      {/* 样式选择：先给主流样式，减少噪音；高级样式按需展开 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <div className="flex items-center gap-2">
-            <Palette className="w-4 h-4 text-blue-600" />
-            <span className="text-sm font-semibold text-gray-900">
-              {locale === 'zh' ? '技能展示样式' : 'Skill Display'}
-            </span>
-          </div>
-          <span className="text-xs text-gray-500">
-            {locale === 'zh' ? '先选主流样式，再按需切高级样式' : 'Pick mainstream first, advanced if needed'}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {mainstreamStyles.map((style) => (
-            <button
-              key={style.value}
-              type="button"
-              onClick={() => applyDisplayStyle(style.value)}
-              className={`px-3 py-2 rounded-lg border text-left transition-colors ${
-                styleConfig.skills.displayStyle === style.value
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
-              }`}
-            >
-              <div className="text-sm font-semibold">{style.icon}</div>
-              <div className="text-xs mt-0.5">{style.label}</div>
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowAdvancedStyles((prev) => !prev)}
-          className="mt-3 inline-flex items-center gap-1 text-xs text-gray-600 hover:text-blue-600"
-        >
-          <SlidersHorizontal className="w-3.5 h-3.5" />
-          {showAdvancedStyles
-            ? (locale === 'zh' ? '收起高级样式' : 'Hide advanced styles')
-            : (locale === 'zh' ? '显示高级样式' : 'Show advanced styles')}
-        </button>
-
-        {showAdvancedStyles && (
-          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
-            {advancedStyles.map((style) => (
-              <button
-                key={style.value}
-                type="button"
-                onClick={() => applyDisplayStyle(style.value)}
-                className={`px-3 py-2 rounded-lg border text-left transition-colors ${
-                  styleConfig.skills.displayStyle === style.value
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
-                }`}
-              >
-                <div className="text-sm font-semibold">{style.icon}</div>
-                <div className="text-xs mt-0.5">{style.label}</div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* 批量输入：减少逐条添加的操作负担 */}
       <div className="rounded-xl border border-gray-200 bg-gray-50 p-4" data-editor-field-key="skills-batch-input">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -681,77 +632,20 @@ export function SkillsForm({
               {locale === 'zh' ? '批量添加技能' : 'Batch Add Skills'}
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleSortByLevel}
-              className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-blue-600"
-            >
-              <ArrowDownWideNarrow className="w-3.5 h-3.5" />
-              {locale === 'zh' ? '按熟练度排序' : 'Sort by level'}
-            </button>
-            <button
-              type="button"
-              onClick={handleLockAllCategories}
-              disabled={skills.length === 0 || lockedSkillCount === skills.length}
-              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Lock className="h-3.5 w-3.5" />
-              {locale === 'zh' ? '锁定全部' : 'Lock all'}
-            </button>
-            <button
-              type="button"
-              onClick={handleUnlockAllCategories}
-              disabled={lockedSkillCount === 0}
-              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Unlock className="h-3.5 w-3.5" />
-              {locale === 'zh' ? '解锁全部' : 'Unlock all'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowLockedOnly((current) => !current)}
-              disabled={lockedSkillCount === 0 && !showLockedOnly}
-              className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                showLockedOnly
-                  ? 'border-slate-900 bg-slate-900 text-white'
-                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              {showLockedOnly ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
-              {locale === 'zh' ? '仅看锁定项' : 'Locked only'}
-            </button>
-            <button
-              type="button"
-              onClick={handlePreviewReclassification}
-              disabled={skills.length === 0}
-              className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-2.5 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              {locale === 'zh' ? '智能重整分类' : 'Smart Reclassify'}
-            </button>
-            <button
-              type="button"
-              onClick={handlePreviewSkillCleanup}
-              disabled={skills.length === 0}
-              className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-white px-2.5 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              {locale === 'zh' ? '清理重复技能' : 'Clean duplicate skills'}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowSkillTools((current) => !current)}
+            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {locale === 'zh' ? '整理与显示' : 'Manage tools'}
+            {showSkillTools ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
         </div>
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-          <span>
-            {locale === 'zh'
-              ? `已锁定 ${lockedSkillCount}/${skills.length} 项`
-              : `${lockedSkillCount}/${skills.length} skills locked`}
-          </span>
-          {showLockedOnly && (
-            <span className="rounded-full bg-slate-900 px-2 py-0.5 text-white">
-              {locale === 'zh' ? '当前仅显示锁定项' : 'Showing locked skills only'}
-            </span>
-          )}
+        <div className="mb-3 text-xs text-gray-500">
+          {locale === 'zh'
+            ? '支持逗号、斜杠或换行批量输入，系统会自动去重并按分类归组。'
+            : 'Use commas, slashes, or line breaks. New skills will be deduplicated and grouped automatically.'}
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <input
@@ -857,6 +751,153 @@ export function SkillsForm({
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <button
+          type="button"
+          onClick={() => setShowSkillTools((current) => !current)}
+          className="flex w-full items-start justify-between gap-3 text-left"
+        >
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <Palette className="h-4 w-4 text-slate-600" />
+              <span className="text-sm font-semibold text-slate-900">
+                {locale === 'zh' ? '整理与显示设置' : 'Display and cleanup'}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              {locale === 'zh'
+                ? `当前样式：${currentDisplayStyleLabel} · 已锁定 ${lockedSkillCount}/${skills.length} 项`
+                : `Current style: ${currentDisplayStyleLabel} · ${lockedSkillCount}/${skills.length} locked`}
+            </p>
+          </div>
+          {showSkillTools ? <ChevronUp className="mt-0.5 h-4 w-4 text-slate-500" /> : <ChevronDown className="mt-0.5 h-4 w-4 text-slate-500" />}
+        </button>
+
+        {showSkillTools && (
+          <div className="mt-4 space-y-4 border-t border-slate-200 pt-4">
+            <div>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm font-medium text-slate-900">
+                  {locale === 'zh' ? '展示样式' : 'Display style'}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedStyles((prev) => !prev)}
+                  className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  {showAdvancedStyles
+                    ? (locale === 'zh' ? '收起高级样式' : 'Hide advanced styles')
+                    : (locale === 'zh' ? '显示高级样式' : 'Show advanced styles')}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                {mainstreamStyles.map((style) => (
+                  <button
+                    key={style.value}
+                    type="button"
+                    onClick={() => applyDisplayStyle(style.value)}
+                    className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                      styleConfig.skills.displayStyle === style.value
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
+                    }`}
+                  >
+                    <div className="text-sm font-semibold">{style.icon}</div>
+                    <div className="mt-0.5 text-xs">{style.label}</div>
+                  </button>
+                ))}
+              </div>
+
+              {showAdvancedStyles && (
+                <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+                  {advancedStyles.map((style) => (
+                    <button
+                      key={style.value}
+                      type="button"
+                      onClick={() => applyDisplayStyle(style.value)}
+                      className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                        styleConfig.skills.displayStyle === style.value
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="text-sm font-semibold">{style.icon}</div>
+                      <div className="mt-0.5 text-xs">{style.label}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="mb-3 text-sm font-medium text-slate-900">
+                {locale === 'zh' ? '整理工具' : 'Cleanup tools'}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleSortByLevel}
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  <ArrowDownWideNarrow className="h-3.5 w-3.5" />
+                  {locale === 'zh' ? '按熟练度排序' : 'Sort by level'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLockAllCategories}
+                  disabled={skills.length === 0 || lockedSkillCount === skills.length}
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  {locale === 'zh' ? '锁定全部' : 'Lock all'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUnlockAllCategories}
+                  disabled={lockedSkillCount === 0}
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Unlock className="h-3.5 w-3.5" />
+                  {locale === 'zh' ? '解锁全部' : 'Unlock all'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowLockedOnly((current) => !current)}
+                  disabled={lockedSkillCount === 0 && !showLockedOnly}
+                  className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                    showLockedOnly
+                      ? 'border-slate-900 bg-slate-900 text-white'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {showLockedOnly ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                  {locale === 'zh' ? '仅看锁定项' : 'Locked only'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePreviewReclassification}
+                  disabled={skills.length === 0}
+                  className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-2.5 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {locale === 'zh' ? '智能重整分类' : 'Smart Reclassify'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePreviewSkillCleanup}
+                  disabled={skills.length === 0}
+                  className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-white px-2.5 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {locale === 'zh' ? '清理重复技能' : 'Clean duplicate skills'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {reclassificationPreview && (

@@ -123,19 +123,6 @@ export const CardLayout: React.FC<TemplateProps> = ({
   )
 
   /**
-   * 生成联系方式摘要
-   * 使用“·”连接信息，保持页眉紧凑。
-   */
-  const getContactSummary = () => {
-    const websiteLabel = personalInfo.website
-      ? personalInfo.website.replace(/^https?:\/\//i, '').replace(/\/$/, '')
-      : ''
-    return [personalInfo.phone, personalInfo.email, personalInfo.location, websiteLabel]
-      .filter(Boolean)
-      .join(' · ')
-  }
-
-  /**
    * 获取联系方式分组行
    * 双栏模板中按两行展示联系方式，提升首屏信息扫描效率。
    */
@@ -209,7 +196,6 @@ export const CardLayout: React.FC<TemplateProps> = ({
   }
 
   const skillGroups = groupSkillsByCategory()
-  const contactSummary = getContactSummary()
   const contactRows = getContactRows()
   const skillGroupEntries = Object.entries(skillGroups)
   const layoutColumns = isExecutiveCard ? 'grid-cols-[1.58fr,1fr]' : 'grid-cols-[1.66fr,1fr]'
@@ -326,11 +312,10 @@ export const CardLayout: React.FC<TemplateProps> = ({
         </div>
         {personalInfo.summary && (
           <div
-            className="whitespace-pre-line border-t pt-2"
+            className="whitespace-pre-line"
             style={{
-              marginTop: `${metrics.entryGap - 2}px`,
-              lineHeight: metrics.summaryLineHeight,
-              borderColor: rowDividerColor
+              marginTop: `${metrics.entryGap}px`,
+              lineHeight: metrics.summaryLineHeight
             }}
           >
             {personalInfo.summary}
@@ -346,10 +331,7 @@ export const CardLayout: React.FC<TemplateProps> = ({
               onClick={() => onSectionClick?.('experience')}
               style={{ marginBottom: `${sectionGap}px` }}
             >
-              {renderSectionTitle(
-                t.editor.experience.title,
-                locale === 'en' ? `${experience.length} records` : `${experience.length} 条记录`
-              )}
+              {renderSectionTitle(t.editor.experience.title)}
               <div style={{ display: 'grid', rowGap: `${metrics.entryGap}px` }}>
                 {experience.map((exp, index) => (
                   <article
@@ -416,10 +398,7 @@ export const CardLayout: React.FC<TemplateProps> = ({
               onClick={() => onSectionClick?.('projects')}
               style={{ marginBottom: `${sectionGap}px` }}
             >
-              {renderSectionTitle(
-                t.editor.projects.title,
-                locale === 'en' ? `${projects.length} projects` : `${projects.length} 个项目`
-              )}
+              {renderSectionTitle(t.editor.projects.title)}
               <div style={{ display: 'grid', rowGap: `${metrics.entryGap}px` }}>
                 {projects.map((project, index) => (
                   <article
@@ -492,26 +471,13 @@ export const CardLayout: React.FC<TemplateProps> = ({
         </div>
 
         <aside className="border-l pl-5" style={{ borderColor: rowDividerColor }}>
-          {isExecutiveCard && (
-            <section className="mb-4 border-b pb-3" style={{ borderColor: rowDividerColor }}>
-              <h3 className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: mutedColor }}>
-                {locale === 'en' ? 'Profile' : '简历概览'}
-              </h3>
-              <p className="mt-1.5 text-sm" style={{ color: textColor, lineHeight: bodyLineHeight }}>
-                {contactSummary || (locale === 'en' ? 'No contact information' : '未填写联系方式')}
-              </p>
-            </section>
-          )}
           {skills.length > 0 && (
             <section
               className="cursor-pointer"
               onClick={() => onSectionClick?.('skills')}
               style={{ marginBottom: `${sectionGap}px` }}
             >
-              {renderSectionTitle(
-                t.editor.skills.title,
-                locale === 'en' ? `${skills.length} skills` : `${skills.length} 项技能`
-              )}
+              {renderSectionTitle(t.editor.skills.title)}
               <div style={{ display: 'grid', rowGap: `${metrics.bulletGap + 3}px` }}>
                 {skillGroupEntries.map(([category, items]) => (
                   <article
@@ -544,10 +510,7 @@ export const CardLayout: React.FC<TemplateProps> = ({
 
           {education.length > 0 && (
             <section className="cursor-pointer" onClick={() => onSectionClick?.('education')}>
-              {renderSectionTitle(
-                t.editor.education.title,
-                locale === 'en' ? `${education.length} records` : `${education.length} 条记录`
-              )}
+              {renderSectionTitle(t.editor.education.title)}
               <div style={{ display: 'grid', rowGap: `${metrics.entryGap - 2}px` }}>
                 {education.map((edu, index) => (
                   <article

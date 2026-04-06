@@ -6,8 +6,8 @@
  * @createDate 2025-9-22
  */
 
-import React, { useMemo } from 'react'
-import { Copy, FolderOpen, MoveDown, MoveUp } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { ChevronDown, ChevronUp, Copy, FolderOpen, MoveDown, MoveUp } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import { Project } from '@/types/resume'
 import { EditableCard } from './EditableCard'
@@ -32,6 +32,7 @@ export function ProjectsForm({
 }: ProjectsFormProps) {
   const { t, locale } = useLanguage()
   const isZh = locale === 'zh'
+  const [showSecondaryFields, setShowSecondaryFields] = useState<Record<string, boolean>>({})
   const {
     addItem,
     updateItemField,
@@ -129,6 +130,24 @@ export function ProjectsForm({
     addItem(newProject)
   }
 
+  /**
+   * 切换补充信息区
+   * 将链接与排序等次级操作后撤，保留项目主链录入的连续性。
+   */
+  const toggleSecondaryFields = (id: string) => {
+    setShowSecondaryFields((current) => ({
+      ...current,
+      [id]: !(current[id] ?? false)
+    }))
+  }
+
+  /**
+   * 计算补充信息区默认状态
+   * 已填写项目链接时优先展开，避免低频字段被误判为丢失。
+   */
+  const isSecondaryFieldsVisible = (project: Project) =>
+    showSecondaryFields[project.id] ?? Boolean(project.url)
+
   return (
     <div className={showSectionHeader ? 'space-y-6' : 'space-y-5'}>
       {showSectionHeader && (
@@ -150,39 +169,6 @@ export function ProjectsForm({
               onDelete={() => deleteItem(project.id)}
             >
               <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      duplicateItem(project.id, {
-                        name: project.name ? `${project.name}${isZh ? '（复制）' : ' (Copy)'}` : project.name
-                      })
-                    }
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 hover:border-blue-300 hover:text-blue-700"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                    {isZh ? '复制' : 'Duplicate'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveItem(project.id, 'up')}
-                    disabled={index === 0}
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <MoveUp className="h-3.5 w-3.5" />
-                    {isZh ? '上移' : 'Move Up'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveItem(project.id, 'down')}
-                    disabled={index === projects.length - 1}
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <MoveDown className="h-3.5 w-3.5" />
-                    {isZh ? '下移' : 'Move Down'}
-                  </button>
-                </div>
-
                 <FormField
                   label={t.editor.projects.name}
                   type="text"
@@ -223,14 +209,6 @@ export function ProjectsForm({
                 </FormFieldGroup>
 
                 <FormField
-                  label={t.editor.projects.link}
-                  type="url"
-                  value={project.url || ''}
-                  onChange={(value) => updateItemField(project.id, 'url', value)}
-                  placeholder={t.editor.projects.placeholders.link}
-                />
-
-                <FormField
                   label={t.editor.projects.technologies}
                   type="text"
                   value={formatTagItems(project.technologies)}
@@ -238,6 +216,71 @@ export function ProjectsForm({
                   fieldKey="project-technologies"
                   placeholder={t.editor.projects.placeholders.technologies}
                 />
+
+                <button
+                  type="button"
+                  onClick={() => toggleSecondaryFields(project.id)}
+                  className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
+                >
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">
+                      {isZh ? '补充信息' : 'Optional details'}
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {isZh ? '项目链接、复制、顺序调整' : 'Project link, duplicate, and sorting'}
+                    </p>
+                  </div>
+                  {isSecondaryFieldsVisible(project) ? (
+                    <ChevronUp className="h-4 w-4 text-slate-500" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-slate-500" />
+                  )}
+                </button>
+
+                {isSecondaryFieldsVisible(project) && (
+                  <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                    <FormField
+                      label={t.editor.projects.link}
+                      type="url"
+                      value={project.url || ''}
+                      onChange={(value) => updateItemField(project.id, 'url', value)}
+                      placeholder={t.editor.projects.placeholders.link}
+                    />
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          duplicateItem(project.id, {
+                            name: project.name ? `${project.name}${isZh ? '（复制）' : ' (Copy)'}` : project.name
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600 hover:border-blue-300 hover:text-blue-700"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        {isZh ? '复制' : 'Duplicate'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveItem(project.id, 'up')}
+                        disabled={index === 0}
+                        className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600 hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <MoveUp className="h-3.5 w-3.5" />
+                        {isZh ? '上移' : 'Move Up'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveItem(project.id, 'down')}
+                        disabled={index === projects.length - 1}
+                        className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600 hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <MoveDown className="h-3.5 w-3.5" />
+                        {isZh ? '下移' : 'Move Down'}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* 使用富文本编辑器 */}
                 <RichTextEditor

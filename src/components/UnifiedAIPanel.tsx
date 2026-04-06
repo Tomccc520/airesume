@@ -246,17 +246,17 @@ function getAIStatusMeta(aiConfigStatus: AIConfigStatus, locale: 'zh' | 'en') {
  * 格式化最近验证时间
  * 让 AI 面板直接展示最近一次失败发生在什么时候，避免误判为当前瞬时状态。
  */
-function formatValidationTime(value?: string): string {
+function formatValidationTime(value: string | undefined, locale: 'zh' | 'en'): string {
   if (!value) {
-    return '时间未记录'
+    return locale === 'zh' ? '时间未记录' : 'Time unavailable'
   }
 
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) {
-    return '时间未记录'
+    return locale === 'zh' ? '时间未记录' : 'Time unavailable'
   }
 
-  return date.toLocaleString('zh-CN')
+  return date.toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US')
 }
 
 /**
@@ -488,6 +488,63 @@ function getOptimizeSectionFocusHint(section: OptimizeSection, locale: 'zh' | 'e
 }
 
 /**
+ * 获取当前 AI 模式的流程提示
+ * 用更短的步骤条提示用户当前模式的操作顺序，降低理解成本。
+ */
+function getAIModeJourney(mode: AIMode, locale: 'zh' | 'en'): string[] {
+  if (mode === 'match') {
+    return locale === 'zh'
+      ? ['粘贴 JD', '查看缺口', '应用建议']
+      : ['Paste JD', 'Review gaps', 'Apply suggestions']
+  }
+
+  if (mode === 'generate') {
+    return locale === 'zh'
+      ? ['填写基础信息', '生成草稿', '回编辑器补内容']
+      : ['Fill basics', 'Generate draft', 'Refine in editor']
+  }
+
+  return locale === 'zh'
+    ? ['选择模块', '生成候选', '应用到简历']
+    : ['Choose section', 'Generate variants', 'Apply to resume']
+}
+
+/**
+ * 获取优化卡片主动作
+ * 根据内容是否已填写和 AI 是否可用，给出最直接的一步操作。
+ */
+function getOptimizeCardPrimaryAction(
+  section: {
+    hasContent: boolean
+    insight: ReturnType<typeof getOptimizeSectionInsight>
+  },
+  isAIConfigured: boolean,
+  locale: 'zh' | 'en'
+): {
+  action: 'optimize' | 'edit' | 'config'
+  label: string
+} {
+  if (!isAIConfigured) {
+    return {
+      action: 'config',
+      label: locale === 'zh' ? '先配置 AI' : 'Set up AI'
+    }
+  }
+
+  if (!section.hasContent || section.insight.shouldEditFirst) {
+    return {
+      action: 'edit',
+      label: section.insight.editorActionLabel || (locale === 'zh' ? '先补内容' : 'Edit section first')
+    }
+  }
+
+  return {
+    action: 'optimize',
+    label: locale === 'zh' ? '立即优化' : 'Optimize now'
+  }
+}
+
+/**
  * 规范化对比文本
  * 去除多余空白并统一大小写，便于做候选结果的轻量差异分析。
  */
@@ -578,6 +635,10 @@ export default function UnifiedAIPanel({
   const [precheckActionNotice, setPrecheckActionNotice] = useState<{
     tone: 'success' | 'error'
     message: string
+  } | null>(null)
+  const [contentApplyNotice, setContentApplyNotice] = useState<{
+    title: string
+    description: string
   } | null>(null)
   const [appliedJDSuggestionKeys, setAppliedJDSuggestionKeys] = useState<string[]>([])
   const [jdApplyHistory, setJdApplyHistory] = useState<JDBatchHistoryEntry[]>([])
@@ -849,6 +910,7 @@ export default function UnifiedAIPanel({
     setErrorMessage('')
     setIsRevalidatingConfig(false)
     setPrecheckActionNotice(null)
+    setContentApplyNotice(null)
     setIsProcessing(false)
     if (mode !== 'optimize') {
       setOptimizeResult(null)
@@ -862,6 +924,15 @@ export default function UnifiedAIPanel({
     if (mode !== 'generate') {
       setGenerateApplied(false)
     }
+  }
+
+  /**
+   * 关闭 AI 面板并回到编辑器
+   * 用于“已写回简历”后的显式查看动作，避免用户停留在遮罩里感知不到更新结果。
+   */
+  const handleReviewAppliedContent = () => {
+    setContentApplyNotice(null)
+    onClose()
   }
 
   /**
@@ -938,11 +1009,7 @@ export default function UnifiedAIPanel({
     if (!selected) return
 
     onApplySuggestion(selected.content, optimizeResult.section)
-    setOptimizeResult((prev) => (prev ? { ...prev, applied: true } : prev))
-
-    setTimeout(() => {
-      onClose()
-    }, 1200)
+    onClose()
   }
 
   /**
@@ -1024,6 +1091,14 @@ export default function UnifiedAIPanel({
       `${getSectionLabel(suggestion.section, locale)} · ${locale === 'zh' ? '单条建议' : 'Single suggestion'}`,
       [suggestionKey]
     )
+    setContentApplyNotice({
+      title: locale === 'zh'
+        ? `${getSectionLabel(suggestion.section, locale)}已更新`
+        : `${getSectionLabel(suggestion.section, locale)} updated`,
+      description: locale === 'zh'
+        ? '对应模块已经同步写回到编辑器，可继续在列表里逐条应用。'
+        : 'The editor has already received this change. You can keep applying suggestions from the list.'
+    })
   }
 
   /**
@@ -1049,6 +1124,16 @@ export default function UnifiedAIPanel({
       `${getSectionLabel(section, locale)} · ${locale === 'zh' ? '批量应用' : 'Batch apply'}`,
       sectionSuggestions.map(({ suggestion, index }) => getJDSuggestionKey(suggestion, index))
     )
+    if (sectionSuggestions.length > 0) {
+      setContentApplyNotice({
+        title: locale === 'zh'
+          ? `${getSectionLabel(section, locale)}建议已批量应用`
+          : `${getSectionLabel(section, locale)} suggestions applied`,
+        description: locale === 'zh'
+          ? '编辑器已同步更新该模块，建议回到内容区快速检查一次。'
+          : 'The editor was updated for this section. Return to the content area for a quick review.'
+      })
+    }
   }
 
   /**
@@ -1069,6 +1154,14 @@ export default function UnifiedAIPanel({
       locale === 'zh' ? '全部 JD 建议' : 'All JD suggestions',
       unappliedSuggestions.map(({ suggestion, index }) => getJDSuggestionKey(suggestion, index))
     )
+    if (unappliedSuggestions.length > 0) {
+      setContentApplyNotice({
+        title: locale === 'zh' ? '全部 JD 建议已写回简历' : 'All JD suggestions applied',
+        description: locale === 'zh'
+          ? '已自动更新对应模块，建议回到编辑器逐块确认最终表达。'
+          : 'The related sections have been updated. Return to the editor to review each final phrasing.'
+      })
+    }
   }
 
   /**
@@ -1123,9 +1216,7 @@ export default function UnifiedAIPanel({
 
       onGenerateComplete(generated)
       setGenerateApplied(true)
-      setTimeout(() => {
-        onClose()
-      }, 1200)
+      onClose()
     } catch (error) {
       const message = error instanceof Error ? error.message : (locale === 'zh' ? '生成失败，请稍后重试。' : 'Generation failed, please retry.')
       setErrorMessage(message)
@@ -1433,6 +1524,20 @@ export default function UnifiedAIPanel({
             </button>
           </div>
 
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {getAIModeJourney(activeMode, locale).map((step, index) => (
+              <span
+                key={`${activeMode}-${step}`}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600"
+              >
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-slate-500">
+                  {index + 1}
+                </span>
+                <span>{step}</span>
+              </span>
+            ))}
+          </div>
+
           <div className={`mt-4 rounded-xl border px-4 py-4 ${aiStatusMeta.toneClass}`}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
@@ -1572,7 +1677,7 @@ export default function UnifiedAIPanel({
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-slate-900">{latestValidationIssue.message}</p>
                             <p className="mt-1 text-xs leading-5 text-slate-500">
-                              {getAIValidationCategoryLabel(latestValidationIssue.diagnostics?.category, locale)} · {latestValidationIssue.diagnostics?.targetHost || '/api/ai'} · {formatValidationTime(latestValidationIssue.validatedAt)}
+                              {getAIValidationCategoryLabel(latestValidationIssue.diagnostics?.category, locale)} · {latestValidationIssue.diagnostics?.targetHost || '/api/ai'} · {formatValidationTime(latestValidationIssue.validatedAt, locale)}
                             </p>
                             <p className="mt-2 text-xs leading-5 text-slate-500">
                               {latestValidationIssue.diagnostics?.suggestion || (locale === 'zh'
@@ -1596,7 +1701,7 @@ export default function UnifiedAIPanel({
                               {historicalValidationIssue.message}
                             </p>
                             <p className="mt-1 text-xs leading-5 text-slate-500">
-                              {getAIValidationCategoryLabel(historicalValidationIssue.diagnostics?.category, locale)} · {formatValidationTime(historicalValidationIssue.validatedAt)}
+                              {getAIValidationCategoryLabel(historicalValidationIssue.diagnostics?.category, locale)} · {formatValidationTime(historicalValidationIssue.validatedAt, locale)}
                             </p>
                           </div>
                         </div>
@@ -1642,6 +1747,39 @@ export default function UnifiedAIPanel({
               </div>
             </div>
           )}
+          {contentApplyNotice && (
+            <div className="px-6 pt-4">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-emerald-700">
+                      {contentApplyNotice.title}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-emerald-700">
+                      {contentApplyNotice.description}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleReviewAppliedContent}
+                        className="inline-flex h-9 items-center justify-center rounded-xl border border-emerald-300 bg-white px-3 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                      >
+                        {locale === 'zh' ? '查看已写回内容' : 'Review in Editor'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setContentApplyNotice(null)}
+                        className="inline-flex h-9 items-center justify-center rounded-xl border border-emerald-200 bg-transparent px-3 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100/70"
+                      >
+                        {locale === 'zh' ? '继续留在 AI' : 'Keep Working Here'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <AnimatePresence mode="wait">
             {/* 智能优化模式 */}
             {activeMode === 'optimize' && (
@@ -1662,17 +1800,17 @@ export default function UnifiedAIPanel({
                     </div>
                     
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      {sections.map((section) => (
-                        <button
+                      {sections.map((section) => {
+                        const primaryAction = getOptimizeCardPrimaryAction(section, aiConfigStatus.isConfigured, locale)
+
+                        return (
+                        <article
                           key={section.id}
-                          type="button"
-                          onClick={() => handleOptimizeSection(section.id)}
-                          disabled={isProcessing}
                           className={`group rounded-xl border bg-white p-4 text-left transition-colors ${
                             selectedSection === section.id
                               ? 'border-slate-900 ring-1 ring-slate-200'
                               : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                          } disabled:cursor-not-allowed disabled:opacity-70`}
+                          } ${isProcessing ? 'opacity-90' : ''}`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className={`rounded-xl border p-2.5 transition-colors ${
@@ -1738,22 +1876,46 @@ export default function UnifiedAIPanel({
                               {section.insight.shouldEditFirst ? section.insight.coachingHint : section.focusHint}
                             </p>
 
-                            {onFocusSection && section.insight.editorActionLabel && (
+                            <div className="mt-3 flex flex-wrap gap-2">
                               <button
                                 type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  onFocusSection(section.id)
+                                onClick={() => {
+                                  if (primaryAction.action === 'config') {
+                                    openConfigWithHint()
+                                    return
+                                  }
+
+                                  if (primaryAction.action === 'edit') {
+                                    onFocusSection?.(section.id)
+                                    return
+                                  }
+
+                                  void handleOptimizeSection(section.id)
                                 }}
-                                className="mt-2 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+                                disabled={isProcessing}
+                                className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                                  primaryAction.action === 'optimize'
+                                    ? 'bg-slate-900 text-white hover:bg-slate-800'
+                                    : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                                }`}
                               >
                                 <ArrowRight className="h-3.5 w-3.5" />
-                                {section.insight.editorActionLabel}
+                                {primaryAction.label}
                               </button>
-                            )}
+                              {primaryAction.action === 'optimize' && onFocusSection && section.insight.editorActionLabel && (
+                                <button
+                                  type="button"
+                                  onClick={() => onFocusSection(section.id)}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+                                >
+                                  <Target className="h-3.5 w-3.5" />
+                                  {section.insight.editorActionLabel}
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </button>
-                      ))}
+                        </article>
+                      )})}
                     </div>
                   </div>
                 ) : (
@@ -1928,7 +2090,7 @@ export default function UnifiedAIPanel({
                             className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 text-sm font-medium text-white transition-colors hover:bg-slate-800"
                           >
                             <CheckCircle className="h-4 w-4" />
-                            <span>{locale === 'zh' ? '应用当前版本' : 'Apply Selected'}</span>
+                            <span>{locale === 'zh' ? '应用到简历并查看' : 'Apply and Review'}</span>
                           </button>
                           <button
                             type="button"
@@ -1973,7 +2135,9 @@ export default function UnifiedAIPanel({
                             {locale === 'zh' ? '已应用到简历' : 'Applied to Resume'}
                           </h3>
                           <p className="mt-2 text-sm leading-6 text-slate-500">
-                            {locale === 'zh' ? '当前建议已写入编辑器，面板会自动收起。' : 'The selected suggestion has been applied and the panel will close automatically.'}
+                            {locale === 'zh'
+                              ? `${getSectionLabel(optimizeResult.section, locale)}已同步写回，面板关闭后会自动定位到对应模块。`
+                              : `${getSectionLabel(optimizeResult.section, locale)} was written back. The editor will jump to that section after the panel closes.`}
                           </p>
                           <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
                             <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-500"></div>

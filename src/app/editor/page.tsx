@@ -64,6 +64,7 @@ import {
   normalizePreviewSectionToEditor,
   normalizeSectionToAISection
 } from '@/domain/editor/resumeAIActions'
+import { getPrimaryEditorFieldGuidance } from '@/domain/editor/editorFieldGuidance'
 import { getTemplateFitInsight, TemplateFitInsight } from '@/domain/templates/templateFitInsights'
 import {
   getAIWorkbenchAction,
@@ -887,6 +888,26 @@ export default function EditorPage() {
   }, [logEditorDebug])
 
   /**
+   * 规范化编辑模块到 AI 模块
+   * 确保来自编辑器、预览区或快捷入口的 section 都能映射到统一 AI 模式。
+   */
+  const normalizeAISection = useCallback((section: string): AISection => {
+    return normalizeSectionToAISection(section)
+  }, [])
+
+  /**
+   * 聚焦到指定编辑模块
+   * 统一预览区、AI 面板和快捷入口的“回到编辑区”行为。
+   */
+  const focusEditorSection = useCallback((section: ResumeSectionId) => {
+    setActiveSection(section)
+
+    if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+      setIsPreviewMode(false)
+    }
+  }, [])
+
+  /**
    * 应用单条 AI 建议
    * 通过领域层 action 统一处理文案解析和数据写回。
    */
@@ -895,9 +916,47 @@ export default function EditorPage() {
     if (!result.changed) {
       return
     }
+
+    const aiSection = normalizeSectionToAISection(section)
+    const editorSection = aiSection === 'summary' ? 'personal' : aiSection
+    const fieldGuidance = getPrimaryEditorFieldGuidance(editorSection, null, locale)
+    const successLabelMap: Record<AISection, string> = locale === 'zh'
+      ? {
+          summary: '个人简介已更新',
+          experience: '工作经历已更新',
+          skills: '专业技能已更新',
+          education: '教育经历已更新',
+          projects: '项目经验已更新'
+        }
+      : {
+          summary: 'Summary updated',
+          experience: 'Experience updated',
+          skills: 'Skills updated',
+          education: 'Education updated',
+          projects: 'Projects updated'
+        }
+
     setResumeData(result.nextResumeData)
-    showSuccess(result.message)
-  }, [resumeData, showSuccess])
+    focusEditorSection(editorSection)
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('switchToEditor', {
+          detail: {
+            section: editorSection,
+            fieldKey: fieldGuidance.fieldKey
+          }
+        })
+      )
+    }
+
+    showSuccess(
+      successLabelMap[aiSection],
+      locale === 'zh'
+        ? '已自动定位到对应模块，并高亮本次更新的内容区域。'
+        : 'Jumped to the updated section and highlighted the edited field.'
+    )
+  }, [focusEditorSection, locale, resumeData, showSuccess])
 
   /**
    * 应用所有 JD 建议
@@ -906,6 +965,7 @@ export default function EditorPage() {
   const handleApplyAllJDSuggestions = useCallback((suggestions: JDSuggestion[]) => {
     let appliedCount = 0
     let nextResumeData = resumeData
+    let firstAppliedSection: AISection | null = null
 
     suggestions.forEach((suggestion) => {
       const content = (suggestion as JDSuggestion & { optimized?: string }).suggestedText || (suggestion as JDSuggestion & { optimized?: string }).optimized || ''
@@ -914,22 +974,70 @@ export default function EditorPage() {
       if (!result.changed) return
       nextResumeData = result.nextResumeData
       appliedCount += 1
+      if (!firstAppliedSection) {
+        firstAppliedSection = normalizeSectionToAISection(suggestion.section)
+      }
     })
 
     if (appliedCount > 0) {
+      if (firstAppliedSection) {
+        const editorSection = firstAppliedSection === 'summary' ? 'personal' : firstAppliedSection
+        const fieldGuidance = getPrimaryEditorFieldGuidance(editorSection, null, locale)
+
+        focusEditorSection(editorSection)
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('switchToEditor', {
+              detail: {
+                section: editorSection,
+                fieldKey: fieldGuidance.fieldKey
+              }
+            })
+          )
+        }
+      }
+
       setResumeData(nextResumeData)
-      showSuccess(`已应用 ${appliedCount} 条 JD 优化建议`)
+      showSuccess(
+        locale === 'zh'
+          ? `已应用 ${appliedCount} 条 JD 优化建议`
+          : `Applied ${appliedCount} JD suggestions`,
+        locale === 'zh'
+          ? '已自动定位到首个更新模块，方便继续检查和微调。'
+          : 'Jumped to the first updated section so you can review and refine it.'
+      )
     }
-  }, [resumeData, showSuccess])
+  }, [focusEditorSection, locale, resumeData, showSuccess])
 
   /**
    * 处理AI生成完成
    * @param data - 生成的简历数据
    */
   const handleAIGenerateComplete = useCallback((data: Partial<ResumeData>) => {
-    setResumeData(mergeGeneratedResumeData(resumeData, data))
-    showSuccess('AI 生成内容已应用到简历')
-  }, [resumeData, showSuccess])
+    const nextResumeData = mergeGeneratedResumeData(resumeData, data)
+    const fieldGuidance = getPrimaryEditorFieldGuidance('personal', null, locale)
+
+    setResumeData(nextResumeData)
+    focusEditorSection('personal')
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('switchToEditor', {
+          detail: {
+            section: 'personal',
+            fieldKey: fieldGuidance.fieldKey
+          }
+        })
+      )
+    }
+
+    showSuccess(
+      locale === 'zh' ? 'AI 生成内容已应用到简历' : 'AI-generated content applied',
+      locale === 'zh'
+        ? '已自动定位到个人信息区域，方便继续补真实信息。'
+        : 'Jumped to the personal section so you can continue refining the real details.'
+    )
+  }, [focusEditorSection, locale, resumeData, showSuccess])
 
   /**
    * 处理 AI 配置保存
@@ -937,8 +1045,11 @@ export default function EditorPage() {
    */
   const handleAIConfigSave = useCallback((_config: AIConfig) => {
     setAIConfigVersion((currentVersion) => currentVersion + 1)
-    showSuccess('AI 配置已保存')
-  }, [showSuccess])
+    showSuccess(
+      locale === 'zh' ? 'AI 配置已保存' : 'AI configuration saved',
+      locale === 'zh' ? '可以回到 AI 助手继续验证或开始优化。' : 'Return to AI Assistant to validate or start optimizing.'
+    )
+  }, [locale, showSuccess])
 
   /**
    * 读取本地简历文件
@@ -964,26 +1075,6 @@ export default function EditorPage() {
       )
     }
   }, [locale, logEditorDebug, showError, showSuccess])
-
-  /**
-   * 规范化编辑模块到 AI 模块
-   * 确保来自编辑器、预览区或快捷入口的 section 都能映射到统一 AI 模式。
-   */
-  const normalizeAISection = useCallback((section: string): AISection => {
-    return normalizeSectionToAISection(section)
-  }, [])
-
-  /**
-   * 聚焦到指定编辑模块
-   * 统一预览区、AI 面板和快捷入口的“回到编辑区”行为。
-   */
-  const focusEditorSection = useCallback((section: ResumeSectionId) => {
-    setActiveSection(section)
-
-    if (typeof window !== 'undefined' && window.innerWidth < 1280) {
-      setIsPreviewMode(false)
-    }
-  }, [])
 
   /**
    * 处理编辑器模块切换
