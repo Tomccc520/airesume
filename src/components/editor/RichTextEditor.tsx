@@ -21,17 +21,24 @@ import {
   BookText
 } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
-
-interface ContentSnippet {
-  label: string
-  content: string
-}
+import {
+  applyWritingQuickAction,
+  analyzeWritingSignals,
+  buildDefaultSnippets,
+  ContentSnippet,
+  evaluateContentQuality,
+  inferRecommendedLength,
+  resolveLengthState,
+  resolveWritingQuickActions
+} from '@/domain/editor/richTextCoach'
 
 interface RichTextEditorProps {
   /** 当前文本内容 */
   value: string
   /** 内容变化回调 */
   onChange: (value: string) => void
+  /** 字段定位键 */
+  fieldKey?: string
   /** 占位符文本 */
   placeholder?: string
   /** 最小行数 */
@@ -54,167 +61,6 @@ interface RichTextEditorProps {
   enableQualityCheck?: boolean
 }
 
-type LengthState = 'short' | 'ideal' | 'long'
-
-/**
- * 推断推荐长度
- * 根据字段标签判断推荐区间，避免每个表单都重复传参。
- */
-function inferRecommendedLength(label?: string, placeholder?: string): { min: number; max: number } {
-  const hint = `${label || ''} ${placeholder || ''}`.toLowerCase()
-  if (hint.includes('summary') || hint.includes('简介') || hint.includes('自我')) {
-    return { min: 80, max: 240 }
-  }
-  if (hint.includes('highlight') || hint.includes('亮点')) {
-    return { min: 40, max: 180 }
-  }
-  if (hint.includes('description') || hint.includes('描述') || hint.includes('内容')) {
-    return { min: 60, max: 300 }
-  }
-  return { min: 30, max: 220 }
-}
-
-/**
- * 分析长度状态
- * 返回当前文本相对推荐区间的状态。
- */
-function resolveLengthState(length: number, range: { min: number; max: number }): LengthState {
-  if (length < range.min) return 'short'
-  if (length > range.max) return 'long'
-  return 'ideal'
-}
-
-/**
- * 生成默认快捷片段
- * 在未显式传入 snippets 时，提供可直接落地的高质量模板片段。
- */
-function buildDefaultSnippets(locale: 'zh' | 'en', label?: string): ContentSnippet[] {
-  const hint = (label || '').toLowerCase()
-
-  if (hint.includes('简介') || hint.includes('summary')) {
-    if (locale === 'zh') {
-      return [
-        {
-          label: '结果导向模板',
-          content:
-            '5年产品与增长经验，主导多个核心项目从0到1落地。擅长将业务目标拆解为可执行方案，通过数据分析与跨团队协作持续优化转化效率。'
-        },
-        {
-          label: '技术岗位模板',
-          content:
-            '专注前端工程化与性能优化，熟悉 React / TypeScript / Next.js 技术栈。具备复杂业务系统设计经验，能够在高迭代节奏下稳定交付。'
-        },
-        {
-          label: '管理协作模板',
-          content:
-            '具备跨部门项目推进经验，擅长梳理流程、明确目标和资源协调。重视团队协作与持续改进，能够推动复杂任务按期达成。'
-        }
-      ]
-    }
-
-    return [
-      {
-        label: 'Impact-focused',
-        content:
-          'Experienced in driving complex initiatives from planning to delivery, with a strong focus on measurable business outcomes and cross-functional execution.'
-      },
-      {
-        label: 'Technical profile',
-        content:
-          'Skilled in modern web engineering with strong ownership of architecture, performance optimization, and scalable delivery under tight timelines.'
-      },
-      {
-        label: 'Collaboration profile',
-        content:
-          'Strong communicator and team player who translates goals into actionable plans, aligns stakeholders, and improves execution efficiency continuously.'
-      }
-    ]
-  }
-
-  if (locale === 'zh') {
-    return [
-      {
-        label: 'STAR 成果句式',
-        content: '负责 [场景]，通过 [行动]，在 [时间] 内实现 [量化结果]。'
-      },
-      {
-        label: '项目亮点句式',
-        content: '主导 [模块] 设计与落地，覆盖 [范围]，将 [核心指标] 提升 [数值]。'
-      }
-    ]
-  }
-
-  return [
-    {
-      label: 'STAR sentence',
-      content: 'Handled [context], implemented [action], and improved [metric] by [number] within [timeframe].'
-    },
-    {
-      label: 'Project impact',
-      content: 'Led [module] delivery, covering [scope], and increased [core metric] by [number].'
-    }
-  ]
-}
-
-interface QualityCheckResult {
-  score: number
-  suggestions: string[]
-}
-
-/**
- * 内容质量检查
- * 结合长度、量化指标和文本噪声给出可执行建议。
- */
-function evaluateContentQuality(
-  text: string,
-  lengthState: LengthState,
-  locale: 'zh' | 'en'
-): QualityCheckResult {
-  const trimmed = text.trim()
-  if (!trimmed) {
-    return {
-      score: 0,
-      suggestions: [locale === 'zh' ? '内容为空，建议先写 1-2 句核心价值。' : 'Content is empty. Start with 1-2 key value statements.']
-    }
-  }
-
-  let score = 100
-  const suggestions: string[] = []
-  const hasNumber = /\d/.test(trimmed)
-  const hasRepeatedPunctuation = /(。{2,}|！{2,}|？{2,}|\.{3,}|!{3,}|\?{3,})/.test(trimmed)
-  const lineCount = trimmed.split('\n').filter(Boolean).length
-
-  if (lengthState === 'short') {
-    score -= 22
-    suggestions.push(locale === 'zh' ? '内容偏短，建议补充职责场景和结果数据。' : 'Text is short. Add context, action, and measurable outcomes.')
-  }
-
-  if (lengthState === 'long') {
-    score -= 18
-    suggestions.push(locale === 'zh' ? '内容偏长，建议拆成 2-4 条要点并保留关键数据。' : 'Text is long. Split into 2-4 concise points and keep key metrics.')
-  }
-
-  if (!hasNumber) {
-    score -= 12
-    suggestions.push(locale === 'zh' ? '建议加入量化结果（如提升 xx%、节省 xx 小时）。' : 'Add measurable outcomes (e.g. +xx%, reduced xx hours).')
-  }
-
-  if (hasRepeatedPunctuation) {
-    score -= 10
-    suggestions.push(locale === 'zh' ? '检测到重复标点，建议精简语气。' : 'Repeated punctuation detected. Consider cleaner professional tone.')
-  }
-
-  if (lineCount >= 5) {
-    score -= 8
-    suggestions.push(locale === 'zh' ? '行数较多，建议优先保留最能体现竞争力的 3-4 条。' : 'Too many lines. Keep the top 3-4 most competitive points.')
-  }
-
-  return {
-    score: Math.max(0, score),
-    suggestions
-  }
-}
-
 /**
  * 富文本编辑器组件
  * 提供基础格式化能力，并内置编辑提效工具。
@@ -222,6 +68,7 @@ function evaluateContentQuality(
 export function RichTextEditor({
   value,
   onChange,
+  fieldKey,
   placeholder = '',
   minRows = 3,
   maxRows = 10,
@@ -248,9 +95,37 @@ export function RichTextEditor({
     () => evaluateContentQuality(value, lengthState, locale),
     [value, lengthState, locale]
   )
+  const writingSignals = useMemo(() => analyzeWritingSignals(value), [value])
+  const quickActions = useMemo(
+    () => resolveWritingQuickActions(value, locale, lengthState),
+    [value, locale, lengthState]
+  )
   const effectiveSnippets = useMemo(
     () => (snippets && snippets.length > 0 ? snippets : buildDefaultSnippets(locale, label)),
     [snippets, locale, label]
+  )
+  const signalItems = useMemo(
+    () => [
+      {
+        key: 'metrics',
+        label: locale === 'zh' ? '量化结果' : 'Metrics',
+        value: writingSignals.metricCount,
+        tone: writingSignals.metricCount > 0 ? 'positive' : 'warning'
+      },
+      {
+        key: 'bullets',
+        label: locale === 'zh' ? '要点' : 'Bullets',
+        value: writingSignals.bulletCount,
+        tone: writingSignals.bulletCount > 0 ? 'positive' : 'neutral'
+      },
+      {
+        key: 'sentences',
+        label: locale === 'zh' ? '句子' : 'Sentences',
+        value: writingSignals.sentenceCount,
+        tone: writingSignals.sentenceCount >= 2 ? 'positive' : 'neutral'
+      }
+    ],
+    [locale, writingSignals]
   )
 
   /**
@@ -271,6 +146,27 @@ export function RichTextEditor({
   useEffect(() => {
     adjustHeight()
   }, [value, adjustHeight])
+
+  /**
+   * 应用快捷写作动作
+   * 在文本回写后自动恢复焦点，保持连续编辑体验。
+   */
+  const handleQuickAction = useCallback(
+    (actionKey: Parameters<typeof applyWritingQuickAction>[1]) => {
+      const nextValue = applyWritingQuickAction(value, actionKey, locale)
+      if (nextValue === value) return
+
+      onChange(nextValue)
+
+      setTimeout(() => {
+        const textarea = textareaRef.current
+        if (!textarea) return
+        textarea.focus()
+        textarea.setSelectionRange(nextValue.length, nextValue.length)
+      }, 0)
+    },
+    [value, locale, onChange]
+  )
 
   /**
    * 插入格式化文本
@@ -399,13 +295,13 @@ export function RichTextEditor({
           : `Suggested max ${lengthRange.max} chars`
 
   return (
-    <div className="space-y-2">
-      {label && <label className="block text-sm font-medium text-gray-700">{label}</label>}
+    <div className="space-y-3" data-editor-field-key={fieldKey}>
+      {label && <label className="block text-sm font-medium text-slate-700">{label}</label>}
 
       {showToolbar && (
         <div
           className={`rounded-lg border p-2 transition-colors ${
-            isFocused ? 'border-blue-300 shadow-sm' : 'border-gray-200'
+            isFocused ? 'border-slate-300 shadow-sm' : 'border-slate-200'
           }`}
         >
           <div className="flex flex-wrap items-center gap-1">
@@ -414,7 +310,7 @@ export function RichTextEditor({
                 <button
                   key={button.label}
                   onClick={button.action}
-                  className="flex h-8 w-8 items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
                   title={`${button.label} (${button.shortcut})`}
                   type="button"
                 >
@@ -423,11 +319,11 @@ export function RichTextEditor({
               ))}
             </div>
 
-            <div className="mx-1 h-5 w-px bg-gray-200" />
+            <div className="mx-1 h-5 w-px bg-slate-200" />
 
             <button
               onClick={() => setShowSnippetMenu((prev) => !prev)}
-              className="inline-flex h-8 items-center gap-1 rounded-md border border-gray-200 px-2 text-xs font-medium text-gray-600 transition-colors hover:border-blue-300 hover:text-blue-700"
+              className="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
               type="button"
             >
               <BookText size={12} />
@@ -438,7 +334,7 @@ export function RichTextEditor({
             {enableAI && onAIOptimize && (
               <button
                 onClick={onAIOptimize}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-purple-200 bg-purple-50 px-3 text-xs font-medium text-purple-700 transition-colors hover:bg-purple-100"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
                 type="button"
               >
                 <Sparkles size={14} />
@@ -449,7 +345,7 @@ export function RichTextEditor({
             <div className="ml-auto">
               <button
                 onClick={() => setShowFormatMenu((prev) => !prev)}
-                className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
+                className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
                 type="button"
               >
                 <Type size={12} />
@@ -466,17 +362,17 @@ export function RichTextEditor({
                   key={snippet.label}
                   type="button"
                   onClick={() => insertSnippet(snippet.content)}
-                  className="rounded-md border border-gray-200 bg-white px-3 py-2 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
                 >
-                  <div className="text-xs font-semibold text-gray-800">{snippet.label}</div>
-                  <div className="mt-1 line-clamp-2 text-xs text-gray-500">{snippet.content}</div>
+                  <div className="text-xs font-semibold text-slate-800">{snippet.label}</div>
+                  <div className="mt-1 line-clamp-2 text-xs text-slate-500">{snippet.content}</div>
                 </button>
               ))}
             </div>
           )}
 
           {showFormatMenu && (
-            <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700">
+            <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
               <div className="mb-1 font-medium">{locale === 'zh' ? '支持格式' : 'Supported formats'}</div>
               <div className="space-y-1">
                 <div>
@@ -501,6 +397,53 @@ export function RichTextEditor({
         </div>
       )}
 
+      <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+            {locale === 'zh' ? '写作信号' : 'Writing Signals'}
+          </span>
+          {signalItems.map((item) => {
+            const toneClass =
+              item.tone === 'positive'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : item.tone === 'warning'
+                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                  : 'border-slate-200 bg-white text-slate-600'
+
+            return (
+              <span
+                key={item.key}
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${toneClass}`}
+              >
+                <span>{item.label}</span>
+                <span>{item.value}</span>
+              </span>
+            )
+          })}
+          <span className="ml-auto text-[11px] text-slate-500">
+            {locale === 'zh'
+              ? '先补结果，再拆点，投递可读性会更好'
+              : 'Add results first, then split into bullets'}
+          </span>
+        </div>
+
+        {quickActions.length > 0 && (
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {quickActions.map((action) => (
+              <button
+                key={action.key}
+                type="button"
+                onClick={() => handleQuickAction(action.key)}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
+              >
+                <div className="text-xs font-semibold text-slate-800">{action.label}</div>
+                <div className="mt-1 text-[11px] leading-5 text-slate-500">{action.description}</div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="relative">
         <textarea
           ref={textareaRef}
@@ -512,8 +455,8 @@ export function RichTextEditor({
           placeholder={placeholder}
           className={`w-full resize-none rounded-lg border px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-2 ${
             isFocused
-              ? 'border-blue-300 bg-white ring-blue-100'
-              : 'border-gray-200 bg-white'
+              ? 'border-slate-300 bg-white ring-slate-100'
+              : 'border-slate-200 bg-white'
           }`}
           style={{
             minHeight: `${minRows * 1.5}rem`,
@@ -526,15 +469,15 @@ export function RichTextEditor({
         <div className={lengthStateClass}>
           {value.trim().length} / {lengthRange.min}-{lengthRange.max} · {lengthHintText}
         </div>
-        <div className="text-gray-400">
+        <div className="text-slate-400">
           {locale === 'zh' ? '支持快捷键 Ctrl+B / Ctrl+I / Ctrl+L' : 'Shortcuts: Ctrl+B / Ctrl+I / Ctrl+L'}
         </div>
       </div>
 
       {enableQualityCheck && value.trim() && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-700">
+            <span className="text-xs font-semibold text-slate-700">
               {locale === 'zh' ? '内容质量检查' : 'Content Quality'}
             </span>
             <span
@@ -550,7 +493,7 @@ export function RichTextEditor({
             </span>
           </div>
           {qualityResult.suggestions.length > 0 ? (
-            <ul className="mt-2 space-y-1 text-xs text-gray-600">
+            <ul className="mt-2 space-y-1 text-xs text-slate-600">
               {qualityResult.suggestions.slice(0, 3).map((tip) => (
                 <li key={tip}>- {tip}</li>
               ))}

@@ -29,7 +29,7 @@ import { useHorizontalSwipe } from '@/hooks/useSwipeGesture'
 import { ResumeData, Experience } from '@/types/resume'
 import { TemplateStyle } from '@/types/template'
 import { getDefaultTemplate, getTemplateById } from '@/data/templates'
-import { Bot, Download, Palette, Save, Settings, Sparkles, X } from 'lucide-react'
+import { Bot, Settings, X } from 'lucide-react'
 import { 
   EditorSkeleton, 
   AIAssistantSkeleton, 
@@ -37,6 +37,7 @@ import {
   ExportPreviewDialogSkeleton 
 } from '@/components/LoadingStates'
 import { ThreeColumnLayout } from '@/components/editor/ThreeColumnLayout'
+import EditorAdvancedPanel from '@/components/editor/EditorAdvancedPanel'
 import { SectionNavigation } from '@/components/editor/SectionNavigation'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { JDSuggestion } from '@/services/jdMatcher'
@@ -63,6 +64,7 @@ import {
   normalizePreviewSectionToEditor,
   normalizeSectionToAISection
 } from '@/domain/editor/resumeAIActions'
+import { getTemplateFitInsight, TemplateFitInsight } from '@/domain/templates/templateFitInsights'
 import {
   getAIWorkbenchAction,
   getAIWorkbenchActionLabel,
@@ -71,6 +73,7 @@ import {
   getAIWorkbenchToneMeta
 } from '@/domain/ai/aiStatusPresentation'
 import { useAIConfigStatus } from '@/hooks/useAIConfigStatus'
+import { loadResumeFromFile } from '@/utils/fileOperations'
 
 type EditorEntryScenario = 'campus' | 'engineering' | 'product' | 'general'
 type EditorRoutePanel = 'template' | 'ai'
@@ -88,6 +91,14 @@ interface EditorRouteIntent {
   aiSection: AISection | null
   toastTitle: string | null
   toastDescription: string | null
+}
+
+interface TemplateFitDisplayMeta {
+  insight: TemplateFitInsight
+  recommendedTemplateLabel: string
+  alternateTemplateLabel: string | null
+  title: string
+  description: string
 }
 
 /**
@@ -363,9 +374,9 @@ export default function EditorPage() {
   const [aiConfigVersion, setAIConfigVersion] = useState(0)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showAdvancedPanel, setShowAdvancedPanel] = useState(false)
   const [showShortcutHelp, setShowShortcutHelp] = useState(false)
   const [showTemplateSelector, setShowTemplateSelector] = useState(false)
-  const [activeEntryScenario, setActiveEntryScenario] = useState<EditorEntryScenario>('general')
   const [currentTemplate, setCurrentTemplate] = useState<TemplateStyle>(() => {
     // 尝试从 localStorage 恢复用户之前选择的模板
     if (typeof window !== 'undefined') {
@@ -383,7 +394,7 @@ export default function EditorPage() {
     }
     return getDefaultTemplate()
   })
-  const [activeSection, setActiveSection] = useState('personal')
+  const [activeSection, setActiveSection] = useState<ResumeSectionId>('personal')
   const [, setExportOptions] = useState<{ margin: number; showPageBreaks: boolean; paper: 'a4' | 'letter' }>({ margin: 10, showPageBreaks: true, paper: 'a4' })
   
   // 新增状态
@@ -415,7 +426,7 @@ export default function EditorPage() {
       return {
         toneClass,
         label,
-        description: isZh ? '已验证通过，可直接继续优化或生成。' : 'Validated and ready for optimize or generate.',
+        description: isZh ? '已可直接使用。' : 'Ready to use.',
         actionLabel,
         action
       }
@@ -425,7 +436,7 @@ export default function EditorPage() {
       return {
         toneClass,
         label,
-        description: isZh ? '配置已补齐，建议打开 AI 助手完成验证。' : 'Setup is filled in. Open AI to validate it.',
+        description: isZh ? '还差一次验证。' : 'One validation is still needed.',
         actionLabel,
         action
       }
@@ -435,7 +446,7 @@ export default function EditorPage() {
       return {
         toneClass,
         label,
-        description: isZh ? '当前还缺少配置项，继续补齐后即可使用。' : 'Some required settings are still missing.',
+        description: isZh ? '还缺少配置项。' : 'Some required settings are missing.',
         actionLabel,
         action
       }
@@ -444,7 +455,7 @@ export default function EditorPage() {
     return {
       toneClass,
       label,
-      description: isZh ? '打开配置即可重新启用 AI。' : 'Open configuration to enable AI again.',
+      description: isZh ? '当前已停用。' : 'Currently disabled.',
       actionLabel,
       action
     }
@@ -573,6 +584,43 @@ export default function EditorPage() {
       return acc
     }, {} as Partial<Record<ResumeSectionId, SectionCompleteness>>)
   }, [completeness.sections])
+  const templateFitDisplayMeta = useMemo<TemplateFitDisplayMeta>(() => {
+    const insight = getTemplateFitInsight(resumeData, locale, currentTemplate.id)
+    const recommendedTemplate = getTemplateById(insight.recommendedTemplateId)
+    const alternateTemplate = insight.alternateTemplateId ? getTemplateById(insight.alternateTemplateId) : null
+    const recommendedTemplateLabel = locale === 'en' && recommendedTemplate?.nameEn
+      ? recommendedTemplate.nameEn
+      : recommendedTemplate?.name || insight.recommendedTemplateId
+    const alternateTemplateLabel = alternateTemplate
+      ? (locale === 'en' && alternateTemplate.nameEn ? alternateTemplate.nameEn : alternateTemplate.name)
+      : null
+
+    if (!insight.shouldSuggestSwitch) {
+      return {
+        insight,
+        recommendedTemplateLabel,
+        alternateTemplateLabel,
+        title: locale === 'zh'
+          ? `当前内容与「${recommendedTemplateLabel}」匹配度较高`
+          : `Current content already fits ${recommendedTemplateLabel}`,
+        description: `${insight.detail}${alternateTemplateLabel
+          ? (locale === 'zh' ? ` 如需备选，可考虑「${alternateTemplateLabel}」。` : ` ${alternateTemplateLabel} is also a solid fallback.`)
+          : ''}`
+      }
+    }
+
+    return {
+      insight,
+      recommendedTemplateLabel,
+      alternateTemplateLabel,
+      title: locale === 'zh'
+        ? `当前内容更适合「${recommendedTemplateLabel}」`
+        : `Current content fits ${recommendedTemplateLabel} better`,
+      description: `${insight.detail}${alternateTemplateLabel
+        ? (locale === 'zh' ? ` 如果不想切得太激进，也可先试「${alternateTemplateLabel}」。` : ` If you want a milder change, try ${alternateTemplateLabel} first.`)
+        : ''}`
+    }
+  }, [currentTemplate.id, locale, resumeData])
 
   // 导出工作流 Hook
   const {
@@ -633,7 +681,11 @@ export default function EditorPage() {
   const [showImportExportDialog, setShowImportExportDialog] = useState(false)
   
   // 存储监控 Hook
-  const { refresh: refreshStorageUsage } = useStorageMonitor()
+  const {
+    usage: storageUsage,
+    cleanupOldData: cleanupStorageUsage,
+    refresh: refreshStorageUsage
+  } = useStorageMonitor()
   
   // 上下文菜单 Hook
   const {
@@ -889,6 +941,63 @@ export default function EditorPage() {
   }, [showSuccess])
 
   /**
+   * 读取本地简历文件
+   * 把低频的文件导入能力收进高级入口，避免继续占用顶部主操作位。
+   */
+  const handleLoadResumeFile = useCallback(async () => {
+    try {
+      const loadedData = await loadResumeFromFile()
+      if (!loadedData) {
+        return
+      }
+
+      setResumeData(loadedData)
+      showSuccess(
+        locale === 'zh' ? '本地文件已加载' : 'Local file loaded',
+        locale === 'zh' ? '简历内容已更新到当前编辑器。' : 'The resume content was loaded into the current editor.'
+      )
+    } catch (error) {
+      logEditorDebug('加载本地文件失败:', error)
+      showError(
+        locale === 'zh' ? '读取失败' : 'Load failed',
+        locale === 'zh' ? '请检查文件内容后重试。' : 'Please verify the file and retry.'
+      )
+    }
+  }, [locale, logEditorDebug, showError, showSuccess])
+
+  /**
+   * 规范化编辑模块到 AI 模块
+   * 确保来自编辑器、预览区或快捷入口的 section 都能映射到统一 AI 模式。
+   */
+  const normalizeAISection = useCallback((section: string): AISection => {
+    return normalizeSectionToAISection(section)
+  }, [])
+
+  /**
+   * 聚焦到指定编辑模块
+   * 统一预览区、AI 面板和快捷入口的“回到编辑区”行为。
+   */
+  const focusEditorSection = useCallback((section: ResumeSectionId) => {
+    setActiveSection(section)
+
+    if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+      setIsPreviewMode(false)
+    }
+  }, [])
+
+  /**
+   * 处理编辑器模块切换
+   * 兼容来自工具栏、导航和编辑器内部的字符串 section 标识。
+   */
+  const handleSectionChange = useCallback((section: string) => {
+    const normalizedSection = normalizeEditorFocusParam(section)
+    if (!normalizedSection) {
+      return
+    }
+    setActiveSection(normalizedSection)
+  }, [])
+
+  /**
    * 处理预览区章节点击
    * 点击预览中的模块后，自动定位到对应编辑模块，并在小屏切换到编辑视图。
    */
@@ -898,7 +1007,7 @@ export default function EditorPage() {
       return
     }
 
-    setActiveSection(normalizedSection)
+    focusEditorSection(normalizedSection)
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
@@ -906,37 +1015,8 @@ export default function EditorPage() {
           detail: { section: normalizedSection }
         })
       )
-
-      if (window.innerWidth < 1280) {
-        setIsPreviewMode(false)
-      }
     }
-  }, [])
-
-  /**
-   * 跳转到下一个未完成模块
-   * 结合完成度计算结果，帮助用户快速补齐核心内容。
-   */
-  const jumpToNextIncompleteSection = useCallback(() => {
-    if (!completeness.nextIncompleteSection) {
-      showSuccess('简历核心模块已基本完善')
-      return
-    }
-
-    setActiveSection(completeness.nextIncompleteSection)
-
-    if (typeof window !== 'undefined' && window.innerWidth < 1280) {
-      setIsPreviewMode(false)
-    }
-  }, [completeness.nextIncompleteSection, showSuccess])
-
-  /**
-   * 规范化编辑模块到 AI 模块
-   * 确保来自编辑器、预览区或快捷入口的 section 都能映射到统一 AI 模式。
-   */
-  const normalizeAISection = useCallback((section: string): AISection => {
-    return normalizeSectionToAISection(section)
-  }, [])
+  }, [focusEditorSection])
 
   /**
    * 打开统一 AI 面板
@@ -948,42 +1028,14 @@ export default function EditorPage() {
   }, [])
 
   /**
-   * 切换编辑器投递场景
-   * 统一应用模块定位、模板预设和面板开关，避免场景入口逻辑分散在多个按钮中。
+   * 从 AI 面板回到指定编辑模块
+   * 用于“先补内容再优化”的闭环，避免用户手动来回找对应表单。
    */
-  const handleEntryScenarioChange = useCallback((scenario: EditorEntryScenario) => {
-    const preset = getEditorEntryPreset(scenario, locale)
-
-    setActiveEntryScenario(scenario)
-
-    if (preset.section) {
-      setActiveSection(preset.section)
-    }
-
-    if (preset.template) {
-      setCurrentTemplate(preset.template)
-    }
-
-    if (preset.panel === 'template') {
-      setShowUnifiedAI(false)
-      setShowTemplateSelector(true)
-    } else if (preset.panel === 'ai') {
-      setShowTemplateSelector(false)
-      openUnifiedAIPanel(preset.aiSection ?? undefined)
-    } else {
-      setShowUnifiedAI(false)
-      setShowTemplateSelector(false)
-      setPreferredAISection(preset.aiSection ?? null)
-    }
-
-    if (typeof window !== 'undefined' && window.innerWidth < 1280) {
-      setIsPreviewMode(false)
-    }
-
-    if (preset.toastTitle && preset.toastDescription) {
-      showInfo(preset.toastTitle, preset.toastDescription)
-    }
-  }, [locale, openUnifiedAIPanel, showInfo])
+  const handleFocusSectionFromAI = useCallback((section: AISection) => {
+    focusEditorSection(section === 'summary' ? 'personal' : section)
+    setPreferredAISection(section)
+    setShowUnifiedAI(false)
+  }, [focusEditorSection])
 
   /**
    * 应用首页和外部入口参数
@@ -1000,10 +1052,6 @@ export default function EditorPage() {
     const routeIntent = resolveEditorRouteIntent(searchParams, locale)
     if (!routeIntent.hasRouteIntent) {
       return
-    }
-
-    if (routeIntent.entryScenario) {
-      setActiveEntryScenario(routeIntent.entryScenario)
     }
 
     if (routeIntent.section) {
@@ -1098,28 +1146,16 @@ export default function EditorPage() {
             {/* 顶部工具栏 */}
             <EditorToolbar
               resumeData={resumeData}
-              onUpdate={setResumeData}
               isSaving={isSaving}
               hasUnsavedChanges={hasUnsavedChanges}
               lastSavedAt={lastSavedAt}
               isPreviewMode={isPreviewMode}
               onTogglePreview={() => setIsPreviewMode(!isPreviewMode)}
-              isFullscreen={isFullscreen}
-              onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
               onShowAIAssistant={() => openUnifiedAIPanel(normalizeAISection(activeSection))}
-              onShowAIConfig={() => setShowAIConfig(true)}
-              onShowShortcutHelp={() => setShowShortcutHelp(true)}
               onShowTemplateSelector={() => setShowTemplateSelector(true)}
-              onShowExportDialog={() => setShowExportDialog(true)}
+              onShowAdvancedPanel={() => setShowAdvancedPanel(true)}
               onExport={handleExport}
               onSave={handleSave}
-              activeSection={activeSection}
-              onQuickSectionChange={setActiveSection}
-              entryScenario={activeEntryScenario}
-              onEntryScenarioChange={handleEntryScenarioChange}
-              completionPercent={completeness.totalScore}
-              incompleteSectionCount={completeness.totalSections - completeness.completedSections}
-              onJumpToNextIncomplete={jumpToNextIncompleteSection}
             />
 
             {/* 编辑器和预览区域 - 使用三栏布局 */}
@@ -1152,36 +1188,49 @@ export default function EditorPage() {
                       {t.common.preview}
                     </button>
                   </div>
-                  <div className={`mt-1.5 flex items-center justify-between gap-2 rounded-xl border px-3 py-2 ${mobileAIStatusMeta.toneClass}`}>
-                    <div className="min-w-0 flex items-start gap-2">
-                      <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold">
-                          {mobileAIStatusMeta.label}
-                        </p>
-                        <p className="mt-0.5 truncate text-[11px] opacity-80">
-                          {mobileAIStatusMeta.description}
-                        </p>
+                  <div className="mt-1.5 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                    <div className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 ${mobileAIStatusMeta.toneClass}`}>
+                      <div className="min-w-0 flex items-start gap-2">
+                        <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold">
+                            {mobileAIStatusMeta.label}
+                          </p>
+                          <p className="mt-0.5 truncate text-[11px] opacity-80">
+                            {mobileAIStatusMeta.description}
+                          </p>
+                        </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (mobileAIStatusMeta.action === 'assistant') {
+                            openUnifiedAIPanel(normalizeAISection(activeSection))
+                            return
+                          }
+
+                          setShowAIConfig(true)
+                        }}
+                        className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-xl border border-current/15 bg-white/80 px-3 text-[11px] font-medium text-current transition-colors hover:bg-white"
+                      >
+                        {mobileAIStatusMeta.action === 'assistant'
+                          ? <Bot className="h-3.5 w-3.5" />
+                          : <Settings className="h-3.5 w-3.5" />}
+                        <span>{mobileAIStatusMeta.actionLabel}</span>
+                      </button>
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (mobileAIStatusMeta.action === 'assistant') {
-                          openUnifiedAIPanel(normalizeAISection(activeSection))
-                          return
-                        }
-
-                        setShowAIConfig(true)
-                      }}
-                      className="inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-xl border border-current/15 bg-white/80 px-3 text-[11px] font-medium text-current transition-colors hover:bg-white"
+                      onClick={() => setShowAdvancedPanel(true)}
+                      className="app-shell-toolbar-button h-full min-h-[56px] px-3"
+                      title={isZh ? '更多工具' : 'More tools'}
                     >
-                      {mobileAIStatusMeta.action === 'assistant'
-                        ? <Bot className="h-3.5 w-3.5" />
-                        : <Settings className="h-3.5 w-3.5" />}
-                      <span>{mobileAIStatusMeta.actionLabel}</span>
+                      <Settings className="h-3.5 w-3.5" />
                     </button>
                   </div>
+                  <p className="mt-1.5 px-1 text-[11px] text-slate-500">
+                    {isZh ? '模板、导出、导入和配置已收进“更多”。' : 'Templates, export, import, and configuration are under More.'}
+                  </p>
                 </div>
               </div>
 
@@ -1192,12 +1241,8 @@ export default function EditorPage() {
                   leftPanel={
                     <SectionNavigation
                       activeSection={activeSection}
-                      onSectionChange={setActiveSection}
-                      onShowTemplateSelector={() => setShowTemplateSelector(true)}
-                      onShowAIAssistant={() => openUnifiedAIPanel(normalizeAISection(activeSection))}
-                      onShowAIConfig={() => setShowAIConfig(true)}
+                      onSectionChange={handleSectionChange}
                       sectionCompleteness={sectionCompletenessMap}
-                      onJumpToNextIncomplete={jumpToNextIncompleteSection}
                     />
                   }
                   centerPanel={
@@ -1205,7 +1250,7 @@ export default function EditorPage() {
                       resumeData={resumeData}
                       onUpdateResumeData={handleResumeUpdate}
                       activeSection={activeSection}
-                      onSectionChange={setActiveSection}
+                      onSectionChange={handleSectionChange}
                       onShowTemplateSelector={() => setShowTemplateSelector(true)}
                       onShowAIAssistant={(type) => openUnifiedAIPanel(type)}
                       hideNavigation={true}
@@ -1251,7 +1296,7 @@ export default function EditorPage() {
                       resumeData={resumeData}
                       onUpdateResumeData={handleResumeUpdate}
                       activeSection={activeSection}
-                      onSectionChange={setActiveSection}
+                      onSectionChange={handleSectionChange}
                       onShowTemplateSelector={() => setShowTemplateSelector(true)}
                       onShowAIAssistant={(type) => openUnifiedAIPanel(type)}
                       hideNavigation={true}
@@ -1289,41 +1334,6 @@ export default function EditorPage() {
                 </div>
               </div>
 
-              {/* 移动端快捷动作条 */}
-              <div className="xl:hidden mt-3 grid grid-cols-4 gap-2 rounded-xl border border-slate-200 bg-white p-2">
-                <button
-                  onClick={handleSave}
-                  className={`flex items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-medium transition-colors ${
-                    hasUnsavedChanges
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  {t.common.save}
-                </button>
-                <button
-                  onClick={() => setShowTemplateSelector(true)}
-                  className="flex items-center justify-center gap-1 rounded-lg bg-slate-100 px-2 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-200"
-                >
-                  <Palette className="h-3.5 w-3.5" />
-                  {t.editor.template}
-                </button>
-                <button
-                  onClick={() => openUnifiedAIPanel(normalizeAISection(activeSection))}
-                  className="flex items-center justify-center gap-1 rounded-lg bg-slate-100 px-2 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-200"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  AI
-                </button>
-                <button
-                  onClick={() => setShowExportDialog(true)}
-                  className="flex items-center justify-center gap-1 rounded-lg bg-slate-100 px-2 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-200"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  {t.common.export}
-                </button>
-              </div>
             </div>
 
           </main>
@@ -1340,6 +1350,7 @@ export default function EditorPage() {
             preferredSection={preferredAISection}
             configVersion={aiConfigVersion}
             onOpenAIConfig={() => setShowAIConfig(true)}
+            onFocusSection={handleFocusSectionFromAI}
             onApplySuggestion={handleApplyAISuggestion}
             onApplyJDSuggestions={handleApplyAllJDSuggestions}
             onGenerateComplete={handleAIGenerateComplete}
@@ -1351,6 +1362,23 @@ export default function EditorPage() {
           isOpen={showAIConfig}
           onClose={() => setShowAIConfig(false)}
           onSave={handleAIConfigSave}
+        />
+
+        <EditorAdvancedPanel
+          isOpen={showAdvancedPanel}
+          onClose={() => setShowAdvancedPanel(false)}
+          onOpenImportExport={() => setShowImportExportDialog(true)}
+          onOpenTemplateSelector={() => setShowTemplateSelector(true)}
+          onOpenExportDialog={() => setShowExportDialog(true)}
+          onOpenAIConfig={() => setShowAIConfig(true)}
+          onOpenAIAssistant={() => openUnifiedAIPanel(normalizeAISection(activeSection))}
+          onOpenShortcutHelp={() => setShowShortcutHelp(true)}
+          onLoadFromFile={handleLoadResumeFile}
+          onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+          isFullscreen={isFullscreen}
+          storageUsage={storageUsage}
+          onCleanupStorage={cleanupStorageUsage}
+          onRefreshStorage={refreshStorageUsage}
         />
 
         {/* 快捷键帮助弹窗 */}
@@ -1397,15 +1425,15 @@ export default function EditorPage() {
             onUpdateResumeData={(data) => {
               setResumeData(data)
             }}
+            templateFitTitle={templateFitDisplayMeta.title}
+            templateFitDescription={templateFitDisplayMeta.description}
+            templateFitReasons={templateFitDisplayMeta.insight.reasons}
+            templateFitRecommendedId={templateFitDisplayMeta.insight.recommendedTemplateId}
+            templateFitRecommendedLabel={templateFitDisplayMeta.recommendedTemplateLabel}
+            templateFitAlternateId={templateFitDisplayMeta.insight.alternateTemplateId ?? null}
+            templateFitAlternateLabel={templateFitDisplayMeta.alternateTemplateLabel}
+            templateFitShouldSuggestSwitch={templateFitDisplayMeta.insight.shouldSuggestSwitch}
             onClose={() => setShowTemplateSelector(false)}
-            onShowAIAssistant={() => {
-              setShowTemplateSelector(false)
-              openUnifiedAIPanel(normalizeAISection(activeSection))
-            }}
-            onShowAIConfig={() => {
-              setShowTemplateSelector(false)
-              setShowAIConfig(true)
-            }}
           />
         )}
         
@@ -1416,16 +1444,13 @@ export default function EditorPage() {
             onClose={() => setShowExportDialog(false)}
             onExport={handleExportByFormat}
             resumeName={resumeData.personalInfo.name}
+            templateFitTitle={templateFitDisplayMeta.title}
+            templateFitDescription={templateFitDisplayMeta.description}
+            templateFitReasons={templateFitDisplayMeta.insight.reasons}
+            templateFitRecommendedLabel={templateFitDisplayMeta.recommendedTemplateLabel}
+            templateFitShouldSuggestSwitch={templateFitDisplayMeta.insight.shouldSuggestSwitch}
             onOptionsChange={(opts) => {
               setExportOptions(opts)
-            }}
-            onShowAIAssistant={() => {
-              setShowExportDialog(false)
-              openUnifiedAIPanel(normalizeAISection(activeSection))
-            }}
-            onShowAIConfig={() => {
-              setShowExportDialog(false)
-              setShowAIConfig(true)
             }}
           />
         )}

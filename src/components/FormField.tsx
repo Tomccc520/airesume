@@ -20,6 +20,7 @@ interface FormFieldProps {
   type?: 'text' | 'email' | 'tel' | 'password' | 'url' | 'textarea' | 'select' | 'month' | 'date' | 'range' | 'number'
   value: string | number
   onChange: (value: string) => void
+  fieldKey?: string
   placeholder?: string
   required?: boolean
   disabled?: boolean
@@ -45,6 +46,7 @@ export default function FormField({
   type = 'text',
   value,
   onChange,
+  fieldKey,
   placeholder,
   required = false,
   disabled = false,
@@ -232,7 +234,7 @@ export default function FormField({
   }
 
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={`space-y-2 ${className}`} data-editor-field-key={fieldKey}>
       <div className="flex items-center justify-between">
         <label className="block text-sm font-medium text-gray-700">
           {label}

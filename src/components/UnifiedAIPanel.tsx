@@ -14,7 +14,6 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertCircle,
   ArrowRight,
-  BookOpen,
   Bot,
   CheckCircle,
   Loader2,
@@ -58,6 +57,7 @@ import { aiSuggestionRanker } from '@/services/aiSuggestionRanker'
 import { aiQualityChecker, QualityScore } from '@/services/aiQualityChecker'
 import { jdMatcherService, JDSuggestion } from '@/services/jdMatcher'
 import { AIResumeGenerator } from '@/services/aiResumeGenerator'
+import { getOptimizeSectionInsight } from '@/domain/editor/optimizeSectionInsights'
 
 interface UnifiedAIPanelProps {
   isOpen: boolean
@@ -66,6 +66,7 @@ interface UnifiedAIPanelProps {
   preferredSection?: OptimizeSection | null
   configVersion?: number
   onOpenAIConfig: () => void
+  onFocusSection?: (section: OptimizeSection) => void
   onApplySuggestion: (content: string, section: string) => void
   onApplyJDSuggestions: (suggestions: JDSuggestion[]) => void
   onGenerateComplete: (data: Partial<ResumeData>) => void
@@ -158,6 +159,20 @@ function getScoreClass(score: number): string {
   if (score >= 70) return 'text-blue-700 bg-blue-50 border-blue-200'
   if (score >= 55) return 'text-amber-700 bg-amber-50 border-amber-200'
   return 'text-rose-700 bg-rose-50 border-rose-200'
+}
+
+/**
+ * 获取内容信号标签样式
+ * 统一 AI 优化模块卡片中的信号徽标色阶。
+ */
+function getInsightBadgeClass(tone: 'positive' | 'neutral' | 'warning'): string {
+  if (tone === 'positive') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  }
+  if (tone === 'warning') {
+    return 'border-amber-200 bg-amber-50 text-amber-700'
+  }
+  return 'border-slate-200 bg-white text-slate-600'
 }
 
 /**
@@ -510,57 +525,6 @@ function getSuggestionDiffSummary(original: string, suggestion: string) {
 }
 
 /**
- * 获取当前 AI 模式说明
- * 将优化、匹配、生成三条链路的操作步骤收敛为统一指引，供面板内说明弹层复用。
- */
-function getAIModeGuide(mode: AIMode, locale: 'zh' | 'en', isConfigured: boolean) {
-  const isZh = locale === 'zh'
-
-  if (mode === 'optimize') {
-    return {
-      title: isZh ? '智能优化怎么用' : 'How Smart Optimize Works',
-      description: isZh
-        ? '先选择模块，再对比候选版本，最后把最合适的一版应用到当前简历。'
-        : 'Select a section, compare generated variants, then apply the most suitable one to your resume.',
-      steps: isZh
-        ? ['先从工作经历或项目经验开始，收益通常最高。', '确认当前模块已经有原始内容，再点击生成候选版本。', '优先选择保留真实经历、但表达更紧凑的一版。']
-        : ['Start with experience or projects for the highest impact.', 'Make sure the current section already has source content before generating variants.', 'Choose the option that stays truthful while communicating more clearly.'],
-      tips: isZh
-        ? [isConfigured ? '候选卡里的“新增表达”可以快速看出 AI 新补了什么。' : '当前模式依赖 AI 配置，点击模块会先引导你完成配置。']
-        : [isConfigured ? 'Use the “new phrases” summary to see what the AI added at a glance.' : 'This mode requires AI setup. Clicking a section will guide you to configuration first.']
-    }
-  }
-
-  if (mode === 'match') {
-    return {
-      title: isZh ? '职位匹配怎么用' : 'How JD Match Works',
-      description: isZh
-        ? '粘贴完整 JD 后，系统会分析关键词命中、缺失项以及可以直接应用的模块建议。'
-        : 'Paste a complete JD and the system will analyze matched keywords, missing items, and section-level suggestions you can apply directly.',
-      steps: isZh
-        ? ['尽量保留职责、要求、技术栈和加分项，分析会更准。', '先看缺失关键词，再按模块批量应用最关键的建议。', '如果一次改动过大，可用“撤销上一步”回退最近一次应用。']
-        : ['Keep responsibilities, requirements, tech stack, and bonus items for better analysis.', 'Review missing keywords first, then batch-apply the most important section suggestions.', 'If a change batch is too aggressive, use “Undo Last Apply” to revert the latest action.'],
-      tips: isZh
-        ? ['职位匹配不依赖 AI 配置，可以直接先用来找岗位缺口。']
-        : ['JD Match does not require AI setup, so you can use it immediately to inspect gaps.']
-    }
-  }
-
-  return {
-    title: isZh ? '从零生成怎么用' : 'How Start-Fresh Works',
-    description: isZh
-      ? '输入姓名、目标职位和经验段位，生成一版可继续编辑的初始简历草稿。'
-      : 'Provide your name, target role, and experience level to generate a first resume draft you can keep editing.',
-    steps: isZh
-      ? ['目标职位越具体，生成结果越贴近真实投递场景。', '可先使用岗位预设快速填入常见职位名称。', '生成完成后，回到编辑器继续逐项补充真实项目和成果。']
-      : ['The more specific the target role is, the more relevant the generated draft becomes.', 'Use role presets to fill common target roles faster.', 'After generation, return to the editor to refine projects and measurable outcomes.'],
-    tips: isZh
-      ? [isConfigured ? '填写完整度卡会提示你还缺哪些字段。' : '当前模式依赖 AI 配置，但已填写的职位和经验段位会被保留。']
-      : [isConfigured ? 'The readiness card shows which inputs are still missing.' : 'This mode requires AI setup, but your filled target role and experience level will be kept.']
-  }
-}
-
-/**
  * 构建 JD 建议回退载荷
  * 将已应用建议还原为原始内容，支持最近一次单条或批量撤销。
  */
@@ -583,6 +547,7 @@ export default function UnifiedAIPanel({
   preferredSection = null,
   configVersion = 0,
   onOpenAIConfig,
+  onFocusSection,
   onApplySuggestion,
   onApplyJDSuggestions,
   onGenerateComplete
@@ -616,7 +581,7 @@ export default function UnifiedAIPanel({
   } | null>(null)
   const [appliedJDSuggestionKeys, setAppliedJDSuggestionKeys] = useState<string[]>([])
   const [jdApplyHistory, setJdApplyHistory] = useState<JDBatchHistoryEntry[]>([])
-  const [showGuidePanel, setShowGuidePanel] = useState(false)
+  const [showConfigDiagnostics, setShowConfigDiagnostics] = useState(false)
   const aiStatusMeta = useMemo(() => getAIStatusMeta(aiConfigStatus, locale), [aiConfigStatus, locale])
   const latestValidationIssue = useMemo(() => {
     if (aiConfigStatus.lastValidation?.isValid) {
@@ -642,11 +607,14 @@ export default function UnifiedAIPanel({
     () => getPrimaryAIConfigPrecheckItem(aiConfigPrecheckItems),
     [aiConfigPrecheckItems]
   )
-  const activeModeGuide = useMemo(
-    () => getAIModeGuide(activeMode, locale, aiConfigStatus.isConfigured),
-    [activeMode, aiConfigStatus.isConfigured, locale]
-  )
   const showFreshModeReadyGuide = hasFreshConfigValidationSuccess && aiConfigStatus.isConfigured
+  const hasConfigDiagnostics = Boolean(
+    primaryPrecheckItem
+    || latestValidationIssue
+    || shouldShowHistoricalValidationInfo
+    || precheckActionNotice
+    || showFreshModeReadyGuide
+  )
 
   /**
    * 刷新 AI 配置状态
@@ -670,6 +638,23 @@ export default function UnifiedAIPanel({
     }
     setPrecheckActionNotice(null)
   }, [configVersion, isOpen])
+
+  /**
+   * 同步配置诊断折叠区的默认展开状态
+   * 当前存在阻塞项时自动展开，配置恢复可用后默认收起，减少首屏噪音。
+   */
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    if (primaryPrecheckItem || latestValidationIssue || shouldShowBlockingError) {
+      setShowConfigDiagnostics(true)
+      return
+    }
+
+    setShowConfigDiagnostics(false)
+  }, [isOpen, latestValidationIssue, primaryPrecheckItem, shouldShowBlockingError])
 
   /**
    * 监听 AI 配置状态更新事件
@@ -754,12 +739,6 @@ export default function UnifiedAIPanel({
       name: locale === 'zh' ? '职位匹配' : 'Job Match',
       icon: <Target className="w-4 h-4" />,
       requiresConfig: false
-    },
-    {
-      id: 'generate' as AIMode,
-      name: locale === 'zh' ? '从零开始' : 'Start Fresh',
-      icon: <Wand2 className="w-4 h-4" />,
-      requiresConfig: true
     }
   ], [locale])
 
@@ -771,7 +750,8 @@ export default function UnifiedAIPanel({
       desc: locale === 'zh' ? '强化定位与吸引力' : 'Sharpen positioning',
       hasContent: Boolean(resumeData.personalInfo.summary?.trim()),
       contentSummary: getOptimizeSectionContentSummary('summary', resumeData, locale),
-      focusHint: getOptimizeSectionFocusHint('summary', locale)
+      focusHint: getOptimizeSectionFocusHint('summary', locale),
+      insight: getOptimizeSectionInsight('summary', resumeData, locale)
     },
     {
       id: 'experience' as OptimizeSection,
@@ -780,7 +760,8 @@ export default function UnifiedAIPanel({
       desc: locale === 'zh' ? '突出成果与影响力' : 'Highlight impact',
       hasContent: resumeData.experience.length > 0,
       contentSummary: getOptimizeSectionContentSummary('experience', resumeData, locale),
-      focusHint: getOptimizeSectionFocusHint('experience', locale)
+      focusHint: getOptimizeSectionFocusHint('experience', locale),
+      insight: getOptimizeSectionInsight('experience', resumeData, locale)
     },
     {
       id: 'skills' as OptimizeSection,
@@ -789,7 +770,8 @@ export default function UnifiedAIPanel({
       desc: locale === 'zh' ? '优化技能结构与优先级' : 'Optimize skill hierarchy',
       hasContent: resumeData.skills.length > 0,
       contentSummary: getOptimizeSectionContentSummary('skills', resumeData, locale),
-      focusHint: getOptimizeSectionFocusHint('skills', locale)
+      focusHint: getOptimizeSectionFocusHint('skills', locale),
+      insight: getOptimizeSectionInsight('skills', resumeData, locale)
     },
     {
       id: 'projects' as OptimizeSection,
@@ -798,7 +780,8 @@ export default function UnifiedAIPanel({
       desc: locale === 'zh' ? '增强项目叙事与亮点' : 'Improve project storytelling',
       hasContent: resumeData.projects.length > 0,
       contentSummary: getOptimizeSectionContentSummary('projects', resumeData, locale),
-      focusHint: getOptimizeSectionFocusHint('projects', locale)
+      focusHint: getOptimizeSectionFocusHint('projects', locale),
+      insight: getOptimizeSectionInsight('projects', resumeData, locale)
     }
   ], [locale, resumeData])
 
@@ -867,7 +850,6 @@ export default function UnifiedAIPanel({
     setIsRevalidatingConfig(false)
     setPrecheckActionNotice(null)
     setIsProcessing(false)
-    setShowGuidePanel(false)
     if (mode !== 'optimize') {
       setOptimizeResult(null)
       setSelectedSection(null)
@@ -1389,7 +1371,7 @@ export default function UnifiedAIPanel({
                   {locale === 'zh' ? '智能优化你的简历内容与岗位匹配度。' : 'Improve resume content and role alignment with AI.'}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {locale === 'zh' ? '统一处理智能优化、职位匹配与从零生成。' : 'Optimize, match, and generate in one workspace.'}
+                  {locale === 'zh' ? '首层只保留优化和 JD 匹配，低频工具收进次级入口。' : 'Keep optimize and JD match on the first layer, while lower-frequency tools stay secondary.'}
                 </p>
               </div>
             </div>
@@ -1437,18 +1419,79 @@ export default function UnifiedAIPanel({
                 )}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => handleSwitchMode('generate')}
+              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
+                activeMode === 'generate'
+                  ? 'app-shell-toolbar-button app-shell-toolbar-button-active'
+                  : 'app-shell-toolbar-button border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <Wand2 className="w-4 h-4" />
+              <span>{locale === 'zh' ? '更多 AI 工具' : 'More AI Tools'}</span>
+            </button>
           </div>
 
-          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(260px,0.85fr)]">
-            <div className={`rounded-xl border px-4 py-4 ${aiStatusMeta.toneClass}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] opacity-70">
-                    {locale === 'zh' ? '配置状态' : 'Configuration'}
-                  </p>
-                  <div className="mt-2 text-base font-semibold">{aiStatusMeta.title}</div>
-                  <div className="mt-1 text-sm leading-6 opacity-90">{aiStatusMeta.description}</div>
+          <div className={`mt-4 rounded-xl border px-4 py-4 ${aiStatusMeta.toneClass}`}>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] opacity-70">
+                  {locale === 'zh' ? '配置状态' : 'Configuration'}
+                </p>
+                <div className="mt-2 text-base font-semibold">{aiStatusMeta.title}</div>
+                <div className="mt-1 text-sm leading-6 opacity-90">
+                  {locale === 'zh'
+                    ? 'JD 匹配可直接使用；智能优化和更多 AI 工具依赖当前配置。'
+                    : 'JD match works directly. Smart optimize and extra AI tools depend on the current configuration.'}
                 </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="rounded-full border border-current/10 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                    {locale === 'zh' ? '服务商：' : 'Provider: '}{aiStatusMeta.providerSummary}
+                  </span>
+                  <span className="rounded-full border border-current/10 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                    {locale === 'zh' ? '模型：' : 'Model: '}{aiStatusMeta.modelSummary}
+                  </span>
+                  {primaryPrecheckItem ? (
+                    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${getAIConfigPrecheckStatusClass(primaryPrecheckItem.status)}`}>
+                      {locale === 'zh' ? `卡点：${primaryPrecheckItem.title}` : `Blocker: ${primaryPrecheckItem.title}`}
+                    </span>
+                  ) : null}
+                  {showFreshModeReadyGuide ? (
+                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                      {locale === 'zh' ? '已恢复可用' : 'Ready again'}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {primaryPrecheckItem?.actionId && canApplyInlinePrecheckAction(primaryPrecheckItem.actionId) && (
+                  <button
+                    type="button"
+                    onClick={() => void handleApplyInlinePrecheckAction(primaryPrecheckItem.actionId!)}
+                    className="inline-flex h-9 items-center justify-center rounded-xl bg-slate-900 px-3 text-xs font-medium text-white transition-colors hover:bg-slate-800"
+                  >
+                    {getInlinePrecheckActionLabel(primaryPrecheckItem.actionId, locale)}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void handleRevalidateCurrentConfig()}
+                  disabled={isRevalidatingConfig}
+                  className="app-shell-action-button h-9 rounded-xl px-3 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isRevalidatingConfig ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>{locale === 'zh' ? '验证中' : 'Validating'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      <span>{locale === 'zh' ? '重新验证' : 'Revalidate'}</span>
+                    </>
+                  )}
+                </button>
                 <button
                   type="button"
                   onClick={() => openConfigWithHint()}
@@ -1457,270 +1500,112 @@ export default function UnifiedAIPanel({
                   {aiStatusMeta.actionLabel}
                 </button>
               </div>
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                <div className="rounded-lg border border-current/10 bg-white/80 px-3 py-2 text-slate-700">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
-                    {locale === 'zh' ? '服务商' : 'Provider'}
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-slate-800">{aiStatusMeta.providerSummary}</p>
-                </div>
-                <div className="rounded-lg border border-current/10 bg-white/80 px-3 py-2 text-slate-700">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
-                    {locale === 'zh' ? '模型' : 'Model'}
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-slate-800">{aiStatusMeta.modelSummary}</p>
-                </div>
-              </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="flex items-start gap-2">
-                <ShieldCheck className="mt-0.5 h-4 w-4 text-slate-700" />
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                    {locale === 'zh' ? '配置说明' : 'Config Notes'}
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-slate-900">
-                    {locale === 'zh'
-                      ? 'JD 匹配可直接使用，优化与生成依赖 AI 配置'
-                      : 'JD match works directly. Optimize and generate depend on AI setup.'}
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">
-                    {locale === 'zh'
-                      ? '配置项只影响模型调用，不会写入简历内容；密钥保持在当前浏览器内。'
-                      : 'These settings only affect model calls, never your resume content. Keys stay in this browser.'}
-                  </p>
-                </div>
-              </div>
-              {aiConfigPrecheckItems.length > 0 && (
-                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-700">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                        {locale === 'zh' ? '本地预检查' : 'Local Precheck'}
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium text-slate-900">
-                          {primaryPrecheckItem
-                            ? (locale === 'zh' ? `当前卡在：${primaryPrecheckItem.title}` : `Current blocker: ${primaryPrecheckItem.title}`)
-                            : (locale === 'zh' ? '本地检查已通过，可直接重新验证当前配置。' : 'Local checks passed. You can validate the current configuration now.')}
-                        </p>
-                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                          primaryPrecheckItem
-                            ? getAIConfigPrecheckStatusClass(primaryPrecheckItem.status)
-                            : getAIConfigPrecheckStatusClass('ready')
-                        }`}>
-                          {primaryPrecheckItem
-                            ? getAIConfigPrecheckStatusLabel(primaryPrecheckItem.status, locale)
-                            : getAIConfigPrecheckStatusLabel('ready', locale)}
-                        </span>
+            {hasConfigDiagnostics && (
+              <div className="mt-4 border-t border-current/10 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowConfigDiagnostics((current) => !current)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-current/10 bg-white/80 px-3 py-2 text-xs font-medium text-current transition-colors hover:bg-white"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <span>
+                    {showConfigDiagnostics
+                      ? (locale === 'zh' ? '收起配置与诊断' : 'Hide config diagnostics')
+                      : (locale === 'zh' ? '查看配置与诊断' : 'Show config diagnostics')}
+                  </span>
+                </button>
+
+                {showConfigDiagnostics && (
+                  <div className="mt-3 space-y-3 text-slate-700">
+                    {precheckActionNotice && (
+                      <div className={`rounded-lg border px-3 py-2 text-sm ${
+                        precheckActionNotice.tone === 'success'
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : 'border-rose-200 bg-rose-50 text-rose-700'
+                      }`}>
+                        {precheckActionNotice.message}
                       </div>
-                      <p className="mt-1 text-sm leading-6 text-slate-500">
-                        {primaryPrecheckItem
-                          ? primaryPrecheckItem.detail
-                          : (locale === 'zh'
-                            ? '如果最近做过轻量修复，可以直接在这里重新验证，不必打开配置弹窗。'
-                            : 'If you have already applied a quick fix, revalidate here without opening the configuration modal.')}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                      {primaryPrecheckItem?.actionId && canApplyInlinePrecheckAction(primaryPrecheckItem.actionId) && (
-                        <button
-                          type="button"
-                          onClick={() => void handleApplyInlinePrecheckAction(primaryPrecheckItem.actionId!)}
-                          className="inline-flex h-8 items-center justify-center rounded-xl bg-slate-900 px-3 text-xs font-medium text-white transition-colors hover:bg-slate-800"
-                        >
-                          {getInlinePrecheckActionLabel(primaryPrecheckItem.actionId, locale)}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => void handleRevalidateCurrentConfig()}
-                        disabled={isRevalidatingConfig}
-                        className="app-shell-action-button h-8 rounded-xl px-3 text-xs disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isRevalidatingConfig ? (
-                          <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            <span>{locale === 'zh' ? '验证中' : 'Validating'}</span>
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="h-3.5 w-3.5" />
-                            <span>{locale === 'zh' ? '重新验证' : 'Revalidate'}</span>
-                          </>
-                        )}
-                      </button>
-                      {primaryPrecheckItem && (
-                        <button
-                          type="button"
-                          onClick={() => openConfigWithHint(primaryPrecheckItem.detail, mapPrecheckItemToGuidanceField(primaryPrecheckItem))}
-                          className="app-shell-action-button h-8 rounded-xl px-3 text-xs"
-                        >
-                          {locale === 'zh' ? '去处理' : 'Review'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {precheckActionNotice && (
-                    <div className={`mt-3 rounded-lg border px-3 py-2 text-sm ${
-                      precheckActionNotice.tone === 'success'
-                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                        : 'border-rose-200 bg-rose-50 text-rose-700'
-                    }`}>
-                      {precheckActionNotice.message}
-                    </div>
-                  )}
-                  {hasFreshConfigValidationSuccess && aiConfigStatus.isConfigured && (
-                    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/90 p-3 text-emerald-800">
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-emerald-600" />
-                            <p className="text-sm font-semibold">
-                              {locale === 'zh' ? 'AI 配置已恢复可用' : 'AI is ready again'}
-                            </p>
-                            <span className="rounded-full border border-emerald-200 bg-white/70 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                              {aiStatusMeta.providerSummary} · {aiStatusMeta.modelSummary}
-                            </span>
-                          </div>
-                          <p className="mt-2 text-sm leading-6 text-emerald-700">
-                            {locale === 'zh'
-                              ? '智能优化和从零生成已经解锁，你可以直接切到对应模式继续处理，不必再回到配置弹窗。'
-                              : 'Optimize and start-fresh are now unlocked. Continue directly from here without reopening the config modal.'}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleSwitchMode('optimize')}
-                            className="inline-flex h-9 items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
-                          >
-                            {locale === 'zh' ? '去智能优化' : 'Open Optimize'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSwitchMode('generate')}
-                            className="app-shell-action-button h-9 rounded-xl px-4 text-sm"
-                          >
-                            {locale === 'zh' ? '去从零生成' : 'Open Start Fresh'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    {aiConfigPrecheckItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-2"
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-medium text-slate-800">{item.title}</p>
-                          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getAIConfigPrecheckStatusClass(item.status)}`}>
-                            {getAIConfigPrecheckStatusLabel(item.status, locale)}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs leading-5 text-slate-500">{item.detail}</p>
-                        {item.actionId && canApplyInlinePrecheckAction(item.actionId) && (
-                          <button
-                            type="button"
-                            onClick={() => void handleApplyInlinePrecheckAction(item.actionId!)}
-                            className="mt-2 app-shell-action-button h-7 rounded-xl px-3 text-[11px]"
-                          >
-                            {getInlinePrecheckActionLabel(item.actionId, locale)}
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {latestValidationIssue && (
-                <div className="mt-3 rounded-xl border border-current/10 bg-white/85 p-3 text-slate-700">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                        {locale === 'zh' ? '最近一次验证诊断' : 'Latest Validation Diagnostics'}
-                      </p>
-                      <p className="mt-2 text-sm font-medium text-slate-900">
-                        {latestValidationIssue.message}
-                      </p>
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
-                            {locale === 'zh' ? '错误类型' : 'Error Type'}
-                          </p>
-                          <p className="mt-1 text-sm font-medium text-slate-800">
-                            {getAIValidationCategoryLabel(latestValidationIssue.diagnostics?.category, locale)}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
-                            {locale === 'zh' ? '最近验证' : 'Last Checked'}
-                          </p>
-                          <p className="mt-1 text-sm font-medium text-slate-800">
-                            {formatValidationTime(latestValidationIssue.validatedAt)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
-                          {locale === 'zh' ? '目标地址' : 'Target'}
-                        </p>
-                        <p className="mt-1 break-all text-sm font-medium text-slate-800">
-                          {latestValidationIssue.diagnostics?.targetHost || '/api/ai'}
-                        </p>
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-slate-500">
-                        {latestValidationIssue.diagnostics?.suggestion || (locale === 'zh'
-                          ? '请检查网络、代理、API 端点和服务商状态后重试。'
-                          : 'Check your network, proxy, endpoint, and provider status before retrying.')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {shouldShowHistoricalValidationInfo && historicalValidationIssue && (
-                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/90 p-3 text-slate-700">
-                  <div className="flex items-start gap-2">
-                    <RotateCcw className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                        {locale === 'zh' ? '上一轮失败诊断（历史参考）' : 'Previous Failure Diagnostics'}
-                      </p>
-                      <p className="mt-2 text-sm font-medium text-slate-900">
-                        {historicalValidationIssue.message}
-                      </p>
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
-                            {locale === 'zh' ? '错误类型' : 'Error Type'}
-                          </p>
-                          <p className="mt-1 text-sm font-medium text-slate-800">
-                            {getAIValidationCategoryLabel(historicalValidationIssue.diagnostics?.category, locale)}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
-                            {locale === 'zh' ? '失败时间' : 'Failed At'}
-                          </p>
-                          <p className="mt-1 text-sm font-medium text-slate-800">
-                            {formatValidationTime(historicalValidationIssue.validatedAt)}
-                          </p>
-                        </div>
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                    )}
+
+                    {showFreshModeReadyGuide && (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                         {locale === 'zh'
-                          ? '当前配置已经恢复可用，这条信息仅保留为排查参考，不会阻塞你继续使用智能优化和从零生成。'
-                          : 'The current configuration is now healthy. This record is kept only as a reference and no longer blocks optimize or start-fresh.'}
-                      </p>
-                    </div>
+                          ? 'AI 配置已经恢复可用。你可以直接进入“智能优化”或“更多 AI 工具”。'
+                          : 'AI is ready again. You can go straight to Smart Optimize or More AI Tools.'}
+                      </div>
+                    )}
+
+                    {aiConfigPrecheckItems.length > 0 && (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {aiConfigPrecheckItems.map((item) => (
+                          <div
+                            key={item.id}
+                            className="rounded-lg border border-current/10 bg-white/80 px-3 py-2"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-sm font-medium text-slate-800">{item.title}</p>
+                              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getAIConfigPrecheckStatusClass(item.status)}`}>
+                                {getAIConfigPrecheckStatusLabel(item.status, locale)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">{item.detail}</p>
+                            {item.actionId && canApplyInlinePrecheckAction(item.actionId) && (
+                              <button
+                                type="button"
+                                onClick={() => void handleApplyInlinePrecheckAction(item.actionId!)}
+                                className="mt-2 app-shell-action-button h-7 rounded-xl px-3 text-[11px]"
+                              >
+                                {getInlinePrecheckActionLabel(item.actionId, locale)}
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {latestValidationIssue && (
+                      <div className="rounded-lg border border-current/10 bg-white/85 px-3 py-3">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-slate-900">{latestValidationIssue.message}</p>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                              {getAIValidationCategoryLabel(latestValidationIssue.diagnostics?.category, locale)} · {latestValidationIssue.diagnostics?.targetHost || '/api/ai'} · {formatValidationTime(latestValidationIssue.validatedAt)}
+                            </p>
+                            <p className="mt-2 text-xs leading-5 text-slate-500">
+                              {latestValidationIssue.diagnostics?.suggestion || (locale === 'zh'
+                                ? '请检查网络、代理、API 端点和服务商状态后重试。'
+                                : 'Check your network, proxy, endpoint, and provider status before retrying.')}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {shouldShowHistoricalValidationInfo && historicalValidationIssue && (
+                      <div className="rounded-lg border border-current/10 bg-white/75 px-3 py-3">
+                        <div className="flex items-start gap-2">
+                          <RotateCcw className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-slate-900">
+                              {locale === 'zh' ? '上一轮失败诊断仅保留为参考。' : 'Previous failure is kept only as a reference.'}
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                              {historicalValidationIssue.message}
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                              {getAIValidationCategoryLabel(historicalValidationIssue.diagnostics?.category, locale)} · {formatValidationTime(historicalValidationIssue.validatedAt)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1770,87 +1655,10 @@ export default function UnifiedAIPanel({
               >
                 {!optimizeResult ? (
                   <div className="max-w-3xl mx-auto">
-                    {showFreshModeReadyGuide && (
-                      <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50/90 p-4 text-emerald-800">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <CheckCircle className="h-4 w-4 text-emerald-600" />
-                              <p className="text-sm font-semibold">
-                                {locale === 'zh' ? '智能优化已可直接使用' : 'Smart optimize is ready'}
-                              </p>
-                              <span className="rounded-full border border-emerald-200 bg-white/80 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                                {aiStatusMeta.providerSummary} · {aiStatusMeta.modelSummary}
-                              </span>
-                            </div>
-                            <p className="mt-2 text-sm leading-6 text-emerald-700">
-                              {locale === 'zh'
-                                ? '直接点下面任一模块就能开始生成候选版本。建议先从“工作经历”或“项目经验”开始，收益最高。'
-                                : 'You can start generating variants right away. Experience and projects usually deliver the biggest gain first.'}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <span className="rounded-full border border-emerald-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
-                              {locale === 'zh' ? '已解锁候选生成' : 'Variants unlocked'}
-                            </span>
-                            <span className="rounded-full border border-emerald-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
-                              {locale === 'zh' ? '可直接应用到简历' : 'Apply directly'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
-                      <div className="rounded-xl border border-slate-200 bg-white p-4">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                          {locale === 'zh' ? '优化工作流' : 'Optimize Workflow'}
-                        </p>
-                        <h3 className="mt-2 text-lg font-semibold text-slate-900">
-                          {locale === 'zh' ? '选择要优化的内容' : 'Select content to optimize'}
-                        </h3>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                          {locale === 'zh'
-                            ? '先选模块，再生成多条候选版本，最后按需应用到简历。'
-                            : 'Pick a section, generate multiple variants, then apply the one you want.'}
-                        </p>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                            {locale === 'zh' ? '1. 选模块' : '1. Select'}
-                          </span>
-                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                            {locale === 'zh' ? '2. 看候选版本' : '2. Review'}
-                          </span>
-                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                            {locale === 'zh' ? '3. 应用到简历' : '3. Apply'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-white p-4">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                          {locale === 'zh' ? '使用建议' : 'Suggested Use'}
-                        </p>
-                        <p className="mt-2 text-sm font-medium text-slate-900">
-                          {locale === 'zh'
-                            ? '优先从“工作经历”或“项目经验”开始，收益最高。'
-                            : 'Start with experience or projects first for the biggest gain.'}
-                        </p>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                          {locale === 'zh'
-                            ? '如果还没完成 AI 配置，也可以先用 JD 匹配查看岗位关键词和缺口。'
-                            : 'If AI is not configured yet, you can still use JD match to review keywords and gaps.'}
-                        </p>
-                        {showFreshModeReadyGuide && (
-                          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-                            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-emerald-600">
-                              {locale === 'zh' ? '当前主操作' : 'Primary CTA'}
-                            </p>
-                            <p className="mt-1 text-sm font-medium text-emerald-800">
-                              {locale === 'zh' ? '可直接点击下方模块开始生成候选版本。' : 'Click any section below to generate variants now.'}
-                            </p>
-                          </div>
-                        )}
-                      </div>
+                    <div className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                      {locale === 'zh'
+                        ? '直接选择一个模块开始生成候选版本。建议优先处理工作经历或项目经验。'
+                        : 'Select a section and generate variants. Experience and projects usually deliver the biggest gain first.'}
                     </div>
                     
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -1907,74 +1715,42 @@ export default function UnifiedAIPanel({
                               </div>
                               <ArrowRight className="h-4 w-4 text-slate-300 transition-colors group-hover:text-slate-500" />
                             </div>
-
-                            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
-                                  {locale === 'zh' ? '当前内容' : 'Current'}
-                                </p>
-                                <p className="mt-1 text-sm font-medium text-slate-800">
-                                  {section.contentSummary}
-                                </p>
-                              </div>
-                              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
-                                  {locale === 'zh' ? '优化重点' : 'Focus'}
-                                </p>
-                                <p className="mt-1 text-sm font-medium text-slate-800">
-                                  {section.hasContent
-                                    ? (locale === 'zh' ? '可生成候选版本' : 'Variants available')
-                                    : (locale === 'zh' ? '建议先补充原始内容' : 'Add source content first')}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-3">
-                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
-                                {locale === 'zh' ? 'AI 会优先处理' : 'AI will focus on'}
-                              </p>
-                              <p className="mt-1 text-sm leading-6 text-slate-600">
-                                {section.focusHint}
-                              </p>
-                              {!aiConfigStatus.isConfigured && (
-                                <p className="mt-2 text-[11px] text-slate-500">
-                                  {locale === 'zh' ? '点击后会先引导到 AI 配置。' : 'Clicking will guide you to AI setup first.'}
-                                </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {section.insight.signalBadges.slice(0, 2).map((badge) => (
+                                <span
+                                  key={`${section.id}-${badge.key}`}
+                                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${getInsightBadgeClass(badge.tone)}`}
+                                >
+                                  <span>{badge.label}</span>
+                                  <span>{badge.value}</span>
+                                </span>
+                              ))}
+                              {section.insight.primaryGapLabel && (
+                                <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                                  {locale === 'zh'
+                                    ? `优先补 ${section.insight.primaryGapLabel}`
+                                    : `Fix ${section.insight.primaryGapLabel}`}
+                                </span>
                               )}
                             </div>
-                            <div className={`mt-3 flex items-center justify-between rounded-lg border px-3 py-2 ${
-                              !aiConfigStatus.isConfigured
-                                ? 'border-slate-200 bg-slate-50 text-slate-600'
-                                : section.hasContent
-                                  ? 'border-emerald-200 bg-emerald-50/80 text-emerald-700'
-                                  : 'border-amber-200 bg-amber-50 text-amber-700'
-                            }`}>
-                              <div>
-                                <p className="text-[11px] font-medium uppercase tracking-[0.08em] opacity-70">
-                                  {locale === 'zh' ? '当前操作' : 'Action'}
-                                </p>
-                                <p className="mt-1 text-sm font-medium">
-                                  {!aiConfigStatus.isConfigured
-                                    ? (locale === 'zh' ? '先完成 AI 配置' : 'Complete AI setup first')
-                                    : section.hasContent
-                                      ? (locale === 'zh' ? '立即开始生成候选版本' : 'Generate variants now')
-                                      : (locale === 'zh' ? '先补原始内容再开始' : 'Add source content first')}
-                                </p>
-                              </div>
-                              <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${
-                                !aiConfigStatus.isConfigured
-                                  ? 'border-slate-200 bg-white text-slate-600'
-                                  : section.hasContent
-                                    ? 'border-emerald-200 bg-white/80 text-emerald-700'
-                                    : 'border-amber-200 bg-white/70 text-amber-700'
-                              }`}>
-                                {!aiConfigStatus.isConfigured
-                                  ? (locale === 'zh' ? '待配置' : 'Setup')
-                                  : section.hasContent
-                                    ? (locale === 'zh' ? '已可用' : 'Ready')
-                                    : (locale === 'zh' ? '待补内容' : 'Need content')}
-                              </span>
-                            </div>
+
+                            <p className="mt-3 text-sm leading-6 text-slate-600">
+                              {section.insight.shouldEditFirst ? section.insight.coachingHint : section.focusHint}
+                            </p>
+
+                            {onFocusSection && section.insight.editorActionLabel && (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  onFocusSection(section.id)
+                                }}
+                                className="mt-2 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+                              >
+                                <ArrowRight className="h-3.5 w-3.5" />
+                                {section.insight.editorActionLabel}
+                              </button>
+                            )}
                           </div>
                         </button>
                       ))}
@@ -2222,31 +1998,10 @@ export default function UnifiedAIPanel({
                 className="p-6"
               >
                 <div className="max-w-3xl mx-auto space-y-4">
-                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(240px,0.85fr)]">
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                        {locale === 'zh' ? '职位匹配工作流' : 'JD Match Workflow'}
-                      </p>
-                      <h3 className="mt-2 text-lg font-semibold text-slate-900">
-                        {locale === 'zh' ? '粘贴 JD，查看关键词命中与建议' : 'Paste a JD to review fit and missing keywords'}
-                      </h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-500">
-                        {locale === 'zh'
-                          ? '职位匹配不依赖 AI 配置，可直接用来检查关键词覆盖和岗位缺口。'
-                          : 'JD match works without AI setup and helps you inspect coverage and role gaps immediately.'}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                        {locale === 'zh' ? '建议输入' : 'Suggested Input'}
-                      </p>
-                      <p className="mt-2 text-sm font-medium text-slate-900">
-                        {locale === 'zh'
-                          ? '尽量保留职责、要求、技术栈和加分项，分析会更准确。'
-                          : 'Include responsibilities, requirements, tech stack, and bonus items for better analysis.'}
-                      </p>
-                    </div>
+                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                    {locale === 'zh'
+                      ? '粘贴完整 JD 后即可查看匹配度、缺失关键词和可直接应用的模块建议。'
+                      : 'Paste a complete JD to review fit, missing keywords, and section suggestions you can apply directly.'}
                   </div>
 
                   <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -2492,61 +2247,10 @@ export default function UnifiedAIPanel({
                 className="p-6"
               >
                 <div className="max-w-2xl mx-auto space-y-4">
-                  {showFreshModeReadyGuide && (
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 p-4 text-emerald-800">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-emerald-600" />
-                            <p className="text-sm font-semibold">
-                              {locale === 'zh' ? '从零生成已可直接使用' : 'Start-fresh is ready'}
-                            </p>
-                            <span className="rounded-full border border-emerald-200 bg-white/80 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                              {aiStatusMeta.providerSummary} · {aiStatusMeta.modelSummary}
-                            </span>
-                          </div>
-                          <p className="mt-2 text-sm leading-6 text-emerald-700">
-                            {locale === 'zh'
-                              ? '当前 AI 配置已经通过验证。补齐目标职位后，就可以直接生成第一版完整简历。'
-                              : 'The current AI setup is validated. Fill in the target role and generate the first full resume draft right away.'}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <span className="rounded-full border border-emerald-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
-                            {locale === 'zh' ? '已解锁完整生成' : 'Draft generation unlocked'}
-                          </span>
-                          <span className="rounded-full border border-emerald-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
-                            {locale === 'zh' ? '保留当前输入' : 'Current inputs kept'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1.12fr)_minmax(220px,0.88fr)]">
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                        {locale === 'zh' ? '从零生成工作流' : 'Start-Fresh Workflow'}
-                      </p>
-                      <h3 className="mt-2 text-lg font-semibold text-slate-900">
-                        {locale === 'zh' ? '输入基础信息，生成初始简历草稿' : 'Provide basic info to generate a first draft'}
-                      </h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-500">
-                        {locale === 'zh'
-                          ? '适合首次搭建简历骨架，生成后仍可回到编辑器继续逐项修改。'
-                          : 'Best for creating the first resume draft, then refining it section by section in the editor.'}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                        {locale === 'zh' ? '建议输入' : 'Recommended Input'}
-                      </p>
-                      <p className="mt-2 text-sm font-medium text-slate-900">
-                        {locale === 'zh'
-                          ? '至少填写目标职位和经验段位，姓名可稍后回编辑器补全。'
-                          : 'At minimum, fill in the target role and experience level. You can complete the name later.'}
-                      </p>
-                    </div>
+                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                    {locale === 'zh'
+                      ? '填写目标职位和经验段位后即可生成第一版草稿，后续再回编辑器继续补真实项目和成果。'
+                      : 'Fill in the target role and experience level to generate the first draft, then return to the editor for real projects and outcomes.'}
                   </div>
 
                   <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
@@ -2653,27 +2357,6 @@ export default function UnifiedAIPanel({
                           : 'Start-fresh generation needs AI configuration first. Your current inputs will be kept.'}
                         </div>
                       )}
-                      {showFreshModeReadyGuide && aiConfigStatus.isConfigured && (
-                        <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-emerald-600">
-                                {locale === 'zh' ? '当前主操作' : 'Primary CTA'}
-                              </p>
-                              <p className="mt-1 text-sm font-medium text-emerald-800">
-                                {userInfo.targetPosition.trim()
-                                  ? (locale === 'zh' ? '目标职位已填写，可以直接生成第一版完整简历。' : 'Target role is ready. You can generate the first full draft now.')
-                                  : (locale === 'zh' ? '补齐目标职位后，主按钮会直接进入完整生成。' : 'Fill the target role and the primary button will generate the full draft directly.')}
-                              </p>
-                            </div>
-                            <span className="rounded-full border border-emerald-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
-                              {userInfo.targetPosition.trim()
-                                ? (locale === 'zh' ? '已可用' : 'Ready')
-                                : (locale === 'zh' ? '待补目标职位' : 'Need target role')}
-                            </span>
-                          </div>
-                        </div>
-                      )}
                       <button
                         type="button"
                         onClick={handleGenerateResume}
@@ -2684,9 +2367,7 @@ export default function UnifiedAIPanel({
                         <span>
                           {!aiConfigStatus.isConfigured
                             ? (locale === 'zh' ? '先配置 AI 后生成' : 'Configure AI First')
-                            : showFreshModeReadyGuide
-                              ? (locale === 'zh' ? '立即开始生成完整简历' : 'Generate Full Resume Now')
-                              : (locale === 'zh' ? '开始生成完整简历' : 'Generate Resume')}
+                            : (locale === 'zh' ? '开始生成完整简历' : 'Generate Resume')}
                         </span>
                         <ArrowRight className="h-4 w-4" />
                       </button>
@@ -2705,112 +2386,6 @@ export default function UnifiedAIPanel({
           </AnimatePresence>
         </div>
 
-        <AnimatePresence>
-          {showGuidePanel && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 z-20 flex items-end justify-center bg-slate-900/20 p-4 sm:items-center"
-            >
-              <motion.div
-                initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 12, scale: 0.98 }}
-                transition={{ duration: 0.18 }}
-                className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl"
-              >
-                <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
-                  <div className="flex items-start gap-3">
-                    <span className="app-shell-brand-mark h-10 w-10 shrink-0">
-                      <BookOpen className="h-4 w-4" />
-                    </span>
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                        {locale === 'zh' ? '使用说明' : 'Guide'}
-                      </p>
-                      <h3 className="mt-1 text-lg font-semibold text-slate-900">{activeModeGuide.title}</h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-500">{activeModeGuide.description}</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowGuidePanel(false)}
-                    className="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="grid gap-4 px-5 py-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(240px,0.95fr)]">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                      {locale === 'zh' ? '推荐步骤' : 'Recommended Steps'}
-                    </p>
-                    <div className="mt-3 space-y-3">
-                      {activeModeGuide.steps.map((step, index) => (
-                        <div key={`${activeMode}-${index}`} className="flex items-start gap-3">
-                          <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-700">
-                            {index + 1}
-                          </span>
-                          <p className="text-sm leading-6 text-slate-600">{step}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                        {locale === 'zh' ? '当前提示' : 'Current Tips'}
-                      </p>
-                      <div className="mt-3 space-y-2">
-                        {activeModeGuide.tips.map((tip) => (
-                          <div key={tip} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-600">
-                            {tip}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-                        {locale === 'zh' ? '下一步' : 'Next Action'}
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-slate-500">
-                        {aiConfigStatus.isConfigured || activeMode === 'match'
-                          ? (locale === 'zh' ? '说明已对齐当前模式，可以直接返回继续操作。' : 'The guide is aligned with the current mode. You can close it and continue.')
-                          : (locale === 'zh' ? '当前模式还依赖 AI 配置，建议先完成配置再继续。' : 'This mode still depends on AI setup. Configure it before continuing.')}
-                      </p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {!aiConfigStatus.isConfigured && activeMode !== 'match' && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowGuidePanel(false)
-                              openConfigWithHint()
-                            }}
-                            className="inline-flex h-10 items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
-                          >
-                            {locale === 'zh' ? '前往 AI 配置' : 'Open AI Config'}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setShowGuidePanel(false)}
-                          className="app-shell-action-button h-10 rounded-xl px-4 text-sm"
-                        >
-                          {locale === 'zh' ? '知道了，继续操作' : 'Continue'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* 底部信息 */}
         <div className="flex-none border-t border-slate-200 bg-slate-50 px-6 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -2823,13 +2398,6 @@ export default function UnifiedAIPanel({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowGuidePanel(true)}
-                className="app-shell-action-button h-8 rounded-xl px-3 text-xs"
-              >
-                {locale === 'zh' ? '使用说明' : 'Guide'}
-              </button>
               <button
                 type="button"
                 onClick={() => openConfigWithHint()}

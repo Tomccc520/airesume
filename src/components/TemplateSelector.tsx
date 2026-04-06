@@ -9,7 +9,7 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
-import { Bot, Check, LayoutTemplate, Palette, Sparkles, X } from 'lucide-react'
+import { Check, LayoutTemplate, Palette, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TemplateStyle } from '@/types/template'
 import { CORE_TEMPLATE_IDS, getAvailableTemplates } from '@/data/templates'
@@ -19,15 +19,6 @@ import TemplatePreview from './TemplatePreview'
 import TemplateCard from './templates/TemplateCard'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { TemplateExperienceLevel, TemplateRecommendedRole } from '@/types/template'
-import {
-  getAIProviderSummary,
-  getAIWorkbenchAction,
-  getAIWorkbenchActionLabel,
-  getAIWorkbenchBadgeLabel,
-  getAIWorkbenchStatusKey,
-  getAIWorkbenchToneMeta
-} from '@/domain/ai/aiStatusPresentation'
-import { useAIConfigStatus } from '@/hooks/useAIConfigStatus'
 
 interface TemplateSelectorProps {
   isOpen: boolean
@@ -35,8 +26,14 @@ interface TemplateSelectorProps {
   onSelectTemplate: (template: TemplateStyle) => void
   onUpdateResumeData?: (data: ResumeData) => void
   currentTemplate?: string
-  onShowAIAssistant?: () => void
-  onShowAIConfig?: () => void
+  templateFitTitle?: string | null
+  templateFitDescription?: string | null
+  templateFitReasons?: string[]
+  templateFitRecommendedId?: string | null
+  templateFitRecommendedLabel?: string | null
+  templateFitAlternateId?: string | null
+  templateFitAlternateLabel?: string | null
+  templateFitShouldSuggestSwitch?: boolean
 }
 
 /**
@@ -60,12 +57,17 @@ export default function TemplateSelector({
   onSelectTemplate,
   onUpdateResumeData,
   currentTemplate,
-  onShowAIAssistant,
-  onShowAIConfig
+  templateFitTitle,
+  templateFitDescription,
+  templateFitReasons = [],
+  templateFitRecommendedId,
+  templateFitRecommendedLabel,
+  templateFitAlternateId,
+  templateFitAlternateLabel,
+  templateFitShouldSuggestSwitch = false,
 }: TemplateSelectorProps) {
   const { locale } = useLanguage()
   const [previewTemplate, setPreviewTemplate] = useState<TemplateStyle | null>(null)
-  const aiConfigStatus = useAIConfigStatus()
 
   /**
    * 缓存核心模板列表
@@ -127,16 +129,6 @@ export default function TemplateSelector({
     return reasonMap[template.id] || (locale === 'en'
       ? 'Choose one style first, then fine-tune content and spacing in editor.'
       : '先选风格，再在编辑器里微调内容与间距，适合直接导出投递。')
-  }
-
-  /**
-   * 获取选择器说明文案
-   * 用于头部简短说明当前模板集的定位。
-   */
-  const getSelectorHint = () => {
-    return locale === 'en'
-      ? 'Choose one style first, then fine-tune content and spacing in editor.'
-      : '先选风格，再在编辑器里微调内容与间距，适合直接导出投递。'
   }
 
   /**
@@ -298,88 +290,6 @@ export default function TemplateSelector({
   }
 
   /**
-   * 获取模板顶部导引信息
-   * 将模板列表顶部改成更像招聘工具库的“选型建议”。
-   */
-  const templateGuides = coreTemplates.map((template) => ({
-    id: template.id,
-    name: locale === 'en' && template.nameEn ? template.nameEn : template.name,
-    structure: getStructureLabel(template),
-    reason: getTemplateReason(template)
-  }))
-
-  /**
-   * 获取模板弹窗顶部的 AI 工作台摘要
-   * 在选模板时同步提示“现在能不能继续用 AI 打磨”，并给出直达动作。
-   */
-  const templateAIStatusMeta = useMemo(() => {
-    const statusKey = getAIWorkbenchStatusKey(aiConfigStatus)
-    const { toneClass, badgeClass } = getAIWorkbenchToneMeta(statusKey)
-    const badgeLabel = getAIWorkbenchBadgeLabel(statusKey, locale)
-    const actionLabel = getAIWorkbenchActionLabel(statusKey, locale)
-    const action = getAIWorkbenchAction(statusKey)
-    const providerSummary = getAIProviderSummary(aiConfigStatus, locale)
-
-    if (statusKey === 'ready') {
-      return {
-        toneClass,
-        badgeClass,
-        badgeLabel,
-        title: locale === 'zh' ? '模板切换后可直接继续 AI 打磨' : 'Continue with AI right after template switching',
-        description: locale === 'zh'
-          ? '当前 AI 已验证通过，切换模板后可以直接回到智能优化或 JD 匹配继续打磨。'
-          : 'AI validation has passed. Switch the template and continue with optimize or JD matching directly.',
-        actionLabel,
-        action,
-        providerSummary
-      }
-    }
-
-    if (statusKey === 'needsValidation') {
-      return {
-        toneClass,
-        badgeClass,
-        badgeLabel,
-        title: locale === 'zh' ? '模板可先切换，AI 建议先完成验证' : 'Template can be changed now, but AI should be validated first',
-        description: locale === 'zh'
-          ? '当前配置已补齐，建议切换模板后直接去 AI 助手完成一次验证，再继续生成优化结果。'
-          : 'The setup is complete. After switching template, open AI once to finish validation before generating results.',
-        actionLabel: locale === 'zh' ? '去验证 AI' : actionLabel,
-        action,
-        providerSummary
-      }
-    }
-
-    if (statusKey === 'needsConfig') {
-      return {
-        toneClass,
-        badgeClass,
-        badgeLabel,
-        title: locale === 'zh' ? '模板已可先选择，AI 仍待配置' : 'Templates are ready, AI still needs setup',
-        description: locale === 'zh'
-          ? '当前可先完成模板选型，补齐 AI 配置后再继续智能优化和生成。'
-          : 'Choose the template first, then finish AI setup before optimize and generate.',
-        actionLabel: locale === 'zh' ? '去配置 AI' : 'Setup AI',
-        action,
-        providerSummary
-      }
-    }
-
-    return {
-      toneClass,
-      badgeClass,
-      badgeLabel,
-      title: locale === 'zh' ? '模板库可继续使用，AI 当前处于停用状态' : 'Templates are available while AI stays disabled',
-      description: locale === 'zh'
-        ? '当前可以继续切换模板并导出，若需要 AI 打磨，可先重新启用 AI。'
-        : 'You can still switch templates and export. Re-enable AI when you want further optimization.',
-      actionLabel,
-      action,
-      providerSummary
-    }
-  }, [aiConfigStatus, locale])
-
-  /**
    * 处理职业模板应用
    * 保留兼容逻辑，防止后续恢复职业模板时需要再次改动接入链路。
    */
@@ -432,87 +342,45 @@ export default function TemplateSelector({
         </div>
 
         <div className="no-scrollbar max-h-[calc(95vh-92px)] overflow-y-auto p-4 sm:p-6">
-          <div className="mb-5 grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold text-slate-700">
-                    {locale === 'en' ? 'Recruiting-ready template library' : '招聘投递模板库'}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">{getSelectorHint()}</p>
-                </div>
-                <div className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600">
+          <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">
+                  {locale === 'en' ? 'Recruiting-ready templates' : '招聘投递模板'}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {templateFitTitle && templateFitDescription
+                    ? `${templateFitTitle} · ${templateFitDescription}`
+                    : (locale === 'en'
+                      ? 'Keep the choice small and focus on recruiter readability.'
+                      : '保留少量模板，优先保证招聘方阅读效率。')}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600">
                   {locale === 'en' ? `${coreTemplates.length} templates` : `${coreTemplates.length} 套模板`}
-                </div>
-              </div>
-              <div className="mt-3 grid gap-2 md:grid-cols-3">
-                {templateGuides.map((guide) => (
-                  <div key={guide.id} className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-slate-900">{guide.name}</p>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-                        {guide.structure}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">{guide.reason}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className={`rounded-xl border px-4 py-3 ${templateAIStatusMeta.toneClass}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold">
-                    {locale === 'en' ? 'AI Workspace Status' : 'AI 工作台状态'}
-                  </p>
-                  <h3 className="mt-1 text-sm font-semibold leading-6">
-                    {templateAIStatusMeta.title}
-                  </h3>
-                </div>
-                <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${templateAIStatusMeta.badgeClass}`}>
-                  {templateAIStatusMeta.badgeLabel}
                 </span>
+                {templateFitRecommendedLabel ? (
+                  <span className={`rounded border px-2 py-1 text-xs font-medium ${
+                    templateFitShouldSuggestSwitch
+                      ? 'border-sky-200 bg-sky-50 text-sky-700'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  }`}>
+                    {locale === 'en' ? `Recommended: ${templateFitRecommendedLabel}` : `推荐：${templateFitRecommendedLabel}`}
+                  </span>
+                ) : null}
+                {!templateFitRecommendedLabel && templateFitAlternateLabel ? (
+                  <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600">
+                    {locale === 'en' ? `Alternative: ${templateFitAlternateLabel}` : `备选：${templateFitAlternateLabel}`}
+                  </span>
+                ) : null}
               </div>
-              <p className="mt-2 text-xs leading-5 text-current/90">
-                {templateAIStatusMeta.description}
-              </p>
-              <div className="mt-3 rounded-lg border border-current/15 bg-white/80 px-3 py-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-current/70">
-                  {locale === 'en' ? 'Current Provider' : '当前模型'}
-                </p>
-                <p className="mt-1 text-sm font-medium text-slate-900">
-                  {templateAIStatusMeta.providerSummary}
-                </p>
-              </div>
-              {(onShowAIAssistant || onShowAIConfig) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (templateAIStatusMeta.action === 'assistant') {
-                      onShowAIAssistant?.()
-                      return
-                    }
-                    onShowAIConfig?.()
-                  }}
-                  className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-800"
-                >
-                  <Bot className="h-4 w-4" />
-                  {templateAIStatusMeta.actionLabel}
-                </button>
-              )}
             </div>
-          </div>
-
-          <div className="mb-4">
-            <p className="text-sm font-semibold text-slate-900">
-              {locale === 'en' ? 'Choose one baseline template' : '选择一套基础模板'}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              {locale === 'en'
-                ? 'Keep the template count low and focus on recruiter readability.'
-                : '保留少量模板，优先保证招聘方阅读效率。'}
-            </p>
+            {templateFitReasons.length > 0 && (
+              <p className="mt-2 text-xs text-slate-500">
+                {templateFitReasons[0]}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -521,6 +389,39 @@ export default function TemplateSelector({
                 key={template.id}
                 template={template}
                 isSelected={currentTemplate === template.id}
+                fitVariant={
+                  template.id === templateFitRecommendedId
+                    ? 'recommended'
+                    : template.id === templateFitAlternateId
+                      ? 'alternate'
+                      : currentTemplate === template.id
+                        ? 'current'
+                        : null
+                }
+                fitSummary={
+                  template.id === templateFitRecommendedId
+                    ? (locale === 'zh'
+                        ? '当前内容与这套模板的匹配度最高。'
+                        : 'This template fits the current content best.')
+                    : template.id === templateFitAlternateId
+                      ? (locale === 'zh'
+                          ? '如果不想切得太激进，这套也适合作为备选。'
+                          : 'A milder fallback if you do not want to switch too aggressively.')
+                      : currentTemplate === template.id && templateFitShouldSuggestSwitch
+                        ? (locale === 'zh'
+                            ? '当前正在使用，但已有更匹配的模板可选。'
+                            : 'Currently in use, but a better-matched template is available.')
+                        : currentTemplate === template.id
+                          ? (locale === 'zh'
+                              ? '当前正在使用这套模板。'
+                              : 'This is the template currently in use.')
+                          : null
+                }
+                fitReasons={
+                  template.id === templateFitRecommendedId || template.id === templateFitAlternateId
+                    ? templateFitReasons
+                    : []
+                }
                 onClick={() => handleTemplateSelect(template)}
                 onPreview={() => setPreviewTemplate(template)}
               />

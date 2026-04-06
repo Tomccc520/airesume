@@ -175,6 +175,7 @@ export function ExperienceForm({
                     type="text"
                     value={exp.company}
                     onChange={(value) => updateItemField(exp.id, 'company', value)}
+                    fieldKey="experience-company"
                     placeholder={t.editor.experience.placeholders.company}
                   />
                   <FormField
@@ -231,6 +232,7 @@ export function ExperienceForm({
                   label={t.editor.experience.description_label}
                   value={formatLineItems(exp.description)}
                   onChange={(value) => updateItemField(exp.id, 'description', parseLineItems(value))}
+                  fieldKey="experience-description"
                   placeholder={t.editor.experience.placeholders.description}
                   minRows={4}
                   maxRows={12}

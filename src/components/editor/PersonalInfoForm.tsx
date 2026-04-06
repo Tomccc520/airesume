@@ -219,6 +219,7 @@ export function PersonalInfoForm({
           type="text"
           value={personalInfo.title}
           onChange={(value) => updateField('title', value)}
+          fieldKey="personal-title"
           placeholder={t.editor.personalInfo.placeholders.jobTitle}
         />
       </FormFieldGroup>
@@ -352,6 +353,7 @@ export function PersonalInfoForm({
         label={t.editor.personalInfo.summary}
         value={personalInfo.summary}
         onChange={(value) => updateField('summary', value)}
+        fieldKey="personal-summary"
         placeholder={t.editor.personalInfo.placeholders.summary}
         minRows={4}
         maxRows={12}

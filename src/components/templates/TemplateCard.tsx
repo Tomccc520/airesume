@@ -16,6 +16,9 @@ import { useLanguage } from '@/contexts/LanguageContext'
 interface TemplateCardProps {
   template: TemplateStyle
   isSelected: boolean
+  fitVariant?: 'recommended' | 'alternate' | 'current' | null
+  fitSummary?: string | null
+  fitReasons?: string[]
   onClick: () => void
   onPreview?: () => void
 }
@@ -27,6 +30,9 @@ interface TemplateCardProps {
 export default function TemplateCard({
   template,
   isSelected,
+  fitVariant = null,
+  fitSummary = null,
+  fitReasons = [],
   onClick,
   onPreview
 }: TemplateCardProps) {
@@ -255,9 +261,45 @@ export default function TemplateCard({
           'card-layout-executive': '商务双栏',
           'timeline-layout': '时间线紧凑',
           'timeline-layout-classic': '时间线资深'
-        }
+    }
     return toneMap[template.id] || (locale === 'en' ? 'General' : '通用')
   }
+
+  /**
+   * 获取模板匹配状态样式
+   * 将“推荐 / 备选 / 当前使用”统一成稳定的卡片提示语义。
+   */
+  const getTemplateFitMeta = () => {
+    if (fitVariant === 'recommended') {
+      return {
+        cardClass: 'border-sky-200 bg-sky-50/70',
+        badgeClass: 'border-sky-200 bg-white text-sky-700',
+        titleClass: 'text-sky-800',
+        bodyClass: 'text-sky-700',
+        label: locale === 'en' ? 'Best Match' : '最匹配'
+      }
+    }
+
+    if (fitVariant === 'alternate') {
+      return {
+        cardClass: 'border-amber-200 bg-amber-50/80',
+        badgeClass: 'border-amber-200 bg-white text-amber-700',
+        titleClass: 'text-amber-800',
+        bodyClass: 'text-amber-700',
+        label: locale === 'en' ? 'Fallback' : '备选'
+      }
+    }
+
+    return {
+      cardClass: 'border-slate-200 bg-slate-50',
+      badgeClass: 'border-slate-200 bg-white text-slate-600',
+      titleClass: 'text-slate-700',
+      bodyClass: 'text-slate-500',
+      label: locale === 'en' ? 'Current' : '当前'
+    }
+  }
+
+  const templateFitMeta = getTemplateFitMeta()
 
   return (
     <div
@@ -325,6 +367,27 @@ export default function TemplateCard({
           <span className="font-medium text-slate-500">{locale === 'en' ? 'Fit' : '适合人群'}: </span>
           {getTemplateDescription()}
         </div>
+
+        {fitSummary && (
+          <div className={`mt-3 rounded-lg border px-3 py-2.5 ${templateFitMeta.cardClass}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${templateFitMeta.badgeClass}`}>
+                {templateFitMeta.label}
+              </span>
+              {fitReasons.slice(0, 2).map((reason) => (
+                <span
+                  key={reason}
+                  className="rounded-full border border-white/70 bg-white/80 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                >
+                  {reason}
+                </span>
+              ))}
+            </div>
+            <p className={`mt-2 text-xs font-medium leading-5 ${templateFitMeta.titleClass}`}>
+              {fitSummary}
+            </p>
+          </div>
+        )}
 
         <div className="mt-3 flex items-center justify-between">
           {onPreview ? (

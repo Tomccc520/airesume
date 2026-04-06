@@ -673,7 +673,7 @@ export function SkillsForm({
       </div>
 
       {/* 批量输入：减少逐条添加的操作负担 */}
-      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4" data-editor-field-key="skills-batch-input">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Plus className="w-4 h-4 text-blue-600" />
@@ -1021,7 +1021,7 @@ export function SkillsForm({
                 onToggle={() => toggleSkillExpand(skill.id)}
                 dragHandle={<GripVertical className="w-5 h-5 text-gray-400 cursor-grab active:cursor-grabbing mr-2" />}
               >
-                <div className="space-y-4">
+      <div className="space-y-4" data-editor-field-key="skills-list">
                   <FormFieldGroup>
                     <FormField
                       label={t.editor.skills.name}

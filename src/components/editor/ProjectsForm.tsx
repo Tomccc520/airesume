@@ -196,6 +196,7 @@ export function ProjectsForm({
                   label={t.editor.projects.description_label}
                   value={project.description}
                   onChange={(value) => updateItemField(project.id, 'description', value)}
+                  fieldKey="project-description"
                   placeholder={t.editor.projects.placeholders.description}
                   minRows={3}
                   maxRows={10}
@@ -234,6 +235,7 @@ export function ProjectsForm({
                   type="text"
                   value={formatTagItems(project.technologies)}
                   onChange={(value) => updateItemField(project.id, 'technologies', parseTagItems(value))}
+                  fieldKey="project-technologies"
                   placeholder={t.editor.projects.placeholders.technologies}
                 />
 
@@ -242,6 +244,7 @@ export function ProjectsForm({
                   label={t.editor.projects.highlights}
                   value={formatLineItems(project.highlights)}
                   onChange={(value) => updateItemField(project.id, 'highlights', parseLineItems(value))}
+                  fieldKey="project-highlights"
                   placeholder={t.editor.projects.placeholders.highlights}
                   minRows={3}
                   maxRows={10}

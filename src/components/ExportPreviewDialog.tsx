@@ -9,29 +9,23 @@
 
 'use client'
 
-import { useMemo, useState } from 'react'
-import { X, Download, FileText, Image, File, Bot } from 'lucide-react'
+import { useState } from 'react'
+import { X, Download, FileText, Image, File } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useToastContext } from '@/components/Toast'
-import {
-  getAIProviderSummary,
-  getAIWorkbenchAction,
-  getAIWorkbenchActionLabel,
-  getAIWorkbenchBadgeLabel,
-  getAIWorkbenchStatusKey,
-  getAIWorkbenchToneMeta
-} from '@/domain/ai/aiStatusPresentation'
-import { useAIConfigStatus } from '@/hooks/useAIConfigStatus'
 
 interface ExportPreviewDialogProps {
   isOpen: boolean
   onClose: () => void
   onExport: (format: 'pdf' | 'png' | 'jpg' | 'json') => void | Promise<void>
   resumeName: string
+  templateFitTitle?: string | null
+  templateFitDescription?: string | null
+  templateFitReasons?: string[]
+  templateFitRecommendedLabel?: string | null
+  templateFitShouldSuggestSwitch?: boolean
   onOptionsChange?: (options: { margin: number; showPageBreaks: boolean; paper: 'a4' | 'letter' }) => void
-  onShowAIAssistant?: () => void
-  onShowAIConfig?: () => void
 }
 
 export default function ExportPreviewDialog({
@@ -39,9 +33,12 @@ export default function ExportPreviewDialog({
   onClose,
   onExport,
   resumeName,
-  onOptionsChange,
-  onShowAIAssistant,
-  onShowAIConfig
+  templateFitTitle,
+  templateFitDescription,
+  templateFitReasons = [],
+  templateFitRecommendedLabel,
+  templateFitShouldSuggestSwitch = false,
+  onOptionsChange
 }: ExportPreviewDialogProps) {
   const { t, locale } = useLanguage()
   const { error: showError } = useToastContext()
@@ -51,7 +48,6 @@ export default function ExportPreviewDialog({
   const [showPageBreaks, setShowPageBreaks] = useState(true)
   const [paper, setPaper] = useState<'a4' | 'letter'>('a4')
   const [errorMessage, setErrorMessage] = useState('')
-  const aiConfigStatus = useAIConfigStatus()
 
   const formats = [
     {
@@ -147,77 +143,6 @@ export default function ExportPreviewDialog({
   }
 
   /**
-   * 获取导出弹窗顶部的 AI 状态摘要
-   * 在正式导出前明确提示“是否值得先回去做 AI 打磨”，避免用户在弹层里失去上下文。
-   */
-  const exportAIStatusMeta = useMemo(() => {
-    const statusKey = getAIWorkbenchStatusKey(aiConfigStatus)
-    const { toneClass, badgeClass } = getAIWorkbenchToneMeta(statusKey)
-    const badgeLabel = getAIWorkbenchBadgeLabel(statusKey, locale)
-    const actionLabel = getAIWorkbenchActionLabel(statusKey, locale)
-    const action = getAIWorkbenchAction(statusKey)
-    const providerSummary = getAIProviderSummary(aiConfigStatus, locale)
-
-    if (statusKey === 'ready') {
-      return {
-        toneClass,
-        badgeClass,
-        badgeLabel,
-        title: locale === 'zh' ? '当前可先导出，也可先做最后一轮 AI 打磨' : 'Export now or run one last AI polish first',
-        description: locale === 'zh'
-          ? '当前 AI 已验证通过。如果还要优化表达、JD 匹配或内容精炼，可以先回到 AI 工作台再导出。'
-          : 'AI is ready. If you still want polishing, JD matching, or wording refinement, return to AI before export.',
-        actionLabel,
-        action,
-        providerSummary
-      }
-    }
-
-    if (statusKey === 'needsValidation') {
-      return {
-        toneClass,
-        badgeClass,
-        badgeLabel,
-        title: locale === 'zh' ? '当前可以直接导出，但 AI 仍待验证' : 'You can export now, but AI still needs validation',
-        description: locale === 'zh'
-          ? '导出链路不受影响；如果还要继续用 AI 优化，建议先完成一次验证。'
-          : 'Export is not blocked. Validate AI first if you still want to optimize content.',
-        actionLabel: locale === 'zh' ? '去验证 AI' : actionLabel,
-        action,
-        providerSummary
-      }
-    }
-
-    if (statusKey === 'needsConfig') {
-      return {
-        toneClass,
-        badgeClass,
-        badgeLabel,
-        title: locale === 'zh' ? '导出可继续，AI 仍待配置' : 'Export stays available while AI still needs setup',
-        description: locale === 'zh'
-          ? '当前可以先导出结果；如果还需要智能优化和生成，建议补齐 AI 配置。'
-          : 'You can export first. Finish AI setup later if you still need optimize and generate.',
-        actionLabel: locale === 'zh' ? '去配置 AI' : 'Setup AI',
-        action,
-        providerSummary
-      }
-    }
-
-    return {
-      toneClass,
-      badgeClass,
-      badgeLabel,
-      title: locale === 'zh' ? '导出不受影响，AI 当前处于停用状态' : 'Export is unaffected while AI stays disabled',
-      description: locale === 'zh'
-        ? '当前可以直接导出，如需智能优化，可先重新启用 AI。'
-        : 'You can export directly. Re-enable AI first if you want further optimization.',
-      actionLabel,
-      action,
-      providerSummary
-    }
-  }, [aiConfigStatus, locale])
-
-  /**
    * 执行导出
    * 在导出前同步当前选项，并将失败信息收敛到站内提示，不再静默失败。
    */
@@ -292,7 +217,7 @@ export default function ExportPreviewDialog({
               </p>
             </div>
 
-            <div className="mb-6 grid gap-3 xl:grid-cols-3">
+            <div className="mb-6 grid gap-3 xl:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
                   {locale === 'zh' ? '导出工作流' : 'Export Workflow'}
@@ -320,50 +245,38 @@ export default function ExportPreviewDialog({
                     : (locale === 'zh' ? '图片和 JSON 更适合展示、分享或备份。' : 'Images and JSON are better for sharing, display, or backup.')}
                 </p>
               </div>
-
-              <div className={`rounded-xl border p-4 ${exportAIStatusMeta.toneClass}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-current/70">
-                      {locale === 'zh' ? '导出前 AI 状态' : 'AI Before Export'}
-                    </p>
-                    <h4 className="mt-2 text-base font-semibold leading-6">
-                      {exportAIStatusMeta.title}
-                    </h4>
-                  </div>
-                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${exportAIStatusMeta.badgeClass}`}>
-                    {exportAIStatusMeta.badgeLabel}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-current/90">
-                  {exportAIStatusMeta.description}
-                </p>
-                <div className="mt-3 rounded-lg border border-current/15 bg-white/80 px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-current/70">
-                    {locale === 'zh' ? '当前模型' : 'Current Provider'}
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-slate-900">
-                    {exportAIStatusMeta.providerSummary}
-                  </p>
-                </div>
-                {(onShowAIAssistant || onShowAIConfig) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (exportAIStatusMeta.action === 'assistant') {
-                        onShowAIAssistant?.()
-                        return
-                      }
-                      onShowAIConfig?.()
-                    }}
-                    className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-800"
-                  >
-                    <Bot className="h-4 w-4" />
-                    {exportAIStatusMeta.actionLabel}
-                  </button>
-                )}
-              </div>
             </div>
+
+            {templateFitTitle && templateFitDescription && (
+              <div className={`mb-6 rounded-xl border px-4 py-4 ${
+                templateFitShouldSuggestSwitch
+                  ? 'border-sky-200 bg-sky-50'
+                  : 'border-emerald-200 bg-emerald-50'
+              }`}>
+                <p className={`text-[11px] font-semibold uppercase tracking-[0.08em] ${
+                  templateFitShouldSuggestSwitch ? 'text-sky-700' : 'text-emerald-700'
+                }`}>
+                  {locale === 'en' ? 'Template Fit' : '模板建议'}
+                </p>
+                <p className={`mt-2 text-sm font-semibold ${
+                  templateFitShouldSuggestSwitch ? 'text-sky-800' : 'text-emerald-800'
+                }`}>
+                  {templateFitTitle}
+                </p>
+                <p className={`mt-1 text-sm leading-6 ${
+                  templateFitShouldSuggestSwitch ? 'text-sky-700' : 'text-emerald-700'
+                }`}>
+                  {templateFitDescription}
+                </p>
+                {templateFitRecommendedLabel || templateFitReasons.length > 0 ? (
+                  <p className="mt-2 text-xs text-slate-600">
+                    {templateFitRecommendedLabel
+                      ? `${locale === 'en' ? 'Recommended: ' : '推荐：'}${templateFitRecommendedLabel}`
+                      : templateFitReasons[0]}
+                  </p>
+                ) : null}
+              </div>
+            )}
 
             {/* 格式选择 */}
             <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">

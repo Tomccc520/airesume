@@ -120,6 +120,7 @@ export function EducationForm({
                     type="text"
                     value={edu.school}
                     onChange={(value) => updateItemField(edu.id, 'school', value)}
+                    fieldKey="education-school"
                     placeholder={t.editor.education.placeholders.school}
                   />
                   <FormField
@@ -168,6 +169,7 @@ export function EducationForm({
                   label={t.editor.education.description_label}
                   value={edu.description || ''}
                   onChange={(value) => updateItemField(edu.id, 'description', value)}
+                  fieldKey="education-description"
                   placeholder={t.editor.education.placeholders.description}
                   minRows={3}
                   maxRows={8}

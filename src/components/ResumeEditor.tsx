@@ -11,9 +11,9 @@
 
 'use client'
 
-import React, { useState, useCallback, useMemo, memo } from 'react'
+import React, { useState, useCallback, useMemo, memo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Sparkles, Target } from 'lucide-react'
 import { ResumeData, Experience, Skill, PersonalInfo, Education, Project } from '../types/resume'
 import { PersonalInfoForm } from './editor/PersonalInfoForm'
 import { ExperienceForm } from './editor/ExperienceForm'
@@ -24,8 +24,12 @@ import { useToastContext } from '@/components/Toast'
 import { EditorSidebar } from './editor/EditorSidebar'
 import { EditorHeader } from './editor/EditorHeader'
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts'
+import { useChecklistCompletionFeedback } from '@/hooks/useChecklistCompletionFeedback'
 import { navigationItems } from '@/data/navigation'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { ResumeSectionId } from '@/utils/resumeCompleteness'
+import { getOptimizeSectionInsight } from '@/domain/editor/optimizeSectionInsights'
+import { EditorFieldKey, getPrimaryEditorFieldGuidance } from '@/domain/editor/editorFieldGuidance'
 
 type AIAssistantType = 'summary' | 'experience' | 'skills' | 'education' | 'projects'
 
@@ -53,6 +57,45 @@ const sectionAnimationVariants = {
 const sectionAnimationTransition = { duration: 0.2 }
 
 /**
+ * 规范化编辑器模块
+ * 将外部传入的字符串 section 收敛到编辑器支持的固定模块。
+ */
+function normalizeEditorSection(section: string): ResumeSectionId {
+  if (
+    section === 'personal' ||
+    section === 'experience' ||
+    section === 'education' ||
+    section === 'skills' ||
+    section === 'projects'
+  ) {
+    return section
+  }
+  return 'personal'
+}
+
+/**
+ * 将编辑器模块映射为 AI 内容模块
+ * 个人信息模块在 AI 优化里归为 summary。
+ */
+function mapEditorSectionToInsightSection(section: ResumeSectionId) {
+  return section === 'personal' ? 'summary' : section
+}
+
+/**
+ * 获取诊断徽标样式
+ * 统一编辑区提示卡里的信号标签色阶。
+ */
+function getGuidanceBadgeClass(tone: 'positive' | 'neutral' | 'warning'): string {
+  if (tone === 'positive') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  }
+  if (tone === 'warning') {
+    return 'border-amber-200 bg-amber-50 text-amber-700'
+  }
+  return 'border-slate-200 bg-white text-slate-600'
+}
+
+/**
  * 简历编辑器组件
  * 提供简历内容编辑功能，包含导航、表单和样式设置
  * 支持全局快捷键操作
@@ -72,9 +115,16 @@ function ResumeEditorComponent({
   hideNavigation = false
 }: ResumeEditorProps) {
   const [showSectionModal, setShowSectionModal] = useState(false)
+  const [pendingFieldFocus, setPendingFieldFocus] = useState<EditorFieldKey | null>(null)
+  const [showGuidanceChecklist, setShowGuidanceChecklist] = useState(false)
+  const editorRootRef = useRef<HTMLDivElement>(null)
   
   const { success: showToast } = useToastContext()
-  const { t } = useLanguage()
+  const { t, locale } = useLanguage()
+  const normalizedActiveSection = useMemo(
+    () => normalizeEditorSection(activeSection),
+    [activeSection]
+  )
 
   // 使用 useMemo 缓存导航项翻译，避免每次渲染都重新计算
   const translatedNavigationItems = useMemo(() => navigationItems.map(item => {
@@ -136,6 +186,81 @@ function ResumeEditorComponent({
     return 'summary'
   }, [])
 
+  /**
+   * 聚焦编辑字段
+   * 通过字段锚点滚动并短暂高亮目标区域，缩短从诊断到编辑的路径。
+   */
+  const focusEditorField = useCallback((fieldKey: EditorFieldKey) => {
+    const target = editorRootRef.current?.querySelector<HTMLElement>(`[data-editor-field-key="${fieldKey}"]`)
+    if (!target) {
+      return false
+    }
+
+    const scrollContainer = target.closest<HTMLElement>('[data-editor-scroll-area="true"]')
+    if (scrollContainer) {
+      const containerRect = scrollContainer.getBoundingClientRect()
+      const targetRect = target.getBoundingClientRect()
+      const nextTop = scrollContainer.scrollTop + (targetRect.top - containerRect.top) - 20
+
+      scrollContainer.scrollTo({
+        top: Math.max(nextTop, 0),
+        behavior: 'smooth'
+      })
+    } else {
+      target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      })
+    }
+
+    target.classList.add(
+      'ring-2',
+      'ring-sky-300',
+      'ring-offset-4',
+      'ring-offset-white',
+      'rounded-2xl',
+      'bg-amber-50'
+    )
+
+    const primaryFocusable =
+      target.querySelector<HTMLElement>('input, textarea, select') ||
+      target.querySelector<HTMLElement>('button')
+    window.setTimeout(() => {
+      primaryFocusable?.focus()
+    }, 160)
+
+    window.setTimeout(() => {
+      target.classList.remove(
+        'ring-2',
+        'ring-sky-300',
+        'ring-offset-4',
+        'ring-offset-white',
+        'rounded-2xl',
+        'bg-amber-50'
+      )
+    }, 2200)
+    return true
+  }, [])
+
+  /**
+   * 处理跨区域字段聚焦请求
+   * 预览区、AI 面板和移动端诊断会通过事件把 section 与 fieldKey 传入编辑器。
+   */
+  const handleSwitchToEditor = useCallback((event: CustomEvent<{ section: string; fieldKey?: EditorFieldKey }>) => {
+    const { section, fieldKey } = event.detail
+    onSectionChange(section)
+
+    if (!fieldKey) {
+      return
+    }
+
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setShowSectionModal(true)
+    }
+
+    setPendingFieldFocus(fieldKey)
+  }, [onSectionChange])
+
   // 保存功能
   const handleSave = useCallback(() => {
     // 保存到本地存储
@@ -152,17 +277,53 @@ function ResumeEditorComponent({
 
   // 监听预览区域的点击事件
   React.useEffect(() => {
-    const handleSwitchToEditor = (event: CustomEvent) => {
-      const { section } = event.detail
-      onSectionChange(section)
-    }
-
     window.addEventListener('switchToEditor', handleSwitchToEditor as EventListener)
     
     return () => {
       window.removeEventListener('switchToEditor', handleSwitchToEditor as EventListener)
     }
-  }, [onSectionChange])
+  }, [handleSwitchToEditor])
+
+  /**
+   * 消费待聚焦字段
+   * 等待模块切换和移动端弹窗完成渲染后，再执行真实滚动与高亮。
+   */
+  React.useEffect(() => {
+    if (!pendingFieldFocus) {
+      return
+    }
+
+    if (typeof window !== 'undefined' && window.innerWidth < 768 && !showSectionModal) {
+      return
+    }
+
+    let isCancelled = false
+    let attempt = 0
+
+    const tryFocusField = () => {
+      if (isCancelled) {
+        return
+      }
+
+      const focused = focusEditorField(pendingFieldFocus)
+      if (focused) {
+        setPendingFieldFocus(null)
+        return
+      }
+
+      attempt += 1
+      if (attempt < 6) {
+        window.setTimeout(tryFocusField, 120)
+      }
+    }
+
+    const timer = window.setTimeout(tryFocusField, 120)
+
+    return () => {
+      isCancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [focusEditorField, pendingFieldFocus, showSectionModal])
 
   // 获取当前导航项索引 - 使用 useMemo 缓存
   const currentIndex = useMemo(() => 
@@ -190,6 +351,191 @@ function ResumeEditorComponent({
   const handleProjectsChange = useCallback((data: Project[]) => {
     onUpdateResumeData({ ...resumeData, projects: data })
   }, [resumeData, onUpdateResumeData])
+
+  const activeSectionInsight = useMemo(
+    () => getOptimizeSectionInsight(mapEditorSectionToInsightSection(normalizedActiveSection), resumeData, locale === 'zh' ? 'zh' : 'en'),
+    [locale, normalizedActiveSection, resumeData]
+  )
+  const activeFieldGuidance = useMemo(
+    () => getPrimaryEditorFieldGuidance(normalizedActiveSection, activeSectionInsight.primaryGapLabel, locale === 'zh' ? 'zh' : 'en'),
+    [activeSectionInsight.primaryGapLabel, locale, normalizedActiveSection]
+  )
+  const recentlyCompletedChecklistKeys = useChecklistCompletionFeedback(
+    normalizedActiveSection,
+    activeSectionInsight.checklist
+  )
+  const supportsAIAssistant = normalizedActiveSection !== 'education'
+
+  /**
+   * 模块切换时重置清单展开态
+   * 避免上一模块展开的清单影响当前模块的首屏密度。
+   */
+  React.useEffect(() => {
+    setShowGuidanceChecklist(false)
+  }, [normalizedActiveSection])
+
+  /**
+   * 生成最新完成反馈文案
+   * 当用户刚补齐关键内容时，在编辑诊断卡里给出短暂成功提示。
+   */
+  const recentCompletionSummary = useMemo(() => {
+    if (recentlyCompletedChecklistKeys.length === 0) {
+      return null
+    }
+
+    const completedLabels = activeSectionInsight.checklist
+      .filter((item) => recentlyCompletedChecklistKeys.includes(item.key))
+      .map((item) => item.label)
+
+    if (completedLabels.length === 0) {
+      return null
+    }
+
+    if (locale === 'zh') {
+      return completedLabels.length === 1
+        ? `已补齐：${completedLabels[0]}`
+        : `刚完成 ${completedLabels.length} 项：${completedLabels.join('、')}`
+    }
+
+    return completedLabels.length === 1
+      ? `Completed: ${completedLabels[0]}`
+      : `Completed ${completedLabels.length} checklist items`
+  }, [activeSectionInsight.checklist, locale, recentlyCompletedChecklistKeys])
+
+  /**
+   * 聚焦当前模块建议字段
+   * 让编辑区顶部诊断卡可以直接跳到最值得先补的字段。
+   */
+  const handleJumpToSuggestedField = useCallback(() => {
+    focusEditorField(activeFieldGuidance.fieldKey)
+  }, [activeFieldGuidance.fieldKey, focusEditorField])
+
+  const editorGuidanceCard = useMemo(() => (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+              recentCompletionSummary
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : activeSectionInsight.shouldEditFirst
+                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                  : 'border-slate-200 bg-white text-slate-600'
+            }`}>
+              {recentCompletionSummary
+                ? (locale === 'zh' ? '刚完成' : 'Done')
+                : activeSectionInsight.shouldEditFirst
+                  ? (locale === 'zh' ? '待补内容' : 'Need Edit')
+                  : (locale === 'zh' ? '可继续优化' : 'Ready')}
+            </span>
+            {activeSectionInsight.signalBadges.slice(0, 2).map((badge) => (
+              <span
+                key={`${normalizedActiveSection}-${badge.key}`}
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${getGuidanceBadgeClass(badge.tone)}`}
+              >
+                <span>{badge.label}</span>
+                <span>{badge.value}</span>
+              </span>
+            ))}
+          </div>
+          <p className="mt-2 text-sm leading-6 text-slate-700">
+            {recentCompletionSummary
+              || (activeSectionInsight.shouldEditFirst
+                ? activeFieldGuidance.description
+                : activeSectionInsight.coachingHint)}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleJumpToSuggestedField}
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-slate-800"
+          >
+            <Target className="h-3.5 w-3.5" />
+            {activeFieldGuidance.label}
+          </button>
+          {supportsAIAssistant && (
+            <button
+              type="button"
+              onClick={() => openAIAssistant(normalizeAssistantType(mapEditorSectionToInsightSection(normalizedActiveSection)))}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {locale === 'zh' ? 'AI 优化' : 'AI Optimize'}
+            </button>
+          )}
+          {activeSectionInsight.checklist.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowGuidanceChecklist((current) => !current)}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50"
+            >
+              <span>
+                {locale === 'zh'
+                  ? `清单 ${activeSectionInsight.checklist.filter((item) => item.completed).length}/${activeSectionInsight.checklist.length}`
+                  : `Checklist ${activeSectionInsight.checklist.filter((item) => item.completed).length}/${activeSectionInsight.checklist.length}`}
+              </span>
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showGuidanceChecklist ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showGuidanceChecklist && activeSectionInsight.checklist.length > 0 && (
+        <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-3">
+          <div className="grid gap-2">
+            {activeSectionInsight.checklist.map((item) => {
+              const isRecentlyCompleted = recentlyCompletedChecklistKeys.includes(item.key)
+
+              return (
+                <div
+                  key={`${normalizedActiveSection}-${item.key}`}
+                  className={`flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors ${
+                    isRecentlyCompleted ? 'bg-emerald-50/80' : ''
+                  }`}
+                >
+                  <span
+                    className={`mt-1 inline-block h-2.5 w-2.5 rounded-full ${item.completed ? 'bg-emerald-500' : 'bg-amber-400'}`}
+                  />
+                  <div className="min-w-0">
+                    <p className={`flex flex-wrap items-center gap-2 text-xs font-medium ${item.completed ? 'text-emerald-700' : 'text-slate-700'}`}>
+                      <span>{item.label}</span>
+                      {isRecentlyCompleted && (
+                        <span className="rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
+                          {locale === 'zh' ? '刚完成' : 'Just Done'}
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-[11px] leading-5 text-slate-500">
+                      {item.detail}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  ), [
+    activeFieldGuidance.description,
+    activeFieldGuidance.label,
+    activeSectionInsight.checklist,
+    activeSectionInsight.shouldEditFirst,
+    activeSectionInsight.signalBadges,
+    activeSectionInsight.coachingHint,
+    handleJumpToSuggestedField,
+    locale,
+    normalizeAssistantType,
+    normalizedActiveSection,
+    openAIAssistant,
+    recentCompletionSummary,
+    recentlyCompletedChecklistKeys,
+    showGuidanceChecklist,
+    setShowGuidanceChecklist,
+    supportsAIAssistant
+  ])
 
   // 处理上一步/下一步 - 使用 useCallback 优化
   const handlePrevious = useCallback(() => {
@@ -292,7 +638,7 @@ function ResumeEditorComponent({
   }, [activeSection, activeSectionContent])
 
   return (
-    <div className={`${hideNavigation ? '' : 'h-full'} flex flex-col bg-white/50 backdrop-blur-sm`}>
+    <div ref={editorRootRef} className={`${hideNavigation ? '' : 'h-full'} flex flex-col bg-white/50 backdrop-blur-sm`}>
       {/* 标题栏 - 三栏模式下隐藏 */}
       {!hideNavigation && (
         <EditorHeader 
@@ -326,8 +672,14 @@ function ResumeEditorComponent({
           </div>
 
           {/* 桌面端内联编辑 */}
-          <div className={`hidden md:block flex-1 ${hideNavigation ? 'px-6 py-5' : 'px-8 py-6'} ${hideNavigation ? '' : 'overflow-y-auto custom-scrollbar'}`}>
+          <div
+            data-editor-scroll-area="true"
+            className={`hidden md:block flex-1 ${hideNavigation ? 'px-6 py-5' : 'px-8 py-6'} ${hideNavigation ? '' : 'overflow-y-auto custom-scrollbar'}`}
+          >
             <div className={hideNavigation ? '' : 'max-w-3xl'}>
+              <div className="mb-5">
+                {editorGuidanceCard}
+              </div>
               {renderActiveSection()}
             </div>
             
@@ -400,7 +752,10 @@ function ResumeEditorComponent({
                   ×
                 </button>
               </div>
-              <div className="p-3 max-h-[70vh] overflow-y-auto">
+              <div data-editor-scroll-area="true" className="p-3 max-h-[70vh] overflow-y-auto">
+                <div className="mb-4">
+                  {editorGuidanceCard}
+                </div>
                 {renderActiveSection()}
               </div>
             </motion.div>
