@@ -333,6 +333,7 @@ export default function TemplateSelector({
           </div>
           <Button
             onClick={onClose}
+            aria-label={locale === 'en' ? 'Close template selector' : '关闭模板选择器'}
             variant="ghost"
             size="icon"
             className="rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"

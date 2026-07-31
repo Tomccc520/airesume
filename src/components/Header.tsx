@@ -186,10 +186,10 @@ export default function Header() {
             </span>
             <div className="min-w-0">
               <div className="text-base font-semibold text-slate-900">
-                {locale === 'zh' ? '简历助手' : 'Resume Builder'}
+                UIED Resume
               </div>
               <div className="hidden text-xs text-slate-500 md:block">
-                {locale === 'zh' ? '招聘投递与 AI 简历工作台' : 'Resume workspace for application delivery'}
+                {locale === 'zh' ? '开源 AI 简历工作台' : 'Open-source AI resume workspace'}
               </div>
             </div>
           </Link>
@@ -265,10 +265,10 @@ export default function Header() {
 
           <div className="flex items-center gap-2">
             <Link
-              href="https://github.com/Tomccc520/uied-resume"
+              href="https://github.com/Tomccc520/airesume"
               target="_blank"
               rel="noopener noreferrer"
-              className="app-shell-action-button hidden sm:inline-flex"
+              className="hidden items-center justify-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 sm:inline-flex"
             >
               <Github className="h-4 w-4" />
               <span>Star</span>
@@ -354,7 +354,7 @@ export default function Header() {
                 <span>{t.common.language}</span>
               </button>
               <Link
-                href="https://github.com/Tomccc520/uied-resume"
+                href="https://github.com/Tomccc520/airesume"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="app-shell-action-button"

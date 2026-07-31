@@ -1677,7 +1677,7 @@ export function ImportExportDialog({
                                           ? 'border-slate-900 bg-slate-900 text-white'
                                           : 'border-slate-300 bg-white text-transparent'
                                       }`}>
-                                        ✓
+                                        <Check className="h-3.5 w-3.5" aria-hidden="true" />
                                       </span>
                                       <div>
                                         <p className="text-sm font-semibold text-slate-900">导入简历内容</p>
@@ -1736,7 +1736,7 @@ export function ImportExportDialog({
                                           ? 'border-slate-900 bg-slate-900 text-white'
                                           : 'border-slate-300 bg-white text-transparent'
                                       }`}>
-                                        ✓
+                                        <Check className="h-3.5 w-3.5" aria-hidden="true" />
                                       </span>
                                       <div>
                                         <p className="text-sm font-semibold text-slate-900">导入样式设置</p>
@@ -1767,7 +1767,7 @@ export function ImportExportDialog({
                                           ? 'border-slate-900 bg-slate-900 text-white'
                                           : 'border-slate-300 bg-white text-transparent'
                                       }`}>
-                                        ✓
+                                        <Check className="h-3.5 w-3.5" aria-hidden="true" />
                                       </span>
                                       <div>
                                         <p className="text-sm font-semibold text-slate-900">导入自定义配色</p>

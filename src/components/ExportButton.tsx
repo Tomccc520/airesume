@@ -73,16 +73,6 @@ export default function ExportButton({
   templateFitShouldSuggestSwitch = false,
   onExport
 }: ExportButtonProps) {
-  /**
-   * 导出调试日志
-   * 仅在开发环境输出，避免生产环境产生噪音日志
-   */
-  const logExportDebug = useCallback((...args: unknown[]) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(...args)
-    }
-  }, [])
-
   const { t, locale } = useLanguage()
   const [isOpen, setIsOpen] = useState(false)
   const [isExporting, setIsExporting] = useState<'pdf' | 'png' | 'jpg' | null>(null)
@@ -128,11 +118,6 @@ export default function ExportButton({
       throw new Error('找不到简历预览元素 #resume-preview')
     }
 
-    logExportDebug('[导出调试] 找到元素:', element)
-    logExportDebug('[导出调试] 元素尺寸:', element.getBoundingClientRect())
-    logExportDebug('[导出调试] 内容长度:', element.innerHTML.length)
-    logExportDebug('[导出调试] 子元素数量:', element.children.length)
-
     // 检查元素是否真的有内容
     if (element.innerHTML.length === 0) {
       throw new Error('简历预览元素是空的，请先添加简历内容')
@@ -141,18 +126,15 @@ export default function ExportButton({
     await exportResumeFile({
       format,
       element,
-      fileName: `resume.${format}`,
-      logger: logExportDebug
+      fileName: `resume.${format}`
     })
-  }, [logExportDebug])
+  }, [])
 
   /**
    * 处理导出 - 支持PDF、PNG、JPG格式
    */
   const handleExport = useCallback(async (format: 'pdf' | 'png' | 'jpg') => {
     if (isExporting) return
-
-    logExportDebug('[导出调试] 开始导出:', format)
 
     setIsExporting(format)
     setExportStatus(null)
@@ -174,7 +156,7 @@ export default function ExportButton({
       setIsExporting(null)
       scheduleClosePanel()
     }
-  }, [isExporting, logExportDebug, onExport, defaultExport, t.editor.toolbar.exportSuccess, t.editor.toolbar.exportFailed, scheduleClosePanel])
+  }, [isExporting, onExport, defaultExport, t.editor.toolbar.exportSuccess, t.editor.toolbar.exportFailed, scheduleClosePanel])
 
   /**
    * 获取导出选项

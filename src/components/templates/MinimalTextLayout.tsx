@@ -189,6 +189,7 @@ export const MinimalTextLayout: React.FC<TemplateProps> = ({
                   width={metrics.headerAvatarSize}
                   height={metrics.headerAvatarSize}
                   unoptimized
+                  priority
                   className={getAvatarClassName(styleConfig, 'h-[72px] w-[72px]')}
                   style={{
                     ...getAvatarInlineStyle(

@@ -297,6 +297,7 @@ export default function EditorAdvancedPanel({
             <button
               type="button"
               onClick={onClose}
+              aria-label={locale === 'zh' ? '关闭高级工具' : 'Close advanced tools'}
               className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
             >
               <X className="h-5 w-5" />

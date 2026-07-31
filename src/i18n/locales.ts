@@ -321,7 +321,7 @@ export const zh: Translations = {
       apiKey: 'API密钥',
       apiKeyPlaceholder: '请输入您的API密钥',
       apiKeyAutoConfigured: '已自动配置免费模型密钥',
-      apiKeyLocalStorage: 'API密钥将安全存储在本地，不会上传到服务器',
+      apiKeyLocalStorage: 'API 密钥仅保存在本地；调用 AI 时会经站内代理转发，不在本站服务端持久化',
       freeModelConfigured: '免费模型已预配置，无需手动输入API密钥',
       apiEndpoint: 'API端点',
       modelSelect: '模型选择',
@@ -476,10 +476,10 @@ export const zh: Translations = {
       ai: {
         tag: '智能引擎',
         title: 'AI 深度内容分析',
-        desc: '内置大语言模型引擎，像资深 HR 一样审视您的简历。深度分析关键词匹配度，提供针对性的优化建议，显著提升通过率。',
-        list1: '多维度评分与竞争力分析',
-        list2: '基于 ATS 规则的关键词优化',
-        list3: '智能生成专业工作描述'
+        desc: '连接您选择的大模型服务商，为简介、经历和技能生成多版改写候选，并在应用前提供质量排序与原文对比。',
+        list1: '分模块生成多版改写候选',
+        list2: 'JD 关键词匹配与差距分析',
+        list3: '应用前对比，写回结果可确认'
       },
       realtime: {
         tag: '极速内核',
@@ -491,15 +491,15 @@ export const zh: Translations = {
       export: {
         tag: '标准输出',
         title: '标准化格式导出',
-        desc: '不仅仅是生成 PDF。我们生成符合 ATS 标准的结构化文档，确保您的简历内容能被各大招聘平台精准识别和解析。',
-        list1: '高保真 PDF 矢量导出',
-        list2: 'ATS 友好型排版结构'
+        desc: '按照 A4 页面生成高保真 PDF，也可导出 PNG 或 JPG，便于在线投递、打印和留档。',
+        list1: 'PDF、PNG 与 JPG 多格式导出',
+        list2: 'A4 分页与导出前预览'
       },
       privacy: {
         tag: '隐私至上',
         title: '本地数据隐私保护',
-        desc: '我们深知隐私的重要性。所有简历数据均加密存储在您的本地浏览器中，绝不上传至云端服务器，真正做到数据完全掌控。',
-        list1: '端到端本地加密，无云端交互',
+        desc: '简历编辑数据默认保存在当前浏览器。仅当您主动使用 AI 时，相关文本会经站内代理发送给所选模型服务商，本站服务端不做持久化保存。',
+        list1: '本地优先存储，AI 调用边界透明',
         list2: '自动保存机制，防止意外丢失'
       }
     },
@@ -513,10 +513,10 @@ export const zh: Translations = {
     faq: {
       title: '常见问题',
       desc: '快速了解我们的产品',
-      q1: '这个工具完全免费吗？', a1: '是的，我们的简历制作工具完全免费使用，包括所有模板和AI优化功能。',
-      q2: '我的数据安全吗？', a2: '您的数据完全存储在本地浏览器中，我们不会上传或存储您的任何个人信息，100%保护您的隐私。',
-      q3: '支持哪些导出格式？', a3: '目前支持PDF和Word格式导出，未来会添加更多格式支持。',
-      q4: 'AI优化功能如何使用？', a4: '在编辑简历时，点击任意文本框旁的"AI优化"按钮，系统会自动为您优化内容，让简历更专业。',
+      q1: '这个工具完全免费吗？', a1: '编辑、模板和导出可免费使用；AI 是否产生费用取决于所选模型服务商，内置免费模型会受服务额度和可用性限制。',
+      q2: '我的数据安全吗？', a2: '简历数据默认保存在当前浏览器；主动使用 AI 时，相关文本会经站内代理发送给所选模型服务商，本站服务端不做持久化保存。',
+      q3: '支持哪些导出格式？', a3: '目前支持 PDF、PNG 和 JPG 导出，高级工具中还可进行 JSON 数据备份与恢复。',
+      q4: 'AI优化功能如何使用？', a4: '进入编辑器后，从顶部 AI 入口选择要优化的模块，生成候选后可先对比原文，再确认应用到简历。',
       q5: '可以保存多份简历吗？', a5: '可以的，您可以保存多份简历，并随时加载和编辑它们。'
     },
     cta: {
@@ -924,7 +924,7 @@ export const en: Translations = {
       apiKey: 'API Key',
       apiKeyPlaceholder: 'Enter your API key',
       apiKeyAutoConfigured: 'Free model key auto-configured',
-      apiKeyLocalStorage: 'API key is stored locally and never uploaded to servers',
+      apiKeyLocalStorage: 'The API key stays in local storage; AI requests are relayed through the site proxy and are not persisted by this server',
       freeModelConfigured: 'Free model is pre-configured, no API key needed',
       apiEndpoint: 'API Endpoint',
       modelSelect: 'Model Selection',
@@ -1079,10 +1079,10 @@ export const en: Translations = {
       ai: {
         tag: 'Smart Engine',
         title: 'AI Deep Analysis',
-        desc: 'Built-in LLM engine reviews your resume like a senior HR. Deeply analyzes keyword matching, provides targeted optimization suggestions, and significantly improves pass rates.',
-        list1: 'Multi-dimensional scoring & competitiveness analysis',
-        list2: 'ATS-based keyword optimization',
-        list3: 'Smart generation of professional job descriptions'
+        desc: 'Connect your selected model provider to generate multiple rewrites for summaries, experience, and skills, with ranking and source comparison before applying.',
+        list1: 'Section-based rewrite variants',
+        list2: 'JD keyword matching and gap analysis',
+        list3: 'Review before applying changes'
       },
       realtime: {
         tag: 'Speed Core',
@@ -1094,15 +1094,15 @@ export const en: Translations = {
       export: {
         tag: 'Standard Output',
         title: 'Standardized Format Export',
-        desc: 'More than just generating PDFs. We generate structured documents that comply with ATS standards, ensuring your resume content can be accurately identified and parsed by major recruitment platforms.',
-        list1: 'High-fidelity PDF vector export',
-        list2: 'ATS-friendly layout structure'
+        desc: 'Generate A4-ready PDF files or export PNG and JPG images for applications, printing, and archiving.',
+        list1: 'PDF, PNG, and JPG export',
+        list2: 'A4 pagination and export preview'
       },
       privacy: {
         tag: 'Privacy First',
         title: 'Local Data Privacy Protection',
-        desc: 'We understand the importance of privacy. All resume data is encrypted and stored in your local browser, never uploaded to cloud servers, giving you complete control over your data.',
-        list1: 'End-to-end local encryption, no cloud interaction',
+        desc: 'Resume edits are stored in your browser by default. When you actively use AI, relevant text is relayed to the selected model provider and is not persisted by this site server.',
+        list1: 'Local-first storage with clear AI boundaries',
         list2: 'Auto-save mechanism to prevent accidental loss'
       }
     },
@@ -1116,10 +1116,10 @@ export const en: Translations = {
     faq: {
       title: 'FAQ',
       desc: 'Quickly understand our product',
-      q1: 'Is this tool completely free?', a1: 'Yes, our resume builder is completely free to use, including all templates and AI optimization features.',
-      q2: 'Is my data safe?', a2: 'Your data is stored entirely in your local browser. We do not upload or store any of your personal information, protecting your privacy 100%.',
-      q3: 'What export formats are supported?', a3: 'Currently supports PDF and Word format export, with more formats coming in the future.',
-      q4: 'How to use the AI optimization feature?', a4: 'When editing your resume, click the "AI Optimize" button next to any text box, and the system will automatically optimize the content for you.',
+      q1: 'Is this tool completely free?', a1: 'Editing, templates, and export are free. AI costs depend on the selected provider, while the built-in free model is subject to service quotas and availability.',
+      q2: 'Is my data safe?', a2: 'Resume data stays in your browser by default. When you use AI, relevant text is relayed to the selected model provider and is not persisted by this site server.',
+      q3: 'What export formats are supported?', a3: 'PDF, PNG, and JPG are supported. JSON backup and restore are available under Advanced Tools.',
+      q4: 'How to use the AI optimization feature?', a4: 'Open AI from the editor toolbar, choose a section, compare generated variants with the original, and confirm before applying one to your resume.',
       q5: 'Can I save multiple resumes?', a5: 'Yes, you can save multiple resumes and load/edit them at any time.'
     },
     cta: {

@@ -1,3 +1,10 @@
+/**
+ * @copyright Tomda (https://www.tomda.top)
+ * @copyright UIED技术团队 (https://fsuied.com)
+ * @author UIED技术团队
+ * @createDate 2026-08-01
+ */
+
 'use client'
 
 import React, { useState, useCallback, useEffect, useRef } from 'react'
@@ -58,9 +65,7 @@ export function ThreeColumnLayout({
 }: ThreeColumnLayoutProps) {
   const [widths, setWidths] = useState<ColumnWidths>(defaultWidths)
   const [isDragging, setIsDragging] = useState<'left' | 'right' | null>(null)
-  const [viewportWidth, setViewportWidth] = useState<number>(
-    typeof window !== 'undefined' ? window.innerWidth : 1920
-  )
+  const [viewportWidth, setViewportWidth] = useState<number>(1920)
   const containerRef = useRef<HTMLDivElement>(null)
 
 
@@ -107,6 +112,7 @@ export function ThreeColumnLayout({
       setViewportWidth(window.innerWidth)
     }
 
+    handleResize()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
@@ -196,7 +202,7 @@ export function ThreeColumnLayout({
   if (viewportWidth < 1280) {
     return (
       <div className={`flex h-full ${className}`}>
-        <div className="w-1/2 border-r border-gray-200 overflow-hidden">
+        <div className="w-1/2 overflow-hidden border-r border-slate-200">
           {centerPanel}
         </div>
         <div className="w-1/2 overflow-hidden">
@@ -212,33 +218,33 @@ export function ThreeColumnLayout({
       {/* Left column - Section Navigation - Independent scroll */}
       <div 
         style={{ width: `${widths.left}%`, height: '100%' }} 
-        className="border-r border-gray-200 overflow-y-auto overflow-x-hidden flex-shrink-0 custom-scrollbar"
+        className="custom-scrollbar flex-shrink-0 overflow-x-hidden overflow-y-auto border-r border-slate-200"
       >
         {leftPanel}
       </div>
 
       {/* Left resize handle */}
       <div
-        className="w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500 transition-colors flex-shrink-0 relative group"
+        className="group relative w-px flex-shrink-0 cursor-col-resize bg-slate-200 transition-colors hover:bg-[#2554ff]"
         onMouseDown={() => setIsDragging('left')}
       >
-        <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-blue-400/20" />
+        <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-[#2554ff]/10" />
       </div>
 
       {/* Center column - Editor - Independent scroll */}
       <div 
         style={{ width: `${widths.center}%`, height: '100%' }} 
-        className="border-r border-gray-200 overflow-y-auto overflow-x-hidden flex-shrink-0 custom-scrollbar"
+        className="custom-scrollbar flex-shrink-0 overflow-x-hidden overflow-y-auto border-r border-slate-200"
       >
         {centerPanel}
       </div>
 
       {/* Right resize handle */}
       <div
-        className="w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500 transition-colors flex-shrink-0 relative group"
+        className="group relative w-px flex-shrink-0 cursor-col-resize bg-slate-200 transition-colors hover:bg-[#2554ff]"
         onMouseDown={() => setIsDragging('right')}
       >
-        <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-blue-400/20" />
+        <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-[#2554ff]/10" />
       </div>
 
       {/* Right column - Preview - Content handles its own scroll */}

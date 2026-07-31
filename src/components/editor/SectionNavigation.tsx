@@ -104,14 +104,16 @@ export function SectionNavigation({
   }, [onSectionChange])
 
   return (
-    <div className={`flex h-full flex-col bg-white ${className}`}>
-      <div className="border-b border-slate-200 px-4 py-4">
-        <h3 className="text-sm font-semibold text-slate-900">{t.editor.content}</h3>
-        <p className="mt-1 text-xs text-slate-500">{t.common.edit}</p>
+    <div className={`flex h-full flex-col bg-[#fbfbfa] ${className}`}>
+      <div className="border-b border-slate-200 px-5 py-5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#2554ff]">
+          {isZh ? '简历结构' : 'Resume structure'}
+        </p>
+        <h3 className="mt-1 text-base font-semibold text-slate-950">{t.editor.content}</h3>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 py-3">
-        <nav className="space-y-1.5">
+      <div className="flex-1 overflow-y-auto px-3 py-4">
+        <nav className="space-y-1">
           {translatedItems.map((item) => {
             const IconComponent = item.icon
             const isActive = item.id === activeSection
@@ -126,14 +128,15 @@ export function SectionNavigation({
                 onClick={() => handleSectionClick(item.id)}
                 className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors ${
                   isActive
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white text-slate-700 hover:bg-slate-50'
+                    ? 'bg-[#eaf0ff] text-slate-950'
+                    : 'text-slate-700 hover:bg-white'
                 }`}
               >
-                <div className={`rounded-xl border p-2 ${
+                <span className={`absolute inset-y-3 left-0 w-0.5 rounded-full ${isActive ? 'bg-[#2554ff]' : 'bg-transparent'}`} />
+                <div className={`rounded-lg border p-2 ${
                   isActive
-                    ? 'border-white/15 bg-white/10 text-white'
-                    : 'border-slate-200 bg-slate-50 text-slate-500'
+                    ? 'border-[#2554ff]/15 bg-white text-[#2554ff]'
+                    : 'border-transparent bg-slate-100 text-slate-500'
                 }`}>
                   <IconComponent className="h-4 w-4" />
                 </div>
@@ -141,25 +144,15 @@ export function SectionNavigation({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-semibold">{item.label}</span>
-                    <span className={`text-[11px] font-semibold ${
-                      isActive ? 'text-white/80' : 'text-slate-500'
-                    }`}>
+                    <span className={`text-[11px] font-semibold ${isActive ? 'text-[#2554ff]' : 'text-slate-400'}`}>
                       {sectionScore}%
                     </span>
                   </div>
-                  <div className="mt-1 flex items-center gap-1.5">
+                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-200">
                     <span
-                      className={`h-1.5 w-1.5 rounded-full ${
-                        sectionCompleted ? 'bg-emerald-500' : isActive ? 'bg-white/70' : 'bg-amber-500'
-                      }`}
+                      className={`block h-full rounded-full ${sectionCompleted ? 'bg-emerald-500' : 'bg-[#2554ff]'}`}
+                      style={{ width: `${Math.max(4, sectionScore)}%` }}
                     />
-                    <span className={`text-[11px] ${
-                      isActive ? 'text-white/75' : 'text-slate-500'
-                    }`}>
-                      {sectionCompleted
-                        ? (isZh ? '已完成' : 'Completed')
-                        : (isZh ? '编辑中' : 'In Progress')}
-                    </span>
                   </div>
                 </div>
               </button>
@@ -168,7 +161,7 @@ export function SectionNavigation({
         </nav>
       </div>
 
-      <div className="border-t border-slate-200 px-4 py-4">
+      <div className="border-t border-slate-200 bg-white/70 px-5 py-4">
         <div className="flex items-center justify-between text-xs text-slate-500">
           <span>{isZh ? '整体完成度' : 'Completion'}</span>
           <span className="font-semibold text-slate-700">{completionOverview}%</span>
@@ -180,7 +173,7 @@ export function SectionNavigation({
                 ? 'bg-emerald-500'
                 : completionOverview >= 60
                   ? 'bg-amber-500'
-                  : 'bg-slate-900'
+                : 'bg-[#2554ff]'
             }`}
             style={{ width: `${Math.max(0, Math.min(100, completionOverview))}%` }}
           />

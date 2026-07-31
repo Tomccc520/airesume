@@ -16,7 +16,13 @@ export type AIConfigPrecheckActionId =
 
 export type AIConfigPrecheckStatus = 'ready' | 'warning' | 'error' | 'info'
 
-export const DEFAULT_FREE_AI_MODEL = 'Qwen/Qwen2.5-7B-Instruct'
+export const HOSTED_FREE_AI_MODELS = [
+  'Qwen/Qwen2.5-7B-Instruct',
+  'deepseek-ai/DeepSeek-V3.1',
+  'Qwen/Qwen2.5-14B-Instruct',
+  'THUDM/glm-4-9b-chat'
+] as const
+export const DEFAULT_FREE_AI_MODEL = HOSTED_FREE_AI_MODELS[0]
 export const DEFAULT_HOSTED_AI_ENDPOINT = 'https://api.siliconflow.cn/v1'
 
 export interface AIConfigLike {

@@ -229,6 +229,7 @@ export const CardLayout: React.FC<TemplateProps> = ({
                 width={headerAvatarSize}
                 height={headerAvatarSize}
                 unoptimized
+                priority
                 className={getAvatarClassName(styleConfig, 'h-auto w-auto shrink-0')}
                 style={{
                   ...getAvatarInlineStyle(

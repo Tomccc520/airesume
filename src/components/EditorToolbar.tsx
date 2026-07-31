@@ -186,8 +186,8 @@ export default function EditorToolbar({
 
   return (
     <>
-      <div className="relative z-40 flex-shrink-0 px-4 lg:px-8">
-        <div className="app-shell-toolbar-surface px-3 py-3 sm:px-4">
+      <div className="relative z-40 flex-shrink-0 px-3 sm:px-5 lg:px-6">
+        <div className="app-shell-toolbar-surface px-3 py-2.5 sm:px-4">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex min-w-0 items-start gap-3">
               <span className="app-shell-brand-mark h-10 w-10 shrink-0">
@@ -195,7 +195,7 @@ export default function EditorToolbar({
               </span>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="truncate text-lg font-semibold text-slate-900">{t.editor.title}</h1>
+                  <h1 className="truncate text-base font-semibold text-slate-950">{t.editor.title}</h1>
                   <div className={`app-shell-status-chip ${saveStatusMeta.toneClass}`}>
                     {saveStatusMeta.icon}
                     <span>{saveStatusMeta.label}</span>
@@ -271,7 +271,7 @@ export default function EditorToolbar({
               <div className="app-shell-toolbar-group">
                 <ExportButton
                   onExport={onExport}
-                  buttonClassName="h-9 rounded-xl bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-900"
+                  buttonClassName="h-9 rounded-xl bg-[#2554ff] px-4 text-sm font-medium text-white hover:bg-[#1745e8]"
                   panelClassName="rounded-2xl border border-slate-200 bg-white/95 shadow-sm backdrop-blur-xl"
                 />
 

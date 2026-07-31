@@ -24,10 +24,12 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext'
 import { Locale, Translations } from '@/types/i18n'
 import { useToastContext } from '@/components/Toast'
-import { aiService, AIConfigGuidance } from '@/services/aiService'
+import { aiService, AIConfigGuidance, AIConfigStatus } from '@/services/aiService'
 import {
   AIConfigPrecheckActionId,
   AIConfigPrecheckItem,
+  DEFAULT_FREE_AI_MODEL,
+  HOSTED_FREE_AI_MODELS,
   buildAIConfigPrecheck,
   getAIConfigPrecheckStatusClass,
   getAIConfigPrecheckStatusLabel,
@@ -37,6 +39,7 @@ import {
   getAIValidationCategoryLabel,
   getAIModelSummary,
   getAIProviderLabel,
+  getAIWorkbenchStatusKey,
   getAIWorkbenchTitle,
   getAIWorkbenchToneMeta
 } from '@/domain/ai/aiStatusPresentation'
@@ -109,7 +112,7 @@ const defaultConfig: AIConfig = {
   provider: 'free',
   apiKey: '', // 免费模型不需要前端存储API密钥
   customEndpoint: 'https://api.siliconflow.cn/v1',
-  modelName: 'Qwen/Qwen2.5-7B-Instruct'
+  modelName: DEFAULT_FREE_AI_MODEL
 }
 
 /**
@@ -121,12 +124,7 @@ const getAiProviders = (t: Translations, locale: Locale) => [
     name: t.editor.aiConfig.free,
     description: locale === 'zh' ? '无需配置，开箱即用的免费AI模型' : 'No configuration needed, free AI model ready to use',
     endpoint: 'https://api.siliconflow.cn/v1',
-    models: [
-      'Qwen/Qwen2.5-7B-Instruct',
-      'deepseek-ai/DeepSeek-V3.1',
-      'Qwen/Qwen2.5-14B-Instruct',
-      'THUDM/glm-4-9b-chat'
-    ],
+    models: [...HOSTED_FREE_AI_MODELS],
     docUrl: 'https://cloud.siliconflow.cn/i/AZywGNhl',
     free: true
   },
@@ -258,12 +256,26 @@ const getProviderBadgeLabel = (
 const getConfigStatusMeta = (
   config: AIConfig,
   providerName: string,
-  locale: Locale
+  locale: Locale,
+  isCurrentConfigSaved: boolean,
+  savedStatus: AIConfigStatus
 ) => {
-  const hasApiKey = config.provider === 'free' || Boolean(config.apiKey.trim())
-  const statusKey = !config.enabled ? 'disabled' : (config.enabled && hasApiKey ? 'ready' : 'needsConfig')
+  const statusKey = getAIWorkbenchStatusKey(savedStatus)
   const { toneClass } = getAIWorkbenchToneMeta(statusKey)
   const modelLabel = getAIModelSummary(config.modelName, locale)
+
+  if (!isCurrentConfigSaved) {
+    const pendingTone = getAIWorkbenchToneMeta('needsValidation').toneClass
+    return {
+      title: locale === 'zh' ? '配置待保存' : 'Setup Not Saved',
+      description: locale === 'zh'
+        ? '当前展示的是配置草稿，保存后才会同步到编辑器和 AI 助手。'
+        : 'This is a configuration draft. Save it before it becomes active in the editor and AI assistant.',
+      toneClass: pendingTone,
+      providerSummary: providerName,
+      modelSummary: modelLabel
+    }
+  }
 
   if (!config.enabled) {
     return {
@@ -289,6 +301,18 @@ const getConfigStatusMeta = (
     }
   }
 
+  if (statusKey === 'needsValidation') {
+    return {
+      title: getAIWorkbenchTitle(statusKey, locale),
+      description: locale === 'zh'
+        ? `已保存 ${providerName} 配置，完成连接验证后即可在编辑器中使用。`
+        : `${providerName} is saved. Complete connection validation before using it in the editor.`,
+      toneClass,
+      providerSummary: providerName,
+      modelSummary: modelLabel
+    }
+  }
+
   return {
     title: getAIWorkbenchTitle(statusKey, locale),
     description: locale === 'zh'
@@ -298,6 +322,22 @@ const getConfigStatusMeta = (
     providerSummary: providerName,
     modelSummary: modelLabel
   }
+}
+
+/**
+ * 比较当前配置与已保存配置
+ * 仅比较可持久化字段，避免未保存草稿被误判为已启用状态。
+ */
+function isSameAIConfig(current: AIConfig, saved: AIConfig | null): boolean {
+  if (!saved) {
+    return false
+  }
+
+  return current.enabled === saved.enabled
+    && current.provider === saved.provider
+    && current.apiKey === saved.apiKey
+    && current.customEndpoint === saved.customEndpoint
+    && current.modelName === saved.modelName
 }
 
 /**
@@ -343,6 +383,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
   const { t, locale } = useLanguage()
   const { error: showError } = useToastContext()
   const [config, setConfig] = useState<AIConfig>(defaultConfig)
+  const [savedConfig, setSavedConfig] = useState<AIConfig | null>(null)
   const [isValidating, setIsValidating] = useState(false)
   const [configGuidance, setConfigGuidance] = useState<AIConfigGuidance | null>(null)
   const [validationResult, setValidationResult] = useState<{
@@ -397,10 +438,17 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
       if (savedConfig) {
         try {
           const parsed = JSON.parse(savedConfig)
-          setConfig({ ...defaultConfig, ...parsed })
+          const nextConfig = { ...defaultConfig, ...parsed }
+          setConfig(nextConfig)
+          setSavedConfig(nextConfig)
         } catch (error) {
           console.error('Failed to parse AI config:', error)
+          setConfig(defaultConfig)
+          setSavedConfig(null)
         }
+      } else {
+        setConfig(defaultConfig)
+        setSavedConfig(null)
       }
       return
     }
@@ -499,6 +547,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
       if (config.provider === 'free') {
         // 保存到本地存储
         localStorage.setItem('ai-config', JSON.stringify(config))
+        setSavedConfig(config)
         
         // 更新AI服务配置
         const { aiService } = await import('@/services/aiService')
@@ -527,6 +576,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
 
       // 保存到本地存储
       localStorage.setItem('ai-config', JSON.stringify(config))
+      setSavedConfig(config)
       
       // 更新AI服务配置
       aiService.updateConfig(config)
@@ -604,7 +654,14 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
   const aiProviders = getAiProviders(t, locale)
   const selectedProvider = aiProviders.find(p => p.id === config.provider)
   const selectedProviderName = selectedProvider?.name || getAIProviderLabel(config.provider, locale)
-  const statusMeta = getConfigStatusMeta(config, selectedProviderName, locale)
+  const savedStatus = aiService.getConfigStatus()
+  const statusMeta = getConfigStatusMeta(
+    config,
+    selectedProviderName,
+    locale,
+    isSameAIConfig(config, savedConfig),
+    savedStatus
+  )
   const isFreeProvider = config.provider === 'free'
   const shouldDisableValidation = isValidating || (!isFreeProvider && !config.apiKey.trim())
   const quickFixField = resolveQuickFixField(config, configGuidance, validationResult)
@@ -858,6 +915,7 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
           </div>
           <button
             onClick={onClose}
+            aria-label={locale === 'zh' ? '关闭 AI 配置' : 'Close AI configuration'}
             className="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
           >
             <X className="h-5 w-5" />
@@ -922,8 +980,8 @@ export default function AIConfigModal({ isOpen, onClose, onSave }: AIConfigModal
                     </p>
                     <p className="mt-1 text-sm leading-6 text-slate-500">
                       {locale === 'zh'
-                        ? '免费模型由服务端托管；自定义与官方 API 会把密钥保存到本地浏览器存储，不会展示在简历内容中。'
-                        : 'Free models are service-hosted. Custom and official API keys are stored locally in the browser and never exposed in resume output.'}
+                        ? '免费模型由服务端托管；自定义与官方 API 密钥保存在本地浏览器，调用时会经站内代理转发，且不会写入简历内容。'
+                        : 'Free models are service-hosted. Custom and official API keys stay in browser storage, are relayed through the site proxy for requests, and never appear in resume output.'}
                     </p>
                   </div>
                 </div>

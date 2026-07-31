@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   ChevronDown,
   FileCheck2,
+  Github,
   GraduationCap,
   LayoutTemplate,
   Shield,
@@ -49,31 +50,53 @@ function TemplateShowcaseCard({
   gradient: string
 }) {
   return (
-    <motion.article className="rounded-2xl border border-slate-200 bg-white p-5">
-      <div className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <div className={`h-24 rounded-lg ${gradient} p-3`}>
-          <div className="space-y-2">
-            <div className="h-2.5 w-24 rounded-full bg-white/90" />
-            <div className="h-2 w-32 rounded-full bg-white/70" />
-            <div className="h-2 w-20 rounded-full bg-white/70" />
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <div className="h-1.5 rounded-full bg-white/70" />
-            <div className="h-1.5 rounded-full bg-white/70" />
-            <div className="h-1.5 rounded-full bg-white/70" />
+    <motion.article className="group border-t border-slate-300 pt-5">
+      <div className="mb-5 overflow-hidden rounded-[22px] border border-slate-200 bg-[#eef1f6] p-5">
+        <div className="resume-paper-shadow mx-auto aspect-[0.72] max-w-[220px] overflow-hidden rounded-sm bg-white p-4">
+          <div className={`h-1.5 w-12 rounded-full ${gradient}`} />
+          <div className="mt-3 h-2.5 w-20 rounded-full bg-slate-900" />
+          <div className="mt-1.5 h-1.5 w-28 rounded-full bg-slate-300" />
+          <div className="mt-5 grid grid-cols-[0.34fr,0.66fr] gap-3">
+            <div className="space-y-3 border-r border-slate-200 pr-3">
+              <div className="h-1.5 w-8 rounded-full bg-slate-400" />
+              <div className="space-y-1.5">
+                <div className="h-1 rounded-full bg-slate-200" />
+                <div className="h-1 rounded-full bg-slate-200" />
+                <div className="h-1 w-4/5 rounded-full bg-slate-200" />
+              </div>
+              <div className="h-1.5 w-10 rounded-full bg-slate-400" />
+              <div className="grid grid-cols-2 gap-1">
+                {[0, 1, 2, 3].map((item) => (
+                  <div key={item} className="h-3 rounded bg-slate-100" />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-4">
+              {[0, 1, 2].map((item) => (
+                <div key={item}>
+                  <div className="h-1.5 w-16 rounded-full bg-slate-500" />
+                  <div className="mt-2 space-y-1.5">
+                    <div className="h-1 rounded-full bg-slate-200" />
+                    <div className="h-1 rounded-full bg-slate-200" />
+                    <div className="h-1 w-5/6 rounded-full bg-slate-200" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-      <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+        <ArrowRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-1" />
+      </div>
       <p className="mt-2 text-sm leading-6 text-slate-600">{desc}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {tags.map((tag) => (
-          <span
-            key={tag}
-            className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600"
-          >
-            {tag}
-          </span>
+      <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-slate-500">
+        {tags.map((tag, index) => (
+          <React.Fragment key={tag}>
+            {index > 0 && <span className="text-slate-300">/</span>}
+            <span>{tag}</span>
+          </React.Fragment>
         ))}
       </div>
     </motion.article>
@@ -104,9 +127,9 @@ function HomeSectionHeader({
   return (
     <div className={`flex flex-col gap-4 ${isCenter ? 'items-center text-center' : 'lg:flex-row lg:items-end lg:justify-between'}`}>
       <div className={isCenter ? 'max-w-3xl' : 'max-w-3xl'}>
-        <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
-          {icon}
-          {badge}
+        <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#2554ff]">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2554ff]/10">{icon}</span>
+          <span>{badge}</span>
         </div>
         <h2 className="mt-4 text-[30px] font-semibold tracking-tight text-slate-900 sm:text-[36px]">
           {title}
@@ -131,17 +154,15 @@ function HomeFeatureCard({
   title,
   desc,
   highlights,
-  toneClass
 }: {
   icon: React.ReactNode
   title: string
   desc: string
   highlights: string[]
-  toneClass: string
 }) {
   return (
-    <article className="app-shell-toolbar-surface p-5">
-      <div className={`inline-flex items-center justify-center rounded-xl border px-2.5 py-2 ${toneClass}`}>
+    <article className="border-t border-slate-300 pt-5">
+      <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#2554ff]/10 text-[#2554ff]">
         {icon}
       </div>
       <h3 className="mt-4 text-base font-semibold text-slate-900">{title}</h3>
@@ -170,9 +191,9 @@ function HeroMetricCard({
   label: string
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <p className="text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
-      <p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
+    <div className="border-l border-slate-300 pl-4 first:border-l-0 first:pl-0">
+      <p className="text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
+      <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">{label}</p>
     </div>
   )
 }
@@ -194,8 +215,8 @@ function HeroSupportPill({
     <span
       className={
         dark
-          ? 'inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/80'
-          : 'inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600'
+          ? 'inline-flex items-center gap-2 text-xs font-medium text-white/80'
+          : 'inline-flex items-center gap-2 text-xs font-medium text-slate-600'
       }
     >
       {icon}
@@ -271,7 +292,7 @@ function HeroResumePreview({ locale }: { locale: string }) {
   const headerMeta = isEn
     ? ['Shanghai', 'resume@uied.dev', 'portfolio / GitHub']
     : ['上海', 'resume@uied.dev', '作品集 / GitHub']
-  const insightTitle = isEn ? 'Delivery Fit' : '投递匹配度'
+  const insightTitle = isEn ? 'AI delivery review' : 'AI 投递检查'
   const insightItems = isEn
     ? [
         { label: 'ATS', value: '98%' },
@@ -285,149 +306,125 @@ function HeroResumePreview({ locale }: { locale: string }) {
       ]
 
   return (
-    <div className="relative mx-auto w-full max-w-[500px]">
-      <div className="absolute -left-3 top-16 z-10 rounded-2xl border border-cyan-200 bg-cyan-50 px-3 py-2 text-[11px] font-semibold text-cyan-800">
-        <div className="flex items-center gap-1.5">
-          <Bot className="h-3.5 w-3.5" />
-          {isEn ? 'AI Rewrite Ready' : 'AI 润色就绪'}
-        </div>
-      </div>
-      <div className="absolute right-4 top-0 z-10 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700">
-        <div className="flex items-center gap-1.5">
-          <LayoutTemplate className="h-3.5 w-3.5" />
-          {isEn ? 'Hiring Template' : '投递模板'}
-        </div>
-      </div>
-      <div className="absolute -right-4 bottom-12 z-10 w-40 rounded-2xl border border-slate-200 bg-white/95 p-3 backdrop-blur">
-        <div className="text-[11px] font-semibold text-slate-900">{insightTitle}</div>
-        <div className="mt-3 space-y-2">
-          {insightItems.map((item) => (
-            <div key={item.label}>
-              <div className="flex items-center justify-between text-[11px] text-slate-500">
-                <span>{item.label}</span>
-                <span className="font-semibold text-slate-700">{item.value}</span>
-              </div>
-              <div className="mt-1 h-1.5 rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full bg-slate-900"
-                  style={{ width: item.value }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="app-shell-toolbar-surface relative overflow-hidden p-4 sm:p-5">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-cyan-50 via-white to-amber-50" />
-        <div className="relative rounded-[28px] border border-slate-200 bg-white p-5 sm:p-6">
-          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-5">
-            <div className="min-w-0">
-              <div className="text-[24px] font-semibold tracking-tight text-slate-900">
-                {isEn ? 'Tomda Chen' : 'Tomda 陈'}
-              </div>
-              <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                {isEn ? 'Senior Product Designer / Frontend Lead' : '高级产品设计师 / 前端负责人'}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
-                {headerMeta.map((item) => (
-                  <span key={item} className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div className="w-20 shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-2 text-center">
-              <div className="flex aspect-square items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400">
-                <Target className="h-4 w-4" />
-              </div>
-              <div className="mt-2 text-[10px] font-semibold text-slate-600">
-                {isEn ? 'QR Contact' : '联系二维码'}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-[136px,minmax(0,1fr)] gap-4">
-            <aside className="space-y-4">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                  {isEn ? 'Summary' : '个人摘要'}
+    <div className="relative mx-auto w-full max-w-[560px] pb-8 pt-3 sm:px-4">
+      <motion.div
+        initial={{ opacity: 0, y: 24, rotate: 1.5 }}
+        animate={{ opacity: 1, y: 0, rotate: 0 }}
+        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        className="resume-paper-shadow relative overflow-hidden rounded-[6px] border border-slate-200 bg-white"
+      >
+        <div className="h-2 bg-[#2554ff]" />
+        <div className="p-6 sm:p-8">
+          <header className="border-b border-slate-200 pb-5">
+            <div className="flex items-start justify-between gap-5">
+              <div>
+                <div className="text-[28px] font-semibold tracking-[-0.04em] text-slate-950">
+                  {isEn ? 'Tomda Chen' : 'Tomda 陈'}
                 </div>
-                <div className="mt-3 space-y-2">
-                  {summaryPoints.map((item) => (
-                    <div key={item} className="flex items-start gap-2 text-[11px] leading-5 text-slate-600">
-                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2554ff]">
+                  {isEn ? 'Product Designer / Frontend Lead' : '产品设计师 / 前端负责人'}
+                </div>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
+                TC
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-500">
+              {headerMeta.map((item) => <span key={item}>{item}</span>)}
+            </div>
+          </header>
+
+          <div className="mt-5 grid grid-cols-[minmax(0,1fr)_130px] gap-6">
+            <main className="space-y-5">
+              <section>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  {isEn ? 'Profile' : '个人摘要'}
+                </div>
+                <p className="mt-2 text-[11px] leading-5 text-slate-600">{summaryPoints.join(' · ')}</p>
+              </section>
+
+              <section>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  {isEn ? 'Experience' : '工作经历'}
+                </div>
+                <div className="mt-2 flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">
+                      {isEn ? 'Resume Product Lead' : '简历产品负责人'}
+                    </div>
+                    <div className="mt-0.5 text-[10px] text-slate-500">UIED Resume</div>
+                  </div>
+                  <div className="text-[10px] font-medium text-slate-400">2023 — Now</div>
+                </div>
+                <div className="mt-2 space-y-1.5">
+                  {experiencePoints.map((item) => (
+                    <div key={item} className="flex gap-2 text-[11px] leading-5 text-slate-600">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-[#2554ff]" />
                       <span>{item}</span>
                     </div>
                   ))}
                 </div>
-              </div>
+              </section>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                  {isEn ? 'Core Skills' : '核心技能'}
+              <section>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  {isEn ? 'Selected Projects' : '项目经验'}
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {skillGroups.map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-600"
-                    >
+                <div className="mt-2 space-y-2">
+                  {projectPoints.map((item) => (
+                    <div key={item} className="border-l-2 border-slate-200 pl-3 text-[11px] leading-5 text-slate-600">
                       {item}
-                    </span>
+                    </div>
                   ))}
                 </div>
+              </section>
+            </main>
+
+            <aside className="border-l border-slate-200 pl-5">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                {isEn ? 'Core Skills' : '核心技能'}
+              </div>
+              <div className="mt-3 space-y-2 text-[10px] font-medium text-slate-600">
+                {skillGroups.map((item) => (
+                  <div key={item} className="border-b border-slate-100 pb-2">{item}</div>
+                ))}
+              </div>
+
+              <div className="mt-6 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                {insightTitle}
+              </div>
+              <div className="mt-3 space-y-3">
+                {insightItems.map((item) => (
+                  <div key={item.label}>
+                    <div className="flex items-center justify-between text-[10px] text-slate-500">
+                      <span>{item.label}</span>
+                      <span className="font-semibold text-slate-800">{item.value}</span>
+                    </div>
+                    <div className="mt-1 h-1 bg-slate-100">
+                      <div className="h-full bg-[#2554ff]" style={{ width: item.value }} />
+                    </div>
+                  </div>
+                ))}
               </div>
             </aside>
-
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                    {isEn ? 'Experience' : '工作经历'}
-                  </div>
-                  <div className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
-                    {isEn ? 'Latest' : '最近经历'}
-                  </div>
-                </div>
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900">
-                          {isEn ? 'Resume Product Lead' : '简历产品负责人'}
-                        </div>
-                        <div className="text-[11px] text-slate-500">UIED Resume</div>
-                      </div>
-                      <div className="text-[11px] font-medium text-slate-400">2023 - Now</div>
-                    </div>
-                    <div className="mt-2 space-y-1.5">
-                      {experiencePoints.map((item) => (
-                        <div key={item} className="text-[11px] leading-5 text-slate-600">
-                          {item}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                  {isEn ? 'Projects & Delivery' : '项目与交付'}
-                </div>
-                <div className="mt-3 grid gap-2">
-                  {projectPoints.map((item) => (
-                    <div key={item} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] leading-5 text-slate-600">
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
-      </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, x: 16 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.35, duration: 0.35 }}
+        className="absolute -bottom-1 right-0 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-white sm:right-[-18px]"
+      >
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2554ff]">
+          <Bot className="h-4 w-4" />
+        </span>
+        <div>
+          <div className="text-xs font-semibold">{isEn ? 'Ready to apply' : '已具备投递条件'}</div>
+          <div className="mt-0.5 text-[10px] text-white/60">{isEn ? 'AI review passed 3/3' : 'AI 检查通过 3/3'}</div>
+        </div>
+      </motion.div>
     </div>
   )
 }
@@ -470,19 +467,19 @@ export default function HomePage() {
           title: 'Metro Sidebar',
           desc: 'A strong two-column hierarchy for recruiters who scan quickly.',
           tags: ['Two Column', 'ATS Friendly', 'Modern'],
-          gradient: 'bg-gradient-to-br from-cyan-500 to-blue-600'
+          gradient: 'bg-[#2554ff]'
         },
         {
           title: 'Editorial Center',
           desc: 'Serif-led one-column structure for elegant storytelling resumes.',
           tags: ['One Column', 'Premium Tone', 'Readable'],
-          gradient: 'bg-gradient-to-br from-amber-500 to-orange-500'
+          gradient: 'bg-slate-900'
         },
         {
           title: 'Creative Cards',
           desc: 'Modular blocks for portfolios, project-heavy and product roles.',
           tags: ['Card Layout', 'Visual', 'Project First'],
-          gradient: 'bg-gradient-to-br from-emerald-500 to-teal-600'
+          gradient: 'bg-[#2554ff]/55'
         }
       ]
     }
@@ -492,19 +489,19 @@ export default function HomePage() {
         title: '都会侧栏',
         desc: '深色侧栏 + 明亮内容区，适合招聘方快速扫描关键经历。',
         tags: ['双栏', 'ATS友好', '现代感'],
-        gradient: 'bg-gradient-to-br from-cyan-500 to-blue-600'
+        gradient: 'bg-[#2554ff]'
       },
       {
         title: '叙事居中',
         desc: '衬线排版单栏结构，兼顾专业感与阅读舒适度。',
         tags: ['单栏', '高级感', '可读性'],
-        gradient: 'bg-gradient-to-br from-amber-500 to-orange-500'
+        gradient: 'bg-slate-900'
       },
       {
         title: '创意卡片',
         desc: '模块化信息块，适合项目驱动型岗位与作品导向型候选人。',
         tags: ['卡片', '视觉化', '项目优先'],
-        gradient: 'bg-gradient-to-br from-emerald-500 to-teal-600'
+        gradient: 'bg-[#2554ff]/55'
       }
     ]
   }, [locale])
@@ -612,97 +609,77 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
+    <div className="min-h-screen bg-[#f7f6f2]">
       <Header />
 
       <main>
-        <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-[#f8fafc] to-[#eef6ff] px-4 pb-16 pt-24 sm:px-6 sm:pt-28 lg:px-8 lg:pb-24 lg:pt-32">
-          <div className="pointer-events-none absolute -left-16 top-12 h-72 w-72 rounded-full bg-cyan-200/35 blur-3xl" />
-          <div className="pointer-events-none absolute -right-16 bottom-8 h-72 w-72 rounded-full bg-amber-200/40 blur-3xl" />
-          <div className="mx-auto grid w-full max-w-7xl items-center gap-12 lg:grid-cols-[1.05fr,0.95fr]">
+        <section className="resume-grid-surface resume-hero-glow relative flex min-h-[calc(100svh-68px)] items-center overflow-hidden border-b border-slate-300 px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
+          <div className="mx-auto grid w-full max-w-7xl items-center gap-14 lg:grid-cols-[0.92fr,1.08fr]">
             <ScrollFadeIn direction="up">
               <div className="text-center lg:text-left">
-                <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-700">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  {t.home.hero.tag}
+                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#2554ff]">
+                  <span className="h-2 w-2 rounded-full bg-[#2554ff]" />
+                  UIED Resume · {locale === 'en' ? 'Open Source' : '开源项目'}
                 </div>
-                <h1 className="mt-6 text-4xl font-bold leading-[1.14] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-                  <span className="text-cyan-700">AI</span> {t.home.hero.titlePrefix}
-                  <span className="ml-2 text-amber-600">{t.home.hero.titleSuffix}</span>
+                <h1 className="mt-6 text-[42px] font-semibold leading-[1.08] tracking-[-0.055em] text-slate-950 sm:text-6xl lg:text-[72px]">
+                  {locale === 'en' ? (
+                    <>Turn real work into a resume worth sending.</>
+                  ) : (
+                    <>把真实经历，<br />整理成一份敢投的简历。</>
+                  )}
                 </h1>
-                <p className="mt-4 text-lg font-medium text-slate-500 sm:text-xl">{t.home.hero.subtitle}</p>
-                <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-slate-600 lg:mx-0">{t.home.hero.desc}</p>
+                <p className="mx-auto mt-6 max-w-xl text-base leading-8 text-slate-600 lg:mx-0 lg:text-lg">
+                  {locale === 'en'
+                    ? 'A local-first AI resume workspace for writing, matching, previewing and exporting one hiring-ready document.'
+                    : '一个本地优先的 AI 简历工作台，把内容编辑、JD 匹配、实时预览与导出投递放在同一条路径里。'}
+                </p>
 
-                <div className="mt-6 flex flex-wrap justify-center gap-2 lg:justify-start">
+                <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 lg:justify-start">
                   <HeroSupportPill
-                    icon={<LayoutTemplate className="h-3.5 w-3.5" />}
-                    label={locale === 'en' ? '3 hiring-ready templates' : '3 套招聘投递模板'}
+                    icon={<CheckCircle2 className="h-3.5 w-3.5 text-[#2554ff]" />}
+                    label={locale === 'en' ? 'Hiring-ready templates' : '招聘投递模板'}
                   />
                   <HeroSupportPill
-                    icon={<Bot className="h-3.5 w-3.5" />}
-                    label={locale === 'en' ? 'AI rewrite workflow' : 'AI 润色工作流'}
+                    icon={<CheckCircle2 className="h-3.5 w-3.5 text-[#2554ff]" />}
+                    label={locale === 'en' ? 'AI rewrite with review' : 'AI 润色可对比'}
                   />
                   <HeroSupportPill
-                    icon={<FileCheck2 className="h-3.5 w-3.5" />}
-                    label={locale === 'en' ? 'PDF / PNG export' : '支持 PDF / PNG 导出'}
-                  />
-                  <HeroSupportPill
-                    icon={<Shield className="h-3.5 w-3.5" />}
-                    label={locale === 'en' ? 'ATS-first structure' : 'ATS 优先结构'}
+                    icon={<CheckCircle2 className="h-3.5 w-3.5 text-[#2554ff]" />}
+                    label={locale === 'en' ? 'Local data ownership' : '本地数据自主'}
                   />
                 </div>
 
-                <div className="mt-8 max-w-2xl rounded-2xl border border-slate-200 bg-white/90 p-4 backdrop-blur lg:mx-0">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                    <Link
-                      href={buildEditorEntryHref({
-                        entry: 'general',
-                        focus: 'personal',
-                        template: 'banner-layout'
-                      })}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-900 bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:border-slate-900 hover:bg-slate-900"
-                    >
-                      <Wand2 className="h-4 w-4" />
-                      {t.home.hero.start}
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                    <a
-                      href="#template-showcase"
-                      className="app-shell-action-button px-6 py-3"
-                    >
-                      {locale === 'en' ? 'View Templates' : '查看模板'}
-                    </a>
-                    <Link
-                      href={buildEditorEntryHref({
-                        entry: 'engineering',
-                        panel: 'ai',
-                        aiSection: 'experience',
-                        template: 'banner-layout'
-                      })}
-                      className="app-shell-action-button px-6 py-3"
-                    >
-                      {locale === 'en' ? 'Open AI Panel' : '打开 AI 面板'}
-                    </Link>
-                  </div>
-                  <p className="mt-3 text-xs leading-6 text-slate-500">
-                    {locale === 'en'
-                      ? 'Template selection, AI rewrite, content editing, and export stay in one delivery-ready workflow.'
-                      : '模板选择、AI 润色、内容编辑与导出投递都保持在同一条可交付工作流内。'}
-                  </p>
+                <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
+                  <Link
+                    href={buildEditorEntryHref({ entry: 'general', focus: 'personal', template: 'banner-layout' })}
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#2554ff] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#1745e8]"
+                  >
+                    {t.home.hero.start}
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    href="https://github.com/Tomccc520/airesume"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white/70 px-6 text-sm font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-white"
+                  >
+                    <Github className="h-4 w-4" />
+                    {locale === 'en' ? 'View on GitHub' : 'GitHub 开源仓库'}
+                  </Link>
                 </div>
 
-                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="mt-9 grid grid-cols-3 gap-4 border-t border-slate-300 pt-6">
                   <HeroMetricCard
-                    value="12+"
-                    label={locale === 'en' ? 'Template Styles' : '模板风格'}
+                    value="5"
+                    label={locale === 'en' ? 'Core Templates' : '核心模板'}
                   />
                   <HeroMetricCard
-                    value="98%"
-                    label={locale === 'en' ? 'ATS Pass Focus' : 'ATS通过导向'}
+                    value="3"
+                    label={locale === 'en' ? 'AI Workflows' : 'AI 工作流'}
                   />
                   <HeroMetricCard
-                    value="< 5m"
-                    label={locale === 'en' ? 'First Draft' : '首版生成'}
+                    value={locale === 'en' ? 'Local' : '本地'}
+                    label={locale === 'en' ? 'Browser-first Storage' : '浏览器优先存储'}
                   />
                 </div>
               </div>
@@ -714,7 +691,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="bg-white px-4 py-12 sm:px-6 lg:px-8 lg:py-14">
+        <section className="bg-white px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
           <div className="mx-auto w-full max-w-7xl">
             <ScrollFadeIn direction="up">
               <div className="mb-6">
@@ -754,21 +731,21 @@ export default function HomePage() {
               </div>
             </ScrollFadeIn>
 
-            <StaggerFadeIn className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" staggerDelay={0.08} direction="up">
+            <StaggerFadeIn className="grid overflow-hidden border-y border-slate-300 md:grid-cols-2 xl:grid-cols-4" staggerDelay={0.08} direction="up">
               {workflowEntries.map((item) => {
                 const Icon = item.icon
                 return (
                   <Link
                     key={item.title}
                     href={item.href}
-                    className="group app-shell-toolbar-surface p-4 sm:p-5"
+                    className="group border-b border-slate-200 p-5 transition-colors hover:bg-slate-50 md:border-r xl:border-b-0 [&:last-child]:border-r-0"
                   >
-                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700">
+                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#2554ff]/10 text-[#2554ff]">
                       <Icon className="h-4 w-4" />
                     </div>
                     <h3 className="mt-4 text-base font-semibold text-slate-900">{item.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-600">{item.desc}</p>
-                    <div className="mt-4 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+                    <div className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#2554ff]">
                       {locale === 'en' ? 'Open editor' : '进入编辑器'}
                       <ArrowRight className="h-3.5 w-3.5" />
                     </div>
@@ -779,7 +756,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section id="template-showcase" className="px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <section id="template-showcase" className="resume-grid-surface px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
           <div className="mx-auto w-full max-w-7xl">
             <ScrollFadeIn direction="up">
               <div className="mb-10">
@@ -809,7 +786,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section id="features" className="border-y border-slate-200 bg-white px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <section id="features" className="border-y border-slate-300 bg-white px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
           <div className="mx-auto w-full max-w-7xl">
             <ScrollFadeIn direction="up">
               <div className="mb-10">
@@ -851,41 +828,37 @@ export default function HomePage() {
 
             <StaggerFadeIn className="grid gap-5 md:grid-cols-2 xl:grid-cols-4" staggerDelay={0.08} direction="up">
               <HomeFeatureCard
-                icon={<Bot className="h-4 w-4 text-cyan-700" />}
+                icon={<Bot className="h-4 w-4" />}
                 title={t.home.features.ai.title}
                 desc={t.home.features.ai.desc}
                 highlights={[t.home.features.ai.list1, t.home.features.ai.list2]}
-                toneClass="border-cyan-200 bg-cyan-50"
               />
 
               <HomeFeatureCard
-                icon={<Zap className="h-4 w-4 text-amber-700" />}
+                icon={<Zap className="h-4 w-4" />}
                 title={t.home.features.realtime.title}
                 desc={t.home.features.realtime.desc}
                 highlights={[t.home.features.realtime.list1, t.home.features.realtime.list2]}
-                toneClass="border-amber-200 bg-amber-50"
               />
 
               <HomeFeatureCard
-                icon={<FileCheck2 className="h-4 w-4 text-emerald-700" />}
+                icon={<FileCheck2 className="h-4 w-4" />}
                 title={t.home.features.export.title}
                 desc={t.home.features.export.desc}
                 highlights={[t.home.features.export.list1, t.home.features.export.list2]}
-                toneClass="border-emerald-200 bg-emerald-50"
               />
 
               <HomeFeatureCard
-                icon={<Shield className="h-4 w-4 text-violet-700" />}
+                icon={<Shield className="h-4 w-4" />}
                 title={t.home.features.privacy.title}
                 desc={t.home.features.privacy.desc}
                 highlights={[t.home.features.privacy.list1, t.home.features.privacy.list2]}
-                toneClass="border-violet-200 bg-violet-50"
               />
             </StaggerFadeIn>
           </div>
         </section>
 
-        <section className="bg-[#f8fafc] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <section className="resume-grid-surface px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
           <div className="mx-auto w-full max-w-6xl">
             <ScrollFadeIn direction="up">
               <div className="mb-10">
@@ -907,27 +880,30 @@ export default function HomePage() {
                   title: locale === 'en' ? '1. Build Structure' : '1. 先搭结构',
                   desc: locale === 'en' ? 'Fill core sections with quick template switch.' : '先确定模板，再填核心模块，减少后续返工。',
                   icon: LayoutTemplate,
-                  tone: 'from-cyan-500 to-blue-600'
+                  number: '01'
                 },
                 {
                   title: locale === 'en' ? '2. AI Polish' : '2. AI润色',
                   desc: locale === 'en' ? 'Use AI panel to rewrite and boost keyword relevance.' : '使用 AI 面板提升表达和关键词匹配度。',
                   icon: Wand2,
-                  tone: 'from-amber-500 to-orange-500'
+                  number: '02'
                 },
                 {
                   title: locale === 'en' ? '3. Export Delivery' : '3. 导出交付',
                   desc: locale === 'en' ? 'Finalize as PDF/PNG/JSON for delivery and backup.' : '导出 PDF/PNG/JSON，兼顾投递与备份。',
                   icon: FileCheck2,
-                  tone: 'from-emerald-500 to-teal-600'
+                  number: '03'
                 }
               ].map((step) => (
-                <article key={step.title} className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <div className={`inline-flex rounded-xl bg-gradient-to-br p-2 text-white ${step.tone}`}>
-                    <step.icon className="h-4 w-4" />
+                <article key={step.title} className="border-t border-slate-300 pt-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-4xl font-semibold tracking-[-0.06em] text-slate-200">{step.number}</span>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2554ff]/10 text-[#2554ff]">
+                      <step.icon className="h-4 w-4" />
+                    </span>
                   </div>
-                  <h3 className="mt-3 text-lg font-semibold text-slate-900">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{step.desc}</p>
+                  <h3 className="mt-6 text-lg font-semibold text-slate-900">{step.title}</h3>
+                  <p className="mt-2 max-w-xs text-sm leading-6 text-slate-600">{step.desc}</p>
                 </article>
               ))}
             </StaggerFadeIn>

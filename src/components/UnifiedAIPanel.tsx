@@ -1468,6 +1468,7 @@ export default function UnifiedAIPanel({
             </div>
             <button
               onClick={onClose}
+              aria-label={locale === 'zh' ? '关闭 AI 助手' : 'Close AI assistant'}
               className="rounded-md p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
             >
               <X className="h-5 w-5" />

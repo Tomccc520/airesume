@@ -11,16 +11,162 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { lookup } from 'node:dns/promises'
+import { HOSTED_FREE_AI_MODELS } from '@/domain/ai/configPrecheck'
+import {
+  getUtf8ByteLength,
+  isPrivateOrReservedAddress,
+  MAX_AI_PROXY_BODY_BYTES,
+  validateCustomAIEndpoint
+} from '@/domain/ai/proxySecurity'
 
 type AIProvider = 'openai' | 'claude' | 'free' | 'siliconflow' | 'deepseek' | 'custom'
 type ProxyFetchErrorCategory = 'timeout' | 'ssl' | 'dns' | 'refused' | 'reset' | 'network' | 'unknown'
 
+interface AIProxyRequestBody {
+  provider: AIProvider
+  apiKey?: string
+  model: string
+  messages: unknown[]
+  stream?: boolean
+  customEndpoint?: string
+  temperature?: number
+  max_tokens?: number
+}
+
+interface FreeRateLimitEntry {
+  count: number
+  resetAt: number
+}
+
+const FREE_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
+const FREE_RATE_LIMIT_MAX_REQUESTS = 20
+const globalRateLimitStore = globalThis as typeof globalThis & {
+  __uiedResumeFreeAIRateLimits?: Map<string, FreeRateLimitEntry>
+}
+const freeRateLimitStore = globalRateLimitStore.__uiedResumeFreeAIRateLimits || new Map<string, FreeRateLimitEntry>()
+globalRateLimitStore.__uiedResumeFreeAIRateLimits = freeRateLimitStore
+
 /**
- * 规范化自定义 API 端点
- * 统一移除尾部斜杠，避免双斜杠路径问题
+ * 解析并限制 AI 代理请求体
+ * 同时检查声明大小和真实 UTF-8 大小，避免超大简历内容占用服务端资源。
  */
-function normalizeEndpoint(endpoint?: string): string {
-  return (endpoint || '').trim().replace(/\/+$/, '')
+async function parseAIProxyRequest(request: NextRequest): Promise<
+  { body: AIProxyRequestBody; error?: never } | { body?: never; error: NextResponse }
+> {
+  const declaredLength = Number(request.headers.get('content-length'))
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_AI_PROXY_BODY_BYTES) {
+    return {
+      error: NextResponse.json({ error: 'AI 请求内容过大，请缩短输入后重试。' }, { status: 413 })
+    }
+  }
+
+  const rawBody = await request.text()
+  if (getUtf8ByteLength(rawBody) > MAX_AI_PROXY_BODY_BYTES) {
+    return {
+      error: NextResponse.json({ error: 'AI 请求内容过大，请缩短输入后重试。' }, { status: 413 })
+    }
+  }
+
+  try {
+    return { body: JSON.parse(rawBody) as AIProxyRequestBody }
+  } catch {
+    return {
+      error: NextResponse.json({ error: 'AI 请求不是有效的 JSON 数据。' }, { status: 400 })
+    }
+  }
+}
+
+/**
+ * 获取限流使用的客户端标识
+ * 优先读取常见反向代理注入的真实 IP，请求头缺失时回退到统一匿名标识。
+ */
+function getClientIdentifier(request: NextRequest): string {
+  const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  return forwardedFor ||
+    request.headers.get('cf-connecting-ip')?.trim() ||
+    request.headers.get('x-real-ip')?.trim() ||
+    'anonymous'
+}
+
+/**
+ * 消耗一次免费服务额度
+ * 仅保护使用服务端共享密钥的请求，自带密钥的用户不占用该额度。
+ */
+function consumeFreeAIRateLimit(clientId: string, now = Date.now()): {
+  allowed: boolean
+  retryAfterSeconds: number
+} {
+  freeRateLimitStore.forEach((entry, key) => {
+    if (entry.resetAt <= now) {
+      freeRateLimitStore.delete(key)
+    }
+  })
+
+  const current = freeRateLimitStore.get(clientId)
+  if (!current) {
+    freeRateLimitStore.set(clientId, { count: 1, resetAt: now + FREE_RATE_LIMIT_WINDOW_MS })
+    return { allowed: true, retryAfterSeconds: 0 }
+  }
+
+  if (current.count >= FREE_RATE_LIMIT_MAX_REQUESTS) {
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000))
+    }
+  }
+
+  current.count += 1
+  return { allowed: true, retryAfterSeconds: 0 }
+}
+
+/**
+ * 获取生产环境允许的自定义 AI 域名
+ * 未配置时依然允许公网 HTTPS 服务，但始终阻止本机和内网地址。
+ */
+function getCustomEndpointAllowedHosts(): string[] {
+  return (process.env.AI_CUSTOM_ENDPOINT_ALLOWLIST || '')
+    .split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+/**
+ * 校验自定义端点的 DNS 解析结果
+ * 防止公网域名解析到内网地址后绕过 URL 字面量检查。
+ */
+async function validateResolvedCustomEndpoint(hostname: string, allowPrivateNetworks: boolean): Promise<string | null> {
+  if (allowPrivateNetworks) {
+    return null
+  }
+
+  try {
+    const addresses = await lookup(hostname, { all: true, verbatim: true })
+    if (addresses.length === 0) {
+      return '自定义服务域名没有可用的解析地址。'
+    }
+
+    if (addresses.some(({ address }) => isPrivateOrReservedAddress(address))) {
+      return '自定义服务域名解析到了本机、内网或保留网络地址。'
+    }
+  } catch {
+    return '无法解析自定义服务域名，请检查地址是否正确。'
+  }
+
+  return null
+}
+
+/**
+ * 获取服务端免费模式允许调用的模型
+ * 部署方可通过环境变量覆盖，避免共享密钥被用于未授权的高成本模型。
+ */
+function getHostedFreeModelAllowlist(): Set<string> {
+  const configuredModels = (process.env.AI_FREE_MODEL_ALLOWLIST || '')
+    .split(',')
+    .map((model) => model.trim())
+    .filter(Boolean)
+
+  return new Set(configuredModels.length > 0 ? configuredModels : HOSTED_FREE_AI_MODELS)
 }
 
 /**
@@ -252,17 +398,12 @@ export async function POST(request: NextRequest) {
   let apiUrlForError = 'unknown'
 
   try {
-    const body = await request.json()
-    const { provider, apiKey, model, messages, stream = false, ...otherParams } = body as {
-      provider: AIProvider
-      apiKey?: string
-      model: string
-      messages: unknown[]
-      stream?: boolean
-      customEndpoint?: string
-      temperature?: number
-      max_tokens?: number
+    const parsedRequest = await parseAIProxyRequest(request)
+    if (parsedRequest.error) {
+      return parsedRequest.error
     }
+
+    const { provider, apiKey, model, messages, stream = false, ...otherParams } = parsedRequest.body
     providerForError = provider
 
     if (!provider || !model || !Array.isArray(messages) || messages.length === 0) {
@@ -278,6 +419,16 @@ export async function POST(request: NextRequest) {
         { error: '缺少API密钥' },
         { status: 400 }
       )
+    }
+
+    const usesHostedFreeKey = provider === 'free' && !apiKey?.trim()
+    if (usesHostedFreeKey) {
+      if (!getHostedFreeModelAllowlist().has(model)) {
+        return NextResponse.json(
+          { error: '当前免费模式不允许使用该模型，请从免费模型列表中重新选择。' },
+          { status: 400 }
+        )
+      }
     }
 
     let apiUrl = ''
@@ -325,6 +476,20 @@ export async function POST(request: NextRequest) {
               { status: 400 }
             )
           }
+
+          if (!apiKey?.trim()) {
+            const rateLimit = consumeFreeAIRateLimit(getClientIdentifier(request))
+            if (!rateLimit.allowed) {
+              return NextResponse.json(
+                { error: '免费 AI 调用过于频繁，请稍后再试或配置自己的 API 密钥。' },
+                {
+                  status: 429,
+                  headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) }
+                }
+              )
+            }
+          }
+
           headers['Authorization'] = `Bearer ${freeApiKey}`
         } else {
           headers['Authorization'] = `Bearer ${apiKey || ''}`
@@ -351,16 +516,26 @@ export async function POST(request: NextRequest) {
         break
 
       case 'custom':
-        // 自定义端点必须显式提供，避免误请求默认服务
         {
-          const normalizedEndpoint = normalizeEndpoint(otherParams.customEndpoint)
-          if (!normalizedEndpoint) {
+          const allowPrivateNetworks = process.env.NODE_ENV !== 'production' || process.env.ALLOW_PRIVATE_AI_ENDPOINTS === 'true'
+          const endpointValidation = validateCustomAIEndpoint(otherParams.customEndpoint, {
+            allowPrivateNetworks,
+            allowedHosts: getCustomEndpointAllowedHosts()
+          })
+
+          if (!endpointValidation.valid || !endpointValidation.endpoint || !endpointValidation.hostname) {
             return NextResponse.json(
-              { error: '自定义提供商缺少 customEndpoint 参数' },
+              { error: endpointValidation.error || '自定义服务地址未通过安全检查。' },
               { status: 400 }
             )
           }
-          apiUrl = `${normalizedEndpoint}/chat/completions`
+
+          const resolutionError = await validateResolvedCustomEndpoint(endpointValidation.hostname, allowPrivateNetworks)
+          if (resolutionError) {
+            return NextResponse.json({ error: resolutionError }, { status: 400 })
+          }
+
+          apiUrl = `${endpointValidation.endpoint}/chat/completions`
         }
         headers['Authorization'] = `Bearer ${apiKey || ''}`
         requestBody = {

@@ -12,7 +12,6 @@
 'use client'
 
 import React, { useCallback } from 'react'
-import { motion } from 'framer-motion'
 import { 
   ZoomIn, 
   ZoomOut, 
@@ -53,7 +52,7 @@ export function PreviewToolbar({
   isUpdating = false,
   isDarkMode = false
 }: PreviewToolbarProps) {
-  const { t } = useLanguage()
+  const { t, locale } = useLanguage()
   
   // 保留接口兼容性
   void _onExport
@@ -113,23 +112,19 @@ export function PreviewToolbar({
   }, [safeCurrentPage, safeTotalPages, onPageChange])
 
   const buttonBaseClass = isDarkMode
-    ? 'p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-300 hover:text-white border border-transparent hover:border-gray-600'
-    : 'p-2 hover:bg-gray-50 rounded-lg transition-colors text-gray-600 hover:text-blue-600 border border-transparent hover:border-gray-200'
+    ? 'inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-gray-700 hover:text-white'
+    : 'inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-[#2554ff]'
 
   const disabledClass = 'opacity-30 cursor-not-allowed'
 
   return (
-    <div className={`flex-shrink-0 flex items-center justify-between p-3 sm:p-4 border-b ${
+    <div className={`flex h-14 flex-shrink-0 items-center justify-between border-b px-4 ${
       isDarkMode 
-        ? 'bg-gray-800/95 border-gray-700' 
-        : 'bg-gray-50/95 border-gray-200'
+        ? 'border-gray-700 bg-gray-800/95'
+        : 'border-slate-200 bg-white/95'
     } backdrop-blur`}>
       {/* 左侧：标题和状态 */}
-      <div className={`backdrop-blur-md border rounded-lg px-3 py-1.5 flex items-center gap-2 ${
-        isDarkMode 
-          ? 'bg-gray-700/90 border-gray-600' 
-          : 'bg-white/90 border-gray-200'
-      }`}>
+      <div className="flex items-center gap-2">
         <FileText className={`w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
         <h2 className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
           {t.common.preview}
@@ -138,33 +133,33 @@ export function PreviewToolbar({
           className={`w-1.5 h-1.5 rounded-full ${
             isUpdating ? 'bg-yellow-400 animate-pulse' : 'bg-green-500'
           }`} 
-          title={isUpdating ? '更新中...' : '就绪'}
+          title={isUpdating
+            ? (locale === 'zh' ? '更新中...' : 'Updating...')
+            : (locale === 'zh' ? '就绪' : 'Ready')}
         />
       </div>
 
       {/* 中间：缩放控制 */}
-      <div className={`flex items-center gap-1 backdrop-blur-md border rounded-lg p-1 ${
+      <div className={`flex items-center gap-0.5 rounded-xl border p-1 ${
         isDarkMode 
-          ? 'bg-gray-700/90 border-gray-600' 
-          : 'bg-white/90 border-gray-200'
+          ? 'border-gray-600 bg-gray-700/90'
+          : 'border-slate-200 bg-slate-50'
       }`}>
         {/* 缩小按钮 */}
-        <motion.button
+        <button
           onClick={handleZoomOut}
           disabled={safeZoom <= MIN_ZOOM}
           className={`${buttonBaseClass} ${safeZoom <= MIN_ZOOM ? disabledClass : ''}`}
           title={`${t.preview.zoomOut} (Ctrl + -)`}
-          whileHover={{ scale: safeZoom <= MIN_ZOOM ? 1 : 1.05 }}
-          whileTap={{ scale: safeZoom <= MIN_ZOOM ? 1 : 0.95 }}
         >
           <ZoomOut className="w-4 h-4" />
-        </motion.button>
+        </button>
 
         {/* 缩放级别选择 */}
         <select
           value={ZOOM_LEVELS.includes(safeZoom) ? safeZoom : 'custom'}
           onChange={handleZoomSelect}
-          className={`appearance-none px-3 py-1.5 border rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all min-w-[70px] text-center cursor-pointer ${
+          className={`min-w-[70px] cursor-pointer appearance-none rounded-lg border px-3 py-1.5 text-center text-sm font-medium transition-colors focus:border-[#2554ff] focus:outline-none focus:ring-2 focus:ring-[#2554ff]/10 ${
             isDarkMode
               ? 'bg-gray-600/50 border-gray-500 text-gray-200 hover:bg-gray-600 hover:border-gray-400'
               : 'bg-white/50 border-gray-200/60 text-gray-700 hover:bg-white hover:border-gray-300'
@@ -181,43 +176,37 @@ export function PreviewToolbar({
         </select>
 
         {/* 放大按钮 */}
-        <motion.button
+        <button
           onClick={handleZoomIn}
           disabled={safeZoom >= MAX_ZOOM}
           className={`${buttonBaseClass} ${safeZoom >= MAX_ZOOM ? disabledClass : ''}`}
           title={`${t.preview.zoomIn} (Ctrl + +)`}
-          whileHover={{ scale: safeZoom >= MAX_ZOOM ? 1 : 1.05 }}
-          whileTap={{ scale: safeZoom >= MAX_ZOOM ? 1 : 0.95 }}
         >
           <ZoomIn className="w-4 h-4" />
-        </motion.button>
+        </button>
 
         {/* 重置缩放 */}
-        <motion.button
+        <button
           onClick={handleResetZoom}
           className={buttonBaseClass}
-          title="重置缩放 (100%)"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          title={locale === 'zh' ? '重置缩放 (100%)' : 'Reset zoom (100%)'}
         >
           <RotateCcw className="w-4 h-4" />
-        </motion.button>
+        </button>
 
         {/* 分隔线 */}
         <div className={`w-px h-5 mx-1.5 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`} />
 
         {/* 分页导航 */}
         <div className="flex items-center gap-1">
-          <motion.button
+          <button
             onClick={handlePrevPage}
             disabled={safeCurrentPage <= 1}
             className={`${buttonBaseClass} ${safeCurrentPage <= 1 ? disabledClass : ''}`}
-            title="上一页"
-            whileHover={{ scale: safeCurrentPage <= 1 ? 1 : 1.05 }}
-            whileTap={{ scale: safeCurrentPage <= 1 ? 1 : 0.95 }}
+            title={locale === 'zh' ? '上一页' : 'Previous page'}
           >
             <ChevronLeft className="w-4 h-4" />
-          </motion.button>
+          </button>
 
           {/* 页码显示 */}
           <span className={`text-sm font-medium px-2 min-w-[60px] text-center ${
@@ -226,21 +215,19 @@ export function PreviewToolbar({
             {safeCurrentPage} / {safeTotalPages}
           </span>
 
-          <motion.button
+          <button
             onClick={handleNextPage}
             disabled={safeCurrentPage >= safeTotalPages}
             className={`${buttonBaseClass} ${safeCurrentPage >= safeTotalPages ? disabledClass : ''}`}
-            title="下一页"
-            whileHover={{ scale: safeCurrentPage >= safeTotalPages ? 1 : 1.05 }}
-            whileTap={{ scale: safeCurrentPage >= safeTotalPages ? 1 : 0.95 }}
+            title={locale === 'zh' ? '下一页' : 'Next page'}
           >
             <ChevronRight className="w-4 h-4" />
-          </motion.button>
+          </button>
         </div>
       </div>
 
       {/* 右侧：预留空间或其他功能 */}
-      <div className="w-20" /> {/* 占位，保持布局平衡 */}
+      <div className="hidden text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 sm:block">A4</div>
     </div>
   )
 }

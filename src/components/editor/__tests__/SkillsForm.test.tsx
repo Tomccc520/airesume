@@ -92,6 +92,14 @@ function SkillsHarness({ initialSkills }: SkillsHarnessProps) {
   )
 }
 
+/**
+ * 展开技能整理工具
+ * 按真实用户路径进入折叠区后，再执行分类、锁定与清理操作。
+ */
+function openSkillTools() {
+  fireEvent.click(screen.getByRole('button', { name: '整理与显示' }))
+}
+
 describe('SkillsForm', () => {
   /**
    * 验证智能重整写回
@@ -124,6 +132,7 @@ describe('SkillsForm', () => {
 
     render(<SkillsHarness initialSkills={initialSkills} />)
 
+    openSkillTools()
     fireEvent.click(screen.getByRole('button', { name: '智能重整分类' }))
 
     expect(screen.getByText('智能分类建议')).toBeInTheDocument()
@@ -167,6 +176,7 @@ describe('SkillsForm', () => {
     expect(screen.getByTestId('skill-categories')).toHaveTextContent('Node.js:前端开发')
     expect(screen.getByRole('button', { name: '已锁定分类' })).toBeInTheDocument()
 
+    openSkillTools()
     fireEvent.click(screen.getByRole('button', { name: '智能重整分类' }))
 
     expect(screen.getByText('没有发现需要自动重整的分类')).toBeInTheDocument()
@@ -185,10 +195,12 @@ describe('SkillsForm', () => {
 
     render(<SkillsHarness initialSkills={initialSkills} />)
 
+    openSkillTools()
     fireEvent.click(screen.getByRole('button', { name: '锁定全部' }))
     fireEvent.click(screen.getByRole('button', { name: '仅看锁定项' }))
 
-    expect(screen.getByText('当前仅显示锁定项')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'React 前端框架 · 90% · 已锁定' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Node.js 后端技术 · 80% · 已锁定' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '解锁全部' }))
 
@@ -208,6 +220,7 @@ describe('SkillsForm', () => {
 
     render(<SkillsHarness initialSkills={initialSkills} />)
 
+    openSkillTools()
     fireEvent.click(screen.getByRole('button', { name: '清理重复技能' }))
 
     expect(screen.getByText('技能清理建议')).toBeInTheDocument()
@@ -256,6 +269,7 @@ describe('SkillsForm', () => {
 
     render(<SkillsHarness initialSkills={initialSkills} />)
 
+    openSkillTools()
     fireEvent.click(screen.getByRole('button', { name: '清理重复技能' }))
     fireEvent.click(screen.getByRole('button', { name: '应用清理' }))
 
@@ -284,6 +298,7 @@ describe('SkillsForm', () => {
 
     render(<SkillsHarness initialSkills={initialSkills} />)
 
+    openSkillTools()
     fireEvent.click(screen.getByRole('button', { name: '锁定全部' }))
     fireEvent.click(screen.getByRole('button', { name: '仅看锁定项' }))
     fireEvent.click(screen.getByRole('button', { name: '解锁全部' }))

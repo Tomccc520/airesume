@@ -9,6 +9,7 @@
 
 import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
+import DeliveryChecklistCard from '@/components/DeliveryChecklistCard'
 import { ResumeData } from '@/types/resume'
 import { ResumeScorer, ScoreResult } from '@/utils/resumeScorer'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -190,6 +191,11 @@ export default function ResumeScoreCard({
                 )
               })}
             </div>
+          </div>
+
+          {/* 投递前检查 */}
+          <div className="border-b border-gray-200/50 p-6">
+            <DeliveryChecklistCard resumeData={resumeData} />
           </div>
 
           {/* 改进建议 */}

@@ -8,9 +8,7 @@
 import { ResumeData } from '@/types/resume'
 
 export interface ScoreResult {
-  /** 总分 (0-100) */
   totalScore: number
-  /** 各部分得分 */
   scores: {
     personalInfo: number
     experience: number
@@ -18,37 +16,28 @@ export interface ScoreResult {
     skills: number
     projects: number
   }
-  /** 改进建议 */
   suggestions: Suggestion[]
-  /** 完成度百分比 */
   completeness: number
-  /** 质量等级 */
   grade: 'A' | 'B' | 'C' | 'D' | 'F'
 }
 
 export interface Suggestion {
-  /** 建议类型 */
   type: 'error' | 'warning' | 'info' | 'success'
-  /** 建议分类 */
   category: 'personalInfo' | 'experience' | 'education' | 'skills' | 'projects' | 'general'
-  /** 建议标题 */
   title: string
-  /** 建议描述 */
   description: string
-  /** 优先级 (1-5, 5最高) */
   priority: number
-  /** 预计提升分数 */
   impact: number
 }
 
-/**
- * 简历评分器
- * 分析简历质量并提供改进建议
- */
+const ACTION_VERBS = ['主导', '负责', '推动', '搭建', '设计', '实现', '优化', '管理', '协调', '交付', 'Led', 'Built', 'Designed', 'Implemented', 'Drove', 'Managed', 'Optimized', 'Delivered', 'Launched', 'Owned']
+const WEAK_PHRASES = ['负责相关工作', '参与相关工作', '协助完成', '日常维护', '参与项目开发', '负责项目开发']
+const METRIC_PATTERN = /(\d+\s*%|\d+\s*个|\d+\s*项|\d+\s*人|\d+\s*页|\d+\s*秒|\d+\s*天|\d+\s*周|\d+\s*月|\d+\+|from\s+\d+(\.\d+)?s\s+to\s+\d+(\.\d+)?s|reduced|increased|improved|提升|降低|缩短|增长|减少)/i
+const RESULT_PATTERN = /(提升|降低|缩短|增长|减少|优化至|带来|帮助|支撑|improve|reduce|increase|shorten|launch|support|enable|cut)/i
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const URL_PATTERN = /^https?:\/\//i
+
 export class ResumeScorer {
-  /**
-   * 计算简历总分
-   */
   static calculateScore(data: ResumeData): ScoreResult {
     const scores = {
       personalInfo: this.scorePersonalInfo(data),
@@ -60,366 +49,200 @@ export class ResumeScorer {
 
     const totalScore = Math.round(
       scores.personalInfo * 0.2 +
-      scores.experience * 0.3 +
-      scores.education * 0.2 +
-      scores.skills * 0.15 +
-      scores.projects * 0.15
+      scores.experience * 0.32 +
+      scores.education * 0.16 +
+      scores.skills * 0.14 +
+      scores.projects * 0.18
     )
-
-    const suggestions = this.generateSuggestions(data, scores)
-    const completeness = this.calculateCompleteness(data)
-    const grade = this.getGrade(totalScore)
 
     return {
       totalScore,
       scores,
-      suggestions,
-      completeness,
-      grade
+      suggestions: this.generateSuggestions(data, scores),
+      completeness: this.calculateCompleteness(data),
+      grade: this.getGrade(totalScore)
     }
   }
 
-  /**
-   * 评分个人信息 (满分100)
-   */
   private static scorePersonalInfo(data: ResumeData): number {
     let score = 0
-    const { personalInfo } = data
+    const info = data.personalInfo
+    const summary = info.summary?.trim() ?? ''
 
-    // 必填字段 (60分)
-    if (personalInfo.name) score += 15
-    if (personalInfo.title) score += 15
-    if (personalInfo.email) score += 15
-    if (personalInfo.phone) score += 15
+    if (info.name?.trim()) score += 18
+    if (info.title?.trim()) score += 16
+    if (EMAIL_PATTERN.test(info.email?.trim() ?? '')) score += 14
+    if (info.phone?.trim()) score += 12
+    if (info.location?.trim()) score += 8
+    if (info.website?.trim()) score += URL_PATTERN.test(info.website.trim()) ? 10 : 4
 
-    // 可选字段 (20分)
-    if (personalInfo.location) score += 10
-    if (personalInfo.website) score += 10
+    if (summary.length >= 80 && summary.length <= 220) score += 16
+    else if (summary.length >= 40) score += 10
+    else if (summary.length > 0) score += 4
 
-    // 个人简介 (20分)
-    if (personalInfo.summary) {
-      const summaryLength = personalInfo.summary.length
-      if (summaryLength >= 50 && summaryLength <= 300) {
-        score += 20
-      } else if (summaryLength > 0) {
-        score += 10
-      }
-    }
-
+    if (this.containsMetric(summary)) score += 4
+    if (this.containsResult(summary)) score += 2
     return Math.min(score, 100)
   }
 
-  /**
-   * 评分工作经历 (满分100)
-   */
   private static scoreExperience(data: ResumeData): number {
-    const { experience } = data
-    
-    if (experience.length === 0) return 0
+    const items = data.experience
+    if (items.length === 0) return 0
 
-    let score = 0
+    let score = 30 + Math.min(items.length * 8, 16)
+    let detail = 0
 
-    // 有工作经历 (30分)
-    score += 30
+    items.forEach((exp) => {
+      let s = 0
+      if (exp.company?.trim()) s += 2
+      if (exp.position?.trim()) s += 2
+      if (exp.startDate?.trim()) s += 2
+      if (exp.endDate?.trim() || exp.current) s += 1
+      if (exp.location?.trim()) s += 1
 
-    // 经历数量 (20分)
-    score += Math.min(experience.length * 5, 20)
-
-    // 经历质量 (50分)
-    experience.forEach(exp => {
-      let expScore = 0
-
-      // 基本信息完整
-      if (exp.company) expScore += 2
-      if (exp.position) expScore += 2
-      if (exp.startDate) expScore += 2
-      if (exp.location) expScore += 1
-
-      // 描述质量
-      if (exp.description && exp.description.length > 0) {
-        const validDesc = exp.description.filter(d => d.trim().length > 0)
-        if (validDesc.length >= 3) {
-          expScore += 5
-        } else if (validDesc.length > 0) {
-          expScore += 2
-        }
-
-        // 描述长度
-        const avgLength = validDesc.reduce((sum, d) => sum + d.length, 0) / validDesc.length
-        if (avgLength >= 50) {
-          expScore += 3
-        }
-      }
-
-      score += Math.min(expScore, 10)
+      const lines = exp.description.filter((line) => line.trim())
+      if (lines.length >= 3) s += 4
+      else if (lines.length >= 2) s += 2
+      s += Math.min(lines.filter((line) => this.isStrongBullet(line)).length * 2, 8)
+      if (lines.some((line) => this.containsMetric(line))) s += 2
+      if (lines.some((line) => this.containsResult(line))) s += 2
+      detail += Math.min(s, 20)
     })
 
+    score += Math.min(detail, 54)
     return Math.min(score, 100)
   }
 
-  /**
-   * 评分教育背景 (满分100)
-   */
   private static scoreEducation(data: ResumeData): number {
-    const { education } = data
-    
-    if (education.length === 0) return 0
+    const items = data.education
+    if (items.length === 0) return 0
 
-    let score = 0
-
-    // 有教育背景 (40分)
-    score += 40
-
-    // 教育数量 (20分)
-    score += Math.min(education.length * 10, 20)
-
-    // 教育质量 (40分)
-    education.forEach(edu => {
-      let eduScore = 0
-
-      if (edu.school) eduScore += 3
-      if (edu.degree) eduScore += 3
-      if (edu.major) eduScore += 3
-      if (edu.startDate) eduScore += 2
-      if (edu.endDate) eduScore += 2
-      if (edu.gpa) eduScore += 2
-      if (edu.description) eduScore += 5
-
-      score += Math.min(eduScore, 10)
+    let score = 40 + Math.min(items.length * 10, 15)
+    items.forEach((edu) => {
+      let s = 0
+      if (edu.school?.trim()) s += 4
+      if (edu.degree?.trim()) s += 4
+      if (edu.major?.trim()) s += 4
+      if (edu.startDate?.trim()) s += 2
+      if (edu.endDate?.trim()) s += 2
+      if (edu.gpa?.trim()) s += 3
+      if (edu.description?.trim()) s += edu.description.trim().length >= 20 ? 6 : 3
+      score += Math.min(s, 15)
     })
 
     return Math.min(score, 100)
   }
 
-  /**
-   * 评分技能 (满分100)
-   */
   private static scoreSkills(data: ResumeData): number {
-    const { skills } = data
-    
+    const skills = data.skills
     if (skills.length === 0) return 0
 
-    let score = 0
+    let score = 25
+    if (skills.length >= 8) score += 24
+    else if (skills.length >= 6) score += 18
+    else if (skills.length >= 4) score += 12
+    else score += skills.length * 3
 
-    // 有技能 (30分)
-    score += 30
-
-    // 技能数量 (30分)
-    if (skills.length >= 10) {
-      score += 30
-    } else if (skills.length >= 5) {
-      score += 20
-    } else {
-      score += skills.length * 4
-    }
-
-    // 技能多样性 (20分)
-    const categories = new Set(skills.map(s => s.category))
-    score += Math.min(categories.size * 5, 20)
-
-    // 技能等级分布 (20分)
-    const levels = skills.map(s => s.level)
-    const hasExpert = levels.some(level => level >= 90)  // expert level
-    const hasAdvanced = levels.some(level => level >= 80 && level < 90)  // advanced level
-    
-    if (hasExpert) score += 10
-    if (hasAdvanced) score += 10
-
+    score += Math.min(new Set(skills.map((s) => s.category.trim()).filter(Boolean)).size * 6, 24)
+    score += Math.min(skills.filter((s) => s.level >= 80).length * 4, 16)
+    if (skills.every((s) => s.name.trim().length >= 2)) score += 11
     return Math.min(score, 100)
   }
 
-  /**
-   * 评分项目经验 (满分100)
-   */
   private static scoreProjects(data: ResumeData): number {
-    const { projects } = data
-    
-    if (projects.length === 0) return 0
+    const items = data.projects
+    if (items.length === 0) return 0
 
-    let score = 0
+    let score = 26 + Math.min(items.length * 9, 18)
+    let detail = 0
 
-    // 有项目经验 (30分)
-    score += 30
+    items.forEach((project) => {
+      let s = 0
+      if (project.name?.trim()) s += 2
+      if (project.description?.trim()) s += project.description.trim().length >= 24 ? 4 : 2
+      if (project.technologies.length >= 3) s += 3
+      else if (project.technologies.length > 0) s += 1
+      if (project.startDate?.trim()) s += 1
+      if (project.endDate?.trim()) s += 1
+      if (project.url?.trim()) s += URL_PATTERN.test(project.url.trim()) ? 2 : 1
 
-    // 项目数量 (20分)
-    score += Math.min(projects.length * 5, 20)
-
-    // 项目质量 (50分)
-    projects.forEach(proj => {
-      let projScore = 0
-
-      if (proj.name) projScore += 2
-      if (proj.description) projScore += 3
-      if (proj.technologies && proj.technologies.length > 0) {
-        projScore += Math.min(proj.technologies.length, 3)
-      }
-      if (proj.startDate) projScore += 1
-      if (proj.url) projScore += 1
-      if (proj.highlights && proj.highlights.length > 0) {
-        projScore += Math.min(proj.highlights.length, 3)
-      }
-
-      score += Math.min(projScore, 10)
+      const lines = project.highlights.filter((line) => line.trim())
+      if (lines.length >= 3) s += 4
+      else if (lines.length >= 2) s += 2
+      s += Math.min(lines.filter((line) => this.isStrongBullet(line)).length * 2, 8)
+      detail += Math.min(s, 22)
     })
 
+    score += Math.min(detail, 56)
     return Math.min(score, 100)
   }
 
-  /**
-   * 生成改进建议
-   */
-  private static generateSuggestions(data: ResumeData, scores: any): Suggestion[] {
+  private static generateSuggestions(data: ResumeData, scores: ScoreResult['scores']): Suggestion[] {
     const suggestions: Suggestion[] = []
+    const summary = data.personalInfo.summary?.trim() ?? ''
 
-    // 个人信息建议
-    if (!data.personalInfo.name) {
-      suggestions.push({
-        type: 'error',
-        category: 'personalInfo',
-        title: '缺少姓名',
-        description: '请填写您的姓名，这是简历最基本的信息',
-        priority: 5,
-        impact: 15
-      })
+    if (!data.personalInfo.name?.trim()) suggestions.push({ type: 'error', category: 'personalInfo', title: '缺少姓名', description: '请先填写姓名，确保招聘方能快速识别候选人身份。', priority: 5, impact: 15 })
+    if (!EMAIL_PATTERN.test(data.personalInfo.email?.trim() ?? '')) suggestions.push({ type: 'error', category: 'personalInfo', title: '邮箱格式不完整', description: '建议填写规范邮箱地址，避免招聘方无法联系到你。', priority: 5, impact: 12 })
+
+    if (summary.length < 60) {
+      suggestions.push({ type: 'warning', category: 'personalInfo', title: '个人简介偏短', description: '建议用 80-200 字概括年限、核心技术、代表成果和目标方向。', priority: 4, impact: 10 })
+    } else if (!this.containsMetric(summary) && !this.containsResult(summary)) {
+      suggestions.push({ type: 'info', category: 'personalInfo', title: '个人简介缺少成果表达', description: '可补充“性能提升 40%”“交付效率提升 30%”等量化成果，提高说服力。', priority: 3, impact: 6 })
     }
 
-    if (!data.personalInfo.title) {
-      suggestions.push({
-        type: 'error',
-        category: 'personalInfo',
-        title: '缺少职位',
-        description: '请填写您的目标职位或当前职位',
-        priority: 5,
-        impact: 15
-      })
-    }
-
-    if (!data.personalInfo.summary || data.personalInfo.summary.length < 50) {
-      suggestions.push({
-        type: 'warning',
-        category: 'personalInfo',
-        title: '个人简介过短',
-        description: '建议个人简介在50-300字之间，突出您的核心优势',
-        priority: 4,
-        impact: 10
-      })
-    }
-
-    // 工作经历建议
     if (data.experience.length === 0) {
-      suggestions.push({
-        type: 'error',
-        category: 'experience',
-        title: '缺少工作经历',
-        description: '添加工作经历可以大幅提升简历质量',
-        priority: 5,
-        impact: 30
-      })
+      suggestions.push({ type: 'error', category: 'experience', title: '缺少工作经历', description: '工作经历是社招简历的核心模块，建议至少补充 1 段完整经历。', priority: 5, impact: 30 })
     } else {
-      data.experience.forEach((exp, i) => {
-        if (!exp.description || exp.description.length === 0) {
-          suggestions.push({
-            type: 'warning',
-            category: 'experience',
-            title: `第${i + 1}个工作经历缺少描述`,
-            description: '详细描述您的工作内容和成果，建议3-5条',
-            priority: 4,
-            impact: 8
-          })
-        }
+      const weakExperiences = data.experience.filter((exp) => {
+        const lines = exp.description.filter((line) => line.trim())
+        return lines.length < 2 || !lines.some((line) => this.containsMetric(line) || this.containsResult(line))
       })
+      if (weakExperiences.length > 0) suggestions.push({ type: 'warning', category: 'experience', title: '部分工作经历缺少结果导向表述', description: '建议每段经历至少写 3 条内容，并尽量补充指标、效率提升或业务结果。', priority: 5, impact: 18 })
+      if (data.experience.flatMap((exp) => exp.description).some((line) => this.isWeakBullet(line))) suggestions.push({ type: 'info', category: 'experience', title: '经历描述偏泛', description: '少用“负责相关工作、参与项目开发”这类空泛表达，改成具体动作 + 结果。', priority: 3, impact: 8 })
     }
 
-    // 教育背景建议
-    if (data.education.length === 0) {
-      suggestions.push({
-        type: 'warning',
-        category: 'education',
-        title: '缺少教育背景',
-        description: '添加教育背景信息可以提升简历完整度',
-        priority: 4,
-        impact: 20
-      })
-    }
+    if (data.education.length === 0) suggestions.push({ type: 'warning', category: 'education', title: '缺少教育背景', description: '建议至少补充学校、专业、学历和时间范围，增强简历完整度。', priority: 4, impact: 14 })
+    if (data.skills.length < 5) suggestions.push({ type: 'info', category: 'skills', title: '技能模块还不够丰富', description: '建议保留 6-10 个与目标岗位最相关的核心技能，避免只写基础工具。', priority: 2, impact: 6 })
+    if (data.skills.length > 0 && new Set(data.skills.map((s) => s.category.trim()).filter(Boolean)).size < 2) suggestions.push({ type: 'info', category: 'skills', title: '技能分类层次不明显', description: '可以按“语言 / 框架 / 工程化 / 业务能力”分组，增强招聘方扫读效率。', priority: 2, impact: 5 })
 
-    // 技能建议
-    if (data.skills.length === 0) {
-      suggestions.push({
-        type: 'warning',
-        category: 'skills',
-        title: '缺少技能信息',
-        description: '添加专业技能可以展示您的能力',
-        priority: 3,
-        impact: 15
-      })
-    } else if (data.skills.length < 5) {
-      suggestions.push({
-        type: 'info',
-        category: 'skills',
-        title: '技能数量较少',
-        description: '建议添加5-10个相关技能',
-        priority: 2,
-        impact: 5
-      })
-    }
-
-    // 项目经验建议
     if (data.projects.length === 0) {
-      suggestions.push({
-        type: 'info',
-        category: 'projects',
-        title: '缺少项目经验',
-        description: '添加项目经验可以展示您的实践能力',
-        priority: 3,
-        impact: 15
+      suggestions.push({ type: 'warning', category: 'projects', title: '缺少项目经验', description: '建议补充 1-2 个能代表岗位能力的项目，尤其是校招或技术岗位。', priority: 4, impact: 15 })
+    } else {
+      const weakProjects = data.projects.filter((project) => {
+        const lines = project.highlights.filter((line) => line.trim())
+        return lines.length < 2 || !lines.some((line) => this.containsMetric(line) || this.containsResult(line))
       })
+      if (weakProjects.length > 0) suggestions.push({ type: 'warning', category: 'projects', title: '项目亮点不够突出', description: '建议突出你的角色、技术方案和业务收益，最好补充可量化结果。', priority: 4, impact: 12 })
     }
 
-    // 按优先级和影响力排序
-    return suggestions.sort((a, b) => {
-      if (a.priority !== b.priority) {
-        return b.priority - a.priority
-      }
-      return b.impact - a.impact
-    })
+    if (scores.experience >= 85 && scores.projects >= 80 && scores.personalInfo >= 85) suggestions.push({ type: 'success', category: 'general', title: '简历核心模块质量较好', description: '你的核心内容已经具备较强投递基础，下一步可针对目标 JD 做关键词定制。', priority: 1, impact: 3 })
+
+    return suggestions.sort((a, b) => (a.priority !== b.priority ? b.priority - a.priority : b.impact - a.impact))
   }
 
-  /**
-   * 计算完成度
-   */
   private static calculateCompleteness(data: ResumeData): number {
     let total = 0
     let completed = 0
-
-    // 个人信息 (7项)
-    const personalFields = ['name', 'title', 'email', 'phone', 'location', 'website', 'summary']
-    total += personalFields.length
-    completed += personalFields.filter(f => 
-      data.personalInfo[f as keyof typeof data.personalInfo]
-    ).length
-
-    // 工作经历
-    total += 1
-    if (data.experience.length > 0) completed += 1
-
-    // 教育背景
-    total += 1
-    if (data.education.length > 0) completed += 1
-
-    // 技能
-    total += 1
-    if (data.skills.length > 0) completed += 1
-
-    // 项目经验
-    total += 1
-    if (data.projects.length > 0) completed += 1
-
+    const personalChecks = [
+      Boolean(data.personalInfo.name?.trim()),
+      Boolean(data.personalInfo.title?.trim()),
+      EMAIL_PATTERN.test(data.personalInfo.email?.trim() ?? ''),
+      Boolean(data.personalInfo.phone?.trim()),
+      Boolean(data.personalInfo.location?.trim()),
+      Boolean(data.personalInfo.summary?.trim()),
+      (data.personalInfo.summary?.trim().length ?? 0) >= 60
+    ]
+    total += personalChecks.length
+    completed += personalChecks.filter(Boolean).length
+    total += 5
+    completed += data.experience.length > 0 ? 1 : 0
+    completed += data.experience.every((exp) => exp.description.filter((line) => line.trim()).length >= 2) ? 1 : 0
+    completed += data.education.length > 0 ? 1 : 0
+    completed += data.skills.length >= 4 ? 1 : 0
+    completed += data.projects.length > 0 ? 1 : 0
     return Math.round((completed / total) * 100)
   }
 
-  /**
-   * 获取等级
-   */
   private static getGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
     if (score >= 90) return 'A'
     if (score >= 80) return 'B'
@@ -428,30 +251,35 @@ export class ResumeScorer {
     return 'F'
   }
 
-  /**
-   * 获取等级描述
-   */
   static getGradeDescription(grade: string): string {
     const descriptions = {
-      'A': '优秀 - 您的简历质量很高，可以直接投递',
-      'B': '良好 - 简历质量不错，稍作优化会更好',
-      'C': '中等 - 简历基本完整，但还有提升空间',
-      'D': '及格 - 简历需要进一步完善',
-      'F': '不及格 - 简历信息不完整，需要大幅改进'
+      A: '优秀 - 已具备较强投递竞争力，可进一步做 JD 定制',
+      B: '良好 - 核心信息完整，补强成果表达会更有说服力',
+      C: '中等 - 内容基本齐全，但结果导向与亮点仍可增强',
+      D: '及格 - 结构可用，但多处内容还比较泛，建议继续补充',
+      F: '待完善 - 关键信息缺失较多，建议先补全核心模块'
     }
     return descriptions[grade as keyof typeof descriptions] || ''
   }
 
-  /**
-   * 获取建议类型的图标
-   */
   static getSuggestionIcon(type: string): string {
-    const icons = {
-      'error': '❌',
-      'warning': '⚠️',
-      'info': 'ℹ️',
-      'success': '✅'
-    }
+    const icons = { error: '❌', warning: '⚠️', info: 'ℹ️', success: '✅' }
     return icons[type as keyof typeof icons] || 'ℹ️'
+  }
+
+  private static containsMetric(text: string): boolean { return METRIC_PATTERN.test(text) }
+  private static containsResult(text: string): boolean { return RESULT_PATTERN.test(text) }
+  private static containsActionVerb(text: string): boolean { return ACTION_VERBS.some((verb) => text.includes(verb)) }
+  private static isWeakBullet(text: string): boolean { return WEAK_PHRASES.some((phrase) => text.includes(phrase)) }
+
+  private static isStrongBullet(text: string): boolean {
+    const normalized = text.trim()
+    if (normalized.length < 18 || this.isWeakBullet(normalized)) return false
+    let score = 0
+    if (this.containsActionVerb(normalized)) score += 1
+    if (this.containsMetric(normalized)) score += 1
+    if (this.containsResult(normalized)) score += 1
+    if (normalized.length >= 28) score += 1
+    return score >= 2
   }
 }

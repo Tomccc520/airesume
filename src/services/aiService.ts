@@ -13,6 +13,7 @@
 
 import { AIConfig } from '@/components/AIConfigModal'
 import { getAIProviderLabel } from '@/domain/ai/aiStatusPresentation'
+import { parseAISuggestions } from '@/domain/ai/suggestionParser'
 
 const AI_CONFIG_STORAGE_KEY = 'ai-config'
 const AI_CONFIG_VALIDATION_STORAGE_KEY = 'ai-config-validation'
@@ -688,7 +689,7 @@ export class AIService {
     try {
       // 如果提供了流式回调，使用流式请求
       if (onStream) {
-        return await this.generateStreamingSuggestions(type, systemPrompts[type], userMessage, onStream)
+        return await this.generateStreamingSuggestions(type, systemPrompts[type], userMessage, onStream, currentContent)
       }
 
       // 使用内部API代理路由，避免CORS问题
@@ -729,8 +730,11 @@ export class AIService {
       }
 
       // 尝试解析AI返回的多个建议
-      const suggestions = this.parseSuggestions(data.content)
-      return suggestions.length > 0 ? suggestions : [data.content]
+      const suggestions = parseAISuggestions(data.content, { originalContent: currentContent })
+      if (suggestions.length === 0) {
+        throw new Error('AI响应格式错误：未生成有效建议')
+      }
+      return suggestions
 
     } catch (error) {
       console.error('AI API调用失败:', error)
@@ -803,6 +807,7 @@ export class AIService {
     systemPrompt: string,
     userMessage: string,
     onStream: (content: string) => void,
+    originalContent?: string,
     onProgress?: (progress: number) => void,
     abortSignal?: AbortSignal
   ): Promise<string[]> {
@@ -902,91 +907,11 @@ export class AIService {
       reader.releaseLock()
     }
 
-    return this.parseSuggestions(fullContent)
-  }
-
-  /**
-   * 解析AI返回的建议内容
-   * 满足需求 5.2: 生成至少 5 个不同风格的版本供用户选择
-   * 支持多种格式的内容解析：
-   * - 数字列表 (1. 2. 或 1、 2、)
-   * - Markdown 列表 (- * •)
-   * - 换行分隔
-   * - 双换行分隔的段落
-   */
-  private parseSuggestions(content: string): string[] {
-    // 清理内容，移除多余的空行
-    const cleanContent = content.trim().replace(/\n\s*\n\s*\n/g, '\n\n')
-    
-    let suggestions: string[] = []
-    
-    // 方法1: 尝试按数字列表分割 (1. 2. 或 1、 2、 或 (1) (2))
-    const numberPattern = /(?:^|\n)\s*(?:\(?\d+[.、)]\s*|\d+[)]\s*)/g
-    const numberMatches = Array.from(cleanContent.matchAll(numberPattern))
-    
-    if (numberMatches.length >= 2) {
-      for (let i = 0; i < numberMatches.length; i++) {
-        const currentMatch = numberMatches[i]
-        const nextMatch = numberMatches[i + 1]
-        
-        const startIndex = currentMatch.index! + currentMatch[0].length
-        const endIndex = nextMatch ? nextMatch.index! : cleanContent.length
-        
-        const suggestion = cleanContent.slice(startIndex, endIndex).trim()
-        if (suggestion && suggestion.length > 5) {
-          suggestions.push(suggestion)
-        }
-      }
-      
-      if (suggestions.length >= 2) {
-        return suggestions
-      }
+    const suggestions = parseAISuggestions(fullContent, { originalContent })
+    if (suggestions.length === 0) {
+      throw new Error('AI响应格式错误：未生成有效建议')
     }
-    
-    // 方法2: 尝试按 Markdown 列表分割 (- * •)
-    const listPattern = /(?:^|\n)\s*[-*•]\s+/g
-    const listMatches = Array.from(cleanContent.matchAll(listPattern))
-    
-    if (listMatches.length >= 2) {
-      suggestions = []
-      for (let i = 0; i < listMatches.length; i++) {
-        const currentMatch = listMatches[i]
-        const nextMatch = listMatches[i + 1]
-        
-        const startIndex = currentMatch.index! + currentMatch[0].length
-        const endIndex = nextMatch ? nextMatch.index! : cleanContent.length
-        
-        const suggestion = cleanContent.slice(startIndex, endIndex).trim()
-        if (suggestion && suggestion.length > 5) {
-          suggestions.push(suggestion)
-        }
-      }
-      
-      if (suggestions.length >= 2) {
-        return suggestions
-      }
-    }
-    
-    // 方法3: 尝试按双换行分割（段落）
-    const paragraphs = cleanContent.split(/\n\n+/)
-      .map(p => p.trim())
-      .filter(p => p && p.length > 10)
-    
-    if (paragraphs.length >= 2) {
-      return paragraphs.map(p => p.replace(/^[-*•\d.、)\s]+/, '').trim())
-    }
-    
-    // 方法4: 尝试按单换行分割，过滤空行和短行
-    const lines = cleanContent.split('\n')
-      .map(line => line.trim())
-      .filter(line => line && line.length > 10)
-    
-    if (lines.length >= 2) {
-      return lines.map(line => line.replace(/^[-*•\d.、)\s]+/, '').trim())
-    }
-
-    // 如果无法分割，返回整个内容作为单个建议
-    return cleanContent.length > 0 ? [cleanContent] : []
+    return suggestions
   }
 
   /**

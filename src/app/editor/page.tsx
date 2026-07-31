@@ -11,7 +11,7 @@
 
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import React, { Suspense, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
@@ -251,11 +251,11 @@ function getEditorEntryPreset(
         general: {
           entryScenario: 'general',
           section: 'personal',
-          panel: 'template',
+          panel: null,
           template: standardTemplate,
           aiSection: null,
           toastTitle: 'General delivery entry applied',
-          toastDescription: 'The template selector is opened first so you can choose a delivery-ready layout.'
+          toastDescription: 'Personal details are focused first. You can switch templates whenever needed.'
         }
       }
     : {
@@ -289,11 +289,11 @@ function getEditorEntryPreset(
         general: {
           entryScenario: 'general',
           section: 'personal',
-          panel: 'template',
+          panel: null,
           template: standardTemplate,
           aiSection: null,
           toastTitle: '已打开通用投递入口',
-          toastDescription: '已先为你打开模板选择器，方便直接挑选投递版式。'
+          toastDescription: '已定位个人信息，可直接开始编辑；模板可随时切换。'
         }
       }
 
@@ -358,17 +358,7 @@ const ExportPreviewDialog = dynamic(() => import('@/components/ExportPreviewDial
  * 简历编辑器页面 - 简洁版
  * 采用与首页一致的简约设计风格
  */
-export default function EditorPage() {
-  /**
-   * 编辑器调试日志
-   * 仅在开发环境输出，避免生产环境污染控制台
-   */
-  const logEditorDebug = useCallback((...args: unknown[]) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(...args)
-    }
-  }, [])
-
+function EditorPageContent() {
   const [showUnifiedAI, setShowUnifiedAI] = useState(false)
   const [preferredAISection, setPreferredAISection] = useState<AISection | null>(null)
   const [showAIConfig, setShowAIConfig] = useState(false)
@@ -400,7 +390,7 @@ export default function EditorPage() {
   
   // 新增状态
   const [showExportDialog, setShowExportDialog] = useState(false)
-  const [previewZoom, setPreviewZoom] = useState(100)
+  const [previewZoom, setPreviewZoom] = useState(60)
   const [currentPage, setCurrentPage] = useState(1)
   const totalPages = 1
   const searchParams = useSearchParams()
@@ -642,8 +632,7 @@ export default function EditorPage() {
     jsonExportSuccessMessage: t.editor.messages.jsonExportSuccess,
     exportErrorMessage: t.editor.messages.exportError,
     onSuccess: showSuccess,
-    onError: showError,
-    logger: logEditorDebug
+    onError: showError
   })
 
   // 实时预览状态
@@ -789,10 +778,13 @@ export default function EditorPage() {
    */
   const handleImportedResumeData = useCallback((nextResumeData: ResumeData) => {
     setResumeData(nextResumeData)
-    void saveResumeData(nextResumeData).catch((error) => {
-      logEditorDebug('导入后的数据持久化失败:', error)
+    void saveResumeData(nextResumeData).catch(() => {
+      showError(
+        locale === 'zh' ? '导入内容未保存' : 'Imported data was not saved',
+        locale === 'zh' ? '内容已载入编辑器，但本地持久化失败，请检查浏览器存储权限。' : 'The data is loaded, but local persistence failed. Check browser storage permissions.'
+      )
     })
-  }, [logEditorDebug, saveResumeData])
+  }, [locale, saveResumeData, showError])
 
   /**
    * 从本地存储加载简历数据 - 增强错误恢复
@@ -805,8 +797,6 @@ export default function EditorPage() {
         // 验证数据完整性，确保至少有基本的个人信息
         if (parsedData?.personalInfo?.name) {
           setResumeData(parsedData)
-        } else {
-          logEditorDebug('本地存储数据不完整，使用默认数据')
         }
       }
     } catch (error) {
@@ -824,7 +814,7 @@ export default function EditorPage() {
         console.error('备份恢复也失败:', backupError)
       }
     }
-  }, [showInfo, t, logEditorDebug])
+  }, [showInfo, t])
 
   /**
    * 保存当前模板到本地存储
@@ -858,7 +848,6 @@ export default function EditorPage() {
     setResumeData(prevData => {
       // 确保至少有基本的个人信息结构
       if (!prevData.personalInfo || !prevData.personalInfo.name) {
-        logEditorDebug('[编辑器提示] 检测到简历数据不完整，使用默认数据')
         return {
           personalInfo: {
             name: '请填写姓名',
@@ -885,7 +874,7 @@ export default function EditorPage() {
     setCurrentTemplate(template)
     
     setShowTemplateSelector(false)
-  }, [logEditorDebug])
+  }, [])
 
   /**
    * 规范化编辑模块到 AI 模块
@@ -1067,14 +1056,13 @@ export default function EditorPage() {
         locale === 'zh' ? '本地文件已加载' : 'Local file loaded',
         locale === 'zh' ? '简历内容已更新到当前编辑器。' : 'The resume content was loaded into the current editor.'
       )
-    } catch (error) {
-      logEditorDebug('加载本地文件失败:', error)
+    } catch {
       showError(
         locale === 'zh' ? '读取失败' : 'Load failed',
         locale === 'zh' ? '请检查文件内容后重试。' : 'Please verify the file and retry.'
       )
     }
-  }, [locale, logEditorDebug, showError, showSuccess])
+  }, [locale, showError, showSuccess])
 
   /**
    * 处理编辑器模块切换
@@ -1229,11 +1217,11 @@ export default function EditorPage() {
   return (
       <StyleProvider>
           <TemplateStyleSync currentTemplate={currentTemplate} />
-          <div className="h-screen bg-slate-50 text-gray-900 flex flex-col overflow-hidden">
+          <div className="editor-workspace-surface flex h-screen flex-col overflow-hidden text-slate-900">
             {!isFullscreen && <Header />}
 
           {/* 主要内容区域 - 固定高度，禁止页面滚动 */}
-          <main className="flex-1 flex flex-col py-4 lg:py-6 overflow-hidden min-h-0">
+          <main className="flex min-h-0 flex-1 flex-col overflow-hidden py-3 lg:py-4">
             {/* 顶部工具栏 */}
             <EditorToolbar
               resumeData={resumeData}
@@ -1251,7 +1239,7 @@ export default function EditorPage() {
 
             {/* 编辑器和预览区域 - 使用三栏布局 */}
             <div 
-              className="flex-1 flex flex-col mx-4 mt-3 sm:mx-6 lg:mx-8 overflow-hidden min-h-0"
+              className="mx-3 mt-3 flex min-h-0 flex-1 flex-col overflow-hidden sm:mx-5 lg:mx-6"
               {...swipeHandlers}
             >
               {/* 移动端切换按钮 */}
@@ -1326,7 +1314,7 @@ export default function EditorPage() {
               </div>
 
               {/* 三栏布局 - 桌面端 (>=1280px) */}
-              <div className="hidden xl:flex flex-1 min-h-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div className="resume-paper-shadow hidden min-h-0 flex-1 overflow-hidden rounded-[20px] border border-slate-200/90 bg-white/95 xl:flex">
                 <ThreeColumnLayout
                   className="h-full w-full"
                   leftPanel={
@@ -1373,15 +1361,15 @@ export default function EditorPage() {
                       </div>
                     </PreviewPanel>
                   }
-                  defaultWidths={{ left: 15, center: 45, right: 40 }}
-                  storageKey="editor-column-widths"
+                  defaultWidths={{ left: 17, center: 43, right: 40 }}
+                  storageKey="editor-column-widths-v2"
                 />
               </div>
 
               {/* 双栏/单栏布局 - 平板和移动端 (<1280px) */}
               <div className="xl:hidden flex-1 flex flex-col lg:flex-row gap-4 min-h-0 overflow-hidden">
                 {/* 左侧编辑器 */}
-                <div className={`${isPreviewMode ? 'hidden lg:flex' : 'flex'} flex-1 min-h-0 bg-white border border-gray-200 rounded-xl overflow-hidden flex-col`}>
+                <div className={`${isPreviewMode ? 'hidden lg:flex' : 'flex'} min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-slate-200 bg-white`}>
                   <div className="flex-1 overflow-y-auto custom-scrollbar">
                     <ResumeEditor
                       resumeData={resumeData}
@@ -1396,7 +1384,7 @@ export default function EditorPage() {
                 </div>
 
                 {/* 右侧预览 */}
-                <div className={`${isPreviewMode ? 'flex' : 'hidden lg:flex'} flex-1 min-h-0 lg:w-1/2 bg-gray-50 border border-gray-200 rounded-xl overflow-hidden flex-col`}>
+                <div className={`${isPreviewMode ? 'flex' : 'hidden lg:flex'} min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-slate-200 bg-slate-50 lg:w-1/2`}>
                   <PreviewPanel
                     resumeData={previewData}
                     template={currentTemplate}
@@ -1626,5 +1614,26 @@ export default function EditorPage() {
 
         </div>
       </StyleProvider>
+  )
+}
+
+/**
+ * 渲染带路由参数加载边界的编辑器页面
+ * 避免生产预渲染阶段直接读取客户端查询参数。
+ */
+export default function EditorPage() {
+  return (
+    <Suspense
+      fallback={(
+        <div className="editor-workspace-surface flex min-h-screen items-center justify-center">
+          <div
+            className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#2554ff]"
+            aria-label="正在加载编辑器"
+          />
+        </div>
+      )}
+    >
+      <EditorPageContent />
+    </Suspense>
   )
 }

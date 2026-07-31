@@ -1,7 +1,11 @@
 /**
+ * @copyright Tomda (https://www.tomda.top)
+ * @copyright UIED技术团队 (https://fsuied.com)
+ * @author UIED技术团队
+ * @createDate 2026-08-01
+ *
  * ScrollFadeIn 组件
- * 使用 Intersection Observer API 实现滚动触发的渐入动画
- * 性能优化：仅在元素进入视口时触发动画
+ * 使用 Intersection Observer API 实现滚动触发的轻位移动画。
  */
 
 'use client';
@@ -55,7 +59,7 @@ export interface ScrollFadeInProps {
 export default function ScrollFadeIn({
   children,
   direction = 'up',
-  distance = 30,
+  distance = 16,
   duration = 0.6,
   delay = 0,
   once = true,
@@ -72,17 +76,17 @@ export default function ScrollFadeIn({
   const getInitialPosition = () => {
     switch (direction) {
       case 'up':
-        return { y: distance, opacity: 0 };
+        return { y: distance, opacity: 1 };
       case 'down':
-        return { y: -distance, opacity: 0 };
+        return { y: -distance, opacity: 1 };
       case 'left':
-        return { x: distance, opacity: 0 };
+        return { x: distance, opacity: 1 };
       case 'right':
-        return { x: -distance, opacity: 0 };
+        return { x: -distance, opacity: 1 };
       case 'fade':
-        return { opacity: 0 };
+        return { opacity: 1 };
       default:
-        return { y: distance, opacity: 0 };
+        return { y: distance, opacity: 1 };
     }
   };
 
@@ -128,7 +132,7 @@ export function StaggerFadeIn({
   children,
   staggerDelay = 0.1,
   direction = 'up',
-  distance = 30,
+  distance = 16,
   duration = 0.6,
   once = true,
   threshold = 0.1,
@@ -181,7 +185,7 @@ export function StaggerFadeIn({
               key={index}
               variants={{
                 hidden: {
-                  opacity: 0,
+                  opacity: 1,
                   ...getInitialPosition(),
                 },
                 visible: {
